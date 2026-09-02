@@ -49,7 +49,8 @@ function surface(w, h){
   return { c, x: c.getContext('2d') };
 }
 const GLOW  = surface(CW, CH);
-const SPLIT_R = surface(CW, CH), SPLIT_C = surface(CW, CH);
+const SW = CW >> 1, SH = CH >> 1;
+const SPLIT_R = surface(SW, SH), SPLIT_C = surface(SW, SH);
 const BLUR1 = surface(CW >> 1, CH >> 1);
 const BLUR2 = surface(CW >> 2, CH >> 2);
 let GC = null;                          // aktiver Glow-Kontext waehrend der Szene
@@ -1043,14 +1044,29 @@ function drawSprBig(s, x, y, k){
   if (GC && s.g) GC.drawImage(s.g, px, py, w, h);
 }
 
-/* Malt einen weichen Lichtfleck in die Glow-Ebene (Geschosse, Funken, Kerne). */
+/* Lichtflecken werden je Farbe einmal vorgerendert und danach nur noch
+   skaliert gezeichnet — ein Farbverlauf pro Partikel und Frame war mit
+   Abstand der teuerste Posten in der Darstellung.                            */
+const GLOW_CACHE = new Map();
+const GLOW_R = 24;
+function glowSprite(color){
+  let c = GLOW_CACHE.get(color);
+  if (!c){
+    const s = surface(GLOW_R*2, GLOW_R*2);
+    const g = s.x.createRadialGradient(GLOW_R, GLOW_R, 0, GLOW_R, GLOW_R, GLOW_R);
+    g.addColorStop(0, rgba(color, 1));
+    g.addColorStop(0.45, rgba(color, 0.35));
+    g.addColorStop(1, rgba(color, 0));
+    s.x.fillStyle = g; s.x.fillRect(0, 0, GLOW_R*2, GLOW_R*2);
+    c = s.c; GLOW_CACHE.set(color, c);
+  }
+  return c;
+}
 function glowDot(x, y, r, color, alpha = 1){
-  if (!GC) return;
-  const g = GC.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, rgba(color, alpha));
-  g.addColorStop(1, rgba(color, 0));
-  GC.fillStyle = g;
-  GC.beginPath(); GC.arc(x, y, r, 0, TAU); GC.fill();
+  if (!GC || alpha <= 0.01) return;
+  GC.globalAlpha = alpha;
+  GC.drawImage(glowSprite(color), x - r, y - r, r*2, r*2);
+  GC.globalAlpha = 1;
 }
 function glowLine(x0, y0, x1, y1, w, color, alpha = 1){
   if (!GC) return;
@@ -1104,13 +1120,13 @@ function iconFor(name, color){
 const CHARS = [
   {
     id:'chicken', name:'GOCKEL', title:'Das magische Huhn',
-    spr:SPR.gockel, hp:100, speed:76, color:'#ffb02e', dps:27,
+    spr:SPR.gockel, hp:108, speed:83, color:'#ffb02e', dps:27,
     weapon:'fire',
     blurb:['Feuerstab: langsame,','explodierende Kugeln','mit Flaechenschaden.'],
   },
   {
     id:'knight', name:'RITTER', title:'Vergessene Wache',
-    spr:SPR.ritter, hp:145, speed:64, color:'#5b93e8', dps:23,
+    spr:SPR.ritter, hp:150, speed:71, color:'#5b93e8', dps:23,
     weapon:'blades',
     blurb:['Kreuzklingen: Salve','rundum, durchbohrend.','Zaeh, aber langsam.'],
   },
@@ -1122,7 +1138,7 @@ const CHARS = [
   },
   {
     id:'revenant', name:'REVENANT', title:'Der Wiederkehrer',
-    spr:SPR.revenant, hp:112, speed:80, color:'#66f5c8', dps:26,
+    spr:SPR.revenant, hp:104, speed:78, color:'#66f5c8', dps:26,
     weapon:'scythe', cost:400,
     blurb:['Sensenwelle: breite','Sichel, durchschlaegt','ganze Reihen.'],
   },
@@ -1164,12 +1180,12 @@ let choices = [], introT = 0, endT = 0, orbitAngle = 0, orbitTick = 0, auraTick 
 const view = { zoom:1, tz:1, cx:CW/2, cy:CH/2, tx:CW/2, ty:CH/2, lock:0, punch:0, tilt:0 };
 
 const STAGES = [
-  { name:'GORGOK',    epithet:'DER STEINWAECHTER', bg:'ruins',  hp:560,  minion:'bat',
+  { name:'GORGOK',    epithet:'DER STEINWAECHTER', bg:'ruins',  hp:520,  minion:'bat',
     spawn:3.0, tint:'#8a8f9c' },
-  { name:'SERAPHINE', epithet:'DIE ERZENGELIN',    bg:'heaven', hp:1250, minion:'imp',
-    spawn:2.6, tint:'#f2c14e' },
-  { name:'ABADDON',   epithet:'DIE APOKALYPSE',    bg:'hell',   hp:2400, minion:'skull',
-    spawn:2.2, tint:'#c8342f' },
+  { name:'SERAPHINE', epithet:'DIE ERZENGELIN',    bg:'heaven', hp:1020, minion:'imp',
+    spawn:2.8, tint:'#f2c14e' },
+  { name:'ABADDON',   epithet:'DIE APOKALYPSE',    bg:'hell',   hp:1850, minion:'skull',
+    spawn:2.4, tint:'#c8342f' },
 ];
 
 let best = (() => {
@@ -1283,12 +1299,17 @@ function banner(title, sub, col, life = 2.2){
 }
 
 /* ------------------------------- Partikel ------------------------------- */
+const PART_CAP = 360;
+function capParts(){
+  if (parts.length > PART_CAP) parts.splice(0, parts.length - PART_CAP);
+}
 function burst(x, y, n, col, spd = 60, life = 0.4){
   for (let i = 0; i < n; i++){
     const a = rnd(0, TAU), s = rnd(spd*0.3, spd);
     parts.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life, max:life, col,
                  size: Math.random() < 0.3 ? 2 : 1 });
   }
+  capParts();
 }
 function floatText(x, y, txt, col){
   texts.push({ x, y, txt, col, life:0.7 });
@@ -1329,10 +1350,10 @@ function fireWeapon(){
       const spread = (i - (n-1)/2) * 0.20;
       shoot(p.x, p.y - 2, aim + spread, {
         spd: evo ? 130 : 150, r: evo ? 4 : 3,
-        dmg: (evo ? 17 : 13)*s.dmg, pierce:s.pierce, life:1.6,
+        dmg: (evo ? 17 : 13)*s.dmg, pierce: 1 + s.pierce, life:1.6,
         col:'#ff8a3c', kind:'fire', trail:1, ignite:evo });
     }
-    p.fireT = 0.78 * s.cd;
+    p.fireT = 0.70 * s.cd;
   } else if (p.base.weapon === 'blades'){
     const n = 4 + s.proj;
     for (let i = 0; i < n; i++){
@@ -1343,10 +1364,10 @@ function fireWeapon(){
     }
     p.fireT = 0.68 * s.cd;
   } else if (p.base.weapon === 'scythe'){
-    const n = 1 + Math.floor(s.proj/2);
+    const n = 1 + s.proj;
     for (let i = 0; i < n; i++){
-      shoot(p.x, p.y, aim + (i - (n-1)/2)*0.55, {
-        spd:118, r:8, dmg:(evo ? 26 : 21)*s.dmg,
+      shoot(p.x, p.y, aim + (i - (n-1)/2)*0.42, {
+        spd:118, r:8, dmg:(evo ? 24 : 19)*s.dmg,
         pierce: 99, life: evo ? 2.6 : 1.5,
         col:'#66f5c8', kind:'scythe', boomerang:evo, reap:evo });
     }
@@ -1458,8 +1479,10 @@ function openChest(c){
 }
 
 function explode(x, y, radius, dmg){
-  addDecal(x, y, radius*0.7, 'scorch', '#ff8f3c');
-  burst(x, y, 14, '#ffb03a', 110, 0.4);
+  // Nur groessere Einschlaege hinterlassen eine Spur — sonst matscht der Boden
+  // bei Dauerbeschuss zu und das Backen kostet unnoetig Bildrate.
+  if (radius >= 18 && Math.random() < 0.5) addDecal(x, y, radius*0.7, 'scorch', '#ff8f3c');
+  burst(x, y, 8, '#ffb03a', 110, 0.4);
   parts.push({ ring:true, x, y, r:radius, life:0.2, max:0.2, col:'#ffd23f' });
   shake = Math.max(shake, 2);
   if (dmg <= 0) return;                 // reine Optik (z. B. Meteoreinschlag)
@@ -1482,9 +1505,9 @@ function spawnMinion(kind, elite){
 
   const tier = (1 + stageIdx*0.55 + runTime/95) * (1 + 0.45*loopN);
   const defs = {
-    bat:   { spr:SPR.bat,   hp:14*tier, spd:44, r:5, dmg:7,  xp:5, gore:'#6b4d88' },
-    imp:   { spr:SPR.imp,   hp:22*tier, spd:52, r:5, dmg:9,  xp:7, gore:'#d8433a' },
-    skull: { spr:SPR.skull, hp:30*tier, spd:60, r:5, dmg:11, xp:9, gore:'#bdb7a8' },
+    bat:   { spr:SPR.bat,   hp:14*tier, spd:44, r:5, dmg:5,  xp:5, gore:'#6b4d88' },
+    imp:   { spr:SPR.imp,   hp:22*tier, spd:52, r:5, dmg:7,  xp:7, gore:'#d8433a' },
+    skull: { spr:SPR.skull, hp:30*tier, spd:60, r:5, dmg:9,  xp:9, gore:'#bdb7a8' },
   };
   const d = defs[kind];
   const e = { x, y, vx:0, vy:0, hp:d.hp, maxHp:d.hp, r:d.r, spr:d.spr,
@@ -1521,7 +1544,7 @@ function phaseBreak(b, title, col){
 function makeGorgok(hp){
   return {
     boss:true, name:'GORGOK', x:CW/2, y:64, vx:0, vy:0, hp, maxHp:hp, r:16,
-    spr:SPR.gorgok, dmg:16, flash:0, phase:1, t:0, frame:0, fps:2.2,
+    spr:SPR.gorgok, dmg:13, flash:0, phase:1, t:0, frame:0, fps:2.2,
     tSpread:1.6, tCharge:4.5, tSummon:3.0, chargeState:0, chargeAng:0, chargeT:0,
     ai(dt){
       this.t += dt;
@@ -1556,7 +1579,7 @@ function makeGorgok(hp){
         const n = ph === 2 ? 14 : 9;
         const off = rnd(0, TAU);
         for (let i = 0; i < n; i++)
-          eshoot(this.x, this.y, off + i*TAU/n, 56, 10, 3, '#e0c088');
+          eshoot(this.x, this.y, off + i*TAU/n, 56, 8, 3, '#e0c088');
         this.tSpread = ph === 2 ? 2.0 : 2.8;
         camPunch(0.035); sfx.boom();
       }
@@ -1580,7 +1603,7 @@ const RAINBOW = ['#ff5a5a','#ffb03a','#ffe680','#9be15d','#4ad4f0','#7a9dff','#e
 function makeSeraphine(hp){
   return {
     boss:true, name:'SERAPHINE', x:CW/2, y:56, vx:0, vy:0, hp, maxHp:hp, r:16,
-    spr:SPR.seraphine, dmg:18, flash:0, phase:1, t:0, hover:rnd(0,TAU), frame:0, fps:3.2,
+    spr:SPR.seraphine, dmg:14, flash:0, phase:1, t:0, hover:rnd(0,TAU), frame:0, fps:3.2,
     tBeam:3.0, tFan:2.2, tPort:5.0, tSummon:4.0, beamAng:0,
     ai(dt){
       this.t += dt; this.hover += dt*1.8;
@@ -1610,7 +1633,7 @@ function makeSeraphine(hp){
         for (let i = 0; i < n; i++){
           beams.push({ x:this.x, y:this.y, ang:base + i*TAU/n,
                        spin:(i%2 ? 1 : -1) * (ph === 2 ? 0.55 : 0.38),
-                       warn:0.8, life:2.4, dmg:14, w:2.5,
+                       warn:0.9, life:2.2, dmg:10, w:2.5,
                        col:RAINBOW[i % RAINBOW.length], owner:this });
         }
         this.tBeam = ph === 2 ? 4.6 : 6.0;
@@ -1621,7 +1644,7 @@ function makeSeraphine(hp){
       if (this.tFan <= 0){
         const a = Math.atan2(p.y - this.y, p.x - this.x);
         for (let i = -2; i <= 2; i++)
-          eshoot(this.x, this.y + 6, a + i*0.17, 92, 11, 2, '#fff3a8');
+          eshoot(this.x, this.y + 6, a + i*0.17, 92, 8, 2, '#fff3a8');
         this.tFan = ph === 2 ? 1.5 : 2.3;
       }
 
@@ -1638,7 +1661,7 @@ function makeSeraphine(hp){
 function makeAbaddon(hp){
   return {
     boss:true, name:'ABADDON', x:CW/2, y:62, vx:0, vy:0, hp, maxHp:hp, r:21,
-    spr:SPR.abaddon, dmg:22, flash:0, phase:1, t:0, spiral:0, frame:0, fps:2.6,
+    spr:SPR.abaddon, dmg:17, flash:0, phase:1, t:0, spiral:0, frame:0, fps:2.6,
     tSpiral:0, tMeteor:3.2, tSummon:4.0, tWave:6.0,
     ai(dt){
       this.t += dt;
@@ -1660,7 +1683,7 @@ function makeAbaddon(hp){
         this.spiral += 0.42;
         const arms = ph >= 3 ? 3 : ph === 2 ? 2 : 1;
         for (let k = 0; k < arms; k++)
-          eshoot(this.x, this.y, this.spiral + k*TAU/arms, 62, 12, 3, '#ff6b2c');
+          eshoot(this.x, this.y, this.spiral + k*TAU/arms, 62, 9, 3, '#ff6b2c');
         this.tSpiral = 0.10;
       }
 
@@ -1668,14 +1691,15 @@ function makeAbaddon(hp){
       if (this.tMeteor <= 0){
         const n = 2 + ph;
         for (let i = 0; i < n; i++)
-          meteors.push({ x:rnd(20, CW-20), y:rnd(30, CH-20), warn:1.1, r:22, dmg:20, boom:0 });
+          meteors.push({ x:rnd(20, CW-20), y:rnd(30, CH-20), warn:1.25, warnMax:1.25,
+                         r:22, dmg:14, boom:0 });
         this.tMeteor = ph >= 3 ? 2.4 : 3.6;
       }
 
       if (ph >= 2){
         this.tWave -= dt;
         if (this.tWave <= 0){
-          waves.push({ x:this.x, y:this.y, r:8, max:230, spd:78, dmg:18, hitP:false });
+          waves.push({ x:this.x, y:this.y, r:8, max:230, spd:78, dmg:13, hitP:false });
           this.tWave = ph >= 3 ? 4.0 : 6.5;
           camPunch(0.08); sfx.boss();
         }
@@ -2198,13 +2222,13 @@ function foreground(kind){
 /* ----------------------- Kamera und Umgebungsflirren --------------------- */
 const cam = { x:0, y:0 };
 let arena = null, amb = [], ambT = 0, lightning = 0;
-let weather = [], hazards = [], hazardTimer = 0, decals = [];
+let weather = [], hazards = [], hazardTimer = 0;
 
 function loadArena(kind){
   arena = ARENAS[kind]();
   arena.fg = foreground(kind);
   arena.floor = arena.layers[arena.layers.length - 1];   // unterste Ebene traegt den Ring
-  decals = [];
+  clearDecals();
   arena.grade = { col:'#ffffff', a:0, ta:0 };
   arena.morph = 0;
   amb = [];
@@ -2228,42 +2252,66 @@ function floorShift(){
   return { x: Math.round(ox - 48), y: -Math.round(cam.y*L.depth) };
 }
 
-/* Bleibende Spur auf dem Boden. Aeltere weichen, damit es nicht zumatscht. */
-function addDecal(x, y, r, kind, col){
+/* Bleibende Spuren werden einmal in eine eigene Ebene gemalt und danach nur
+   noch als Ganzes gezeichnet. Achtzig Ellipsen pro Frame waren sonst umsonst
+   neu gerechnet. Ein sehr langsames Ausbleichen haelt den Boden lesbar.       */
+const DECAL = surface(LW, CH);
+let decalCount = 0, decalFade = 0;
+
+function clearDecals(){
+  DECAL.x.setTransform(1,0,0,1,0,0);
+  DECAL.x.globalCompositeOperation = 'source-over';
+  DECAL.x.clearRect(0, 0, LW, CH);
+  decalCount = 0; decalFade = 0;
+}
+
+function addDecal(sx, sy, r, kind, col){
   const f = floorShift();
-  decals.push({ x: x - f.x, y: y - f.y, r, kind, col,
-                seed: Math.random()*1000, born: runTime });
-  if (decals.length > 80) decals.splice(0, decals.length - 80);
+  const x = sx - f.x, y = sy - f.y;              // in Ebenenkoordinaten
+  if (x < -30 || x > LW+30) return;
+  const c = DECAL.x, seed = (Math.random()*1000)|0;
+  decalCount++;
+  if (kind === 'scorch'){
+    c.fillStyle = rgba('#120a08', 0.55);
+    c.beginPath(); c.ellipse(x, y, r, r*0.45, 0, 0, TAU); c.fill();
+    c.strokeStyle = rgba(col, 0.18); c.lineWidth = 1;
+    c.beginPath(); c.ellipse(x, y, r*0.8, r*0.36, 0, 0, TAU); c.stroke();
+  } else if (kind === 'crater'){
+    c.fillStyle = rgba('#0d0f18', 0.6);
+    c.beginPath(); c.ellipse(x, y, r, r*0.45, 0, 0, TAU); c.fill();
+    c.strokeStyle = rgba(col, 0.22); c.lineWidth = 1;
+    c.beginPath(); c.ellipse(x, y-1, r, r*0.45, 0, Math.PI, TAU); c.stroke();
+    const rng = seeded(seed);
+    c.fillStyle = rgba('#0d0f18', 0.6);
+    for (let i = 0; i < 6; i++)                   // Auswurf rundherum
+      c.fillRect((x + (rng()-0.5)*r*2.6)|0, (y + (rng()-0.5)*r*1.2)|0, 2, 1);
+  } else {                                        // Spritzer
+    const rng = seeded(seed);
+    c.fillStyle = rgba(col, 0.45);
+    for (let i = 0; i < 7; i++){
+      const a = rng()*TAU, rr = rng()*r;
+      c.fillRect((x + Math.cos(a)*rr)|0, (y + Math.sin(a)*rr*0.5)|0,
+                 rng() < 0.3 ? 2 : 1, 1);
+    }
+  }
+}
+
+/* Alte Spuren verblassen sehr langsam, damit der Boden nie zumatscht. */
+function fadeDecals(dt){
+  if (decalCount < 60) return;
+  decalFade -= dt;
+  if (decalFade > 0) return;
+  decalFade = 2.5;
+  const c = DECAL.x;
+  c.globalCompositeOperation = 'destination-out';
+  c.fillStyle = 'rgba(0,0,0,0.05)';
+  c.fillRect(0, 0, LW, CH);
+  c.globalCompositeOperation = 'source-over';
 }
 
 function drawDecals(){
   const f = floorShift();
-  for (const d of decals){
-    const x = d.x + f.x, y = d.y + f.y;
-    if (x < -20 || x > CW+20) continue;
-    if (d.kind === 'scorch'){
-      ctx.fillStyle = rgba('#120a08', 0.55);
-      ctx.beginPath(); ctx.ellipse(x, y, d.r, d.r*0.45, 0, 0, TAU); ctx.fill();
-      ctx.strokeStyle = rgba(d.col, 0.18); ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.ellipse(x, y, d.r*0.8, d.r*0.36, 0, 0, TAU); ctx.stroke();
-    } else if (d.kind === 'crater'){
-      ctx.fillStyle = rgba('#0d0f18', 0.6);
-      ctx.beginPath(); ctx.ellipse(x, y, d.r, d.r*0.45, 0, 0, TAU); ctx.fill();
-      ctx.strokeStyle = rgba(d.col, 0.22); ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.ellipse(x, y-1, d.r, d.r*0.45, 0, Math.PI, TAU); ctx.stroke();
-      const rng = seeded(d.seed|0);
-      for (let i = 0; i < 6; i++)                       // Auswurf rundherum
-        ctx.fillRect((x + (rng()-0.5)*d.r*2.6)|0, (y + (rng()-0.5)*d.r*1.2)|0, 2, 1);
-    } else {                                            // Spritzer
-      const rng = seeded(d.seed|0);
-      ctx.fillStyle = rgba(d.col, 0.45);
-      for (let i = 0; i < 7; i++){
-        const a = rng()*TAU, rr = rng()*d.r;
-        ctx.fillRect((x + Math.cos(a)*rr)|0, (y + Math.sin(a)*rr*0.5)|0,
-                     rng() < 0.3 ? 2 : 1, 1);
-      }
-    }
-  }
+  ctx.drawImage(DECAL.c, f.x, f.y);
 }
 
 /* Das Siegel: pulsierender Runenkreis unter dem Kampf, wechselt beim
@@ -2421,20 +2469,20 @@ function spawnHazard(){
   const k = arena.kind;
   if (k === 'ruins')
     hazards.push({ kind:'rubble', x:rnd(24, CW-24), y:rnd(HORIZON+16, CH-14),
-                   warn:1.15, life:0.35, r:17, dmg:15, hitP:false });
+                   warn:1.3, warnMax:1.3, life:0.35, r:17, dmg:12, hitP:false });
   else if (k === 'heaven')
     hazards.push({ kind:'pillar', x:rnd(40, CW-40), vx:pick([-24, 24]),
-                   warn:0.95, life:3.0, w:7, dmg:11, tick:0 });
+                   warn:1.1, warnMax:1.1, life:2.6, lifeMax:2.6, w:7, dmg:9, tick:0 });
   else
     hazards.push({ kind:'geyser', x:rnd(20, CW-20), y:rnd(HORIZON+20, CH-10),
-                   warn:1.05, life:0.95, w:8, h:58, dmg:17, tick:0 });
+                   warn:1.2, warnMax:1.2, life:0.9, lifeMax:0.9, w:8, h:58, dmg:13, tick:0 });
 }
 function updateHazards(dt){
   hazardTimer -= dt;
   if (hazardTimer <= 0 && hazards.length < 5){
     spawnHazard();
     const fast = arena && arena.morph > 0;
-    hazardTimer = fast ? rnd(2.8, 4.4) : rnd(5.5, 8.5);
+    hazardTimer = fast ? rnd(4.0, 6.0) : rnd(7.5, 11);
   }
   for (const h of hazards){
     if (h.warn > 0){ h.warn -= dt; if (h.warn <= 0) onHazardStart(h); continue; }
@@ -2446,7 +2494,7 @@ function updateHazards(dt){
       if (h.tick <= 0 && p.iframe <= 0 && Math.abs(p.x - h.x) < h.w + 4){
         damagePlayer(h.dmg); h.tick = 0.6;
       }
-      if (Math.random() < 0.5)
+      if (Math.random() < 0.3)
         parts.push({ x:h.x + rnd(-h.w, h.w), y:rnd(0, CH), vx:0, vy:-40,
                      life:0.35, max:0.35, col:'#fff3a8', size:1 });
     } else if (h.kind === 'geyser'){
@@ -2455,8 +2503,9 @@ function updateHazards(dt){
           Math.abs(p.x - h.x) < h.w + 4 && p.y > h.y - h.h && p.y < h.y + 8){
         damagePlayer(h.dmg); h.tick = 0.5;
       }
-      parts.push({ x:h.x + rnd(-h.w, h.w), y:h.y - rnd(0, h.h), vx:rnd(-10,10), vy:-70,
-                   life:0.4, max:0.4, col: Math.random() < 0.4 ? '#ffe066' : '#ff8f3c', size:1 });
+      if (Math.random() < 0.55)
+        parts.push({ x:h.x + rnd(-h.w, h.w), y:h.y - rnd(0, h.h), vx:rnd(-10,10), vy:-70,
+                     life:0.4, max:0.4, col: Math.random() < 0.4 ? '#ffe066' : '#ff8f3c', size:1 });
     }
   }
   hazards = hazards.filter(h => h.warn > 0 || h.life > 0);
@@ -2481,7 +2530,7 @@ function drawHazardWarnings(){
     if (h.warn <= 0) continue;
     const puls = 0.35 + 0.45*Math.abs(Math.sin(h.warn*15));
     if (h.kind === 'rubble'){
-      const k = 1 - h.warn/1.15;
+      const k = clamp(1 - h.warn/(h.warnMax || 1.3), 0, 1);
       ctx.fillStyle = rgba('#0b0913', 0.45);       // Schatten waechst mit
       ctx.beginPath(); ctx.ellipse(h.x, h.y, h.r*k, h.r*k*0.45, 0, 0, TAU); ctx.fill();
       ctx.strokeStyle = rgba('#c9d4f0', puls); ctx.lineWidth = 1;
@@ -2518,7 +2567,7 @@ function drawHazards(){
       ctx.beginPath(); ctx.ellipse(h.x, CH-14, h.w*2, 5, 0, 0, TAU); ctx.stroke();
     } else if (h.kind === 'geyser'){
       // Nach oben schmaler werdende, flackernde Saeule statt starrem Balken
-      const a = clamp(h.life/0.95, 0, 1);
+      const a = clamp(h.life/(h.lifeMax || 0.9), 0, 1);
       const seg = 14, sh = h.h/seg;
       for (let i = 0; i < seg; i++){
         const t = i/seg;
@@ -2572,6 +2621,7 @@ function updateArena(dt){
     if (lightning < -gap) lightning = 0.22;
   }
   arena.grade.a = lerp(arena.grade.a, arena.grade.ta, 1 - Math.pow(0.15, dt));
+  fadeDecals(dt);
   arena.fg.phase = (arena.fg.phase || 0) + arena.fg.scroll*dt;
 
   for (const w of weather){
@@ -2601,12 +2651,13 @@ function drawArenaBack(){
     ctx.fillStyle = rgba('#aebcf0', a*0.22); ctx.fillRect(0, 0, CW, CH);
   }
   // Umgebungsflirren hinter den Figuren
-  for (const a of amb){
+  for (let i = 0; i < amb.length; i++){
+    const a = amb[i];
     if (a.k === 'feather') continue;
     const al = clamp(a.life/a.max, 0, 1) * 0.85;
     ctx.fillStyle = rgba(a.col, al);
     ctx.fillRect(a.x|0, a.y|0, a.r < 1.2 ? 1 : 2, a.r < 1.2 ? 1 : 2);
-    if (a.k === 'ember') glowDot(a.x, a.y, 3, a.col, al*0.4);
+    if (a.k === 'ember' && (i & 2) === 0) glowDot(a.x, a.y, 3, a.col, al*0.5);
   }
 }
 function drawArenaFront(){
@@ -2627,12 +2678,17 @@ function drawArenaFront(){
     if (GC) GC.drawImage(L.g, Math.round(x), oy);
   }
   // Wetter nach der Verwandlung
-  for (const w of weather){
-    if (w.k === 'rain'){
-      ctx.strokeStyle = 'rgba(186,208,255,0.75)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(w.x + w.vx*0.02, w.y + w.len); ctx.stroke();
-    } else {
-      ctx.fillStyle = 'rgba(190,150,130,0.55)';
+  if (weather.length){
+    ctx.strokeStyle = 'rgba(186,208,255,0.75)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const w of weather){                       // alle Tropfen in einem Pfad
+      if (w.k !== 'rain') continue;
+      ctx.moveTo(w.x, w.y); ctx.lineTo(w.x + w.vx*0.02, w.y + w.len);
+    }
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(190,150,130,0.55)';
+    for (const w of weather){
+      if (w.k === 'rain') continue;
       ctx.fillRect(w.x|0, w.y|0, w.r < 1.3 ? 1 : 2, w.r < 1.3 ? 1 : 2);
     }
   }
@@ -2662,7 +2718,7 @@ function stageHp(){
 function startStage(){
   enemies = []; bullets = []; ebullets = []; gems = [];
   parts = []; texts = []; beams = []; meteors = []; waves = [];
-  pools = []; chests = []; banners = []; hazards = []; decals = [];
+  pools = []; chests = []; banners = []; hazards = [];
   const st = STAGES[stageIdx];
   loadArena(st.bg);
   bossGhost = 1; hpGhost = 1;
@@ -2892,7 +2948,7 @@ function update(dt){
           explode(b.x, b.y, b.ignite ? 26 : 20, b.dmg*0.6);
           hurtEnemy(e, b.dmg, { ang });
           if (b.ignite) ignite(b.x, b.y);
-          b.life = 0;
+          if (b.pierce-- <= 0) b.life = 0;
         } else {
           hurtEnemy(e, b.dmg, { ang });
           if (b.fork > 0){                   // Sturmlanze: gabelt bei jedem Treffer
@@ -2919,7 +2975,7 @@ function update(dt){
           hurtEnemy(e, 6*s.dmg, { noCrit:true, noChain:true });
       }
     }
-    if (Math.random() < 0.6)
+    if (Math.random() < 0.35)
       parts.push({ x:q.x + rnd(-q.r,q.r), y:q.y + rnd(-q.r*0.5,q.r*0.5), vx:0, vy:-22,
                    life:0.4, max:0.4, col: Math.random() < 0.4 ? '#ffe066' : '#ff8f3c', size:1 });
   }
@@ -3011,6 +3067,7 @@ function update(dt){
     if (q.vx !== undefined){ q.x += q.vx*dt; q.y += q.vy*dt; q.vx *= 0.94; q.vy *= 0.94; }
   }
   parts = parts.filter(q => q.life > 0);
+  capParts();
   for (const t of texts){ t.life -= dt; t.y -= 18*dt; }
   texts = texts.filter(t => t.life > 0);
 
@@ -3052,7 +3109,7 @@ function update(dt){
     enemies = enemies.filter(e => e.boss);      // Diener raeumen, Boss bleibt sichtbar
     p.gold += 120 * s.gold;
     p.pendingLv = (p.pendingLv || 0) + 1;          // Boss-Belohnung
-    p.hp = Math.min(s.maxHp, p.hp + s.maxHp*0.3);
+    p.hp = s.maxHp;                                // volle Erholung
     startBossDeath();
     return;
   }
@@ -3065,7 +3122,7 @@ function update(dt){
 function damagePlayer(dmg){
   if (p.iframe > 0 || !p.alive) return;
   p.hp -= dmg;
-  p.iframe = 0.75;
+  p.iframe = 0.95;
   combo = 0;
   shake = Math.max(shake, 3.5);
   flash = Math.max(flash, 0.25);
@@ -3174,7 +3231,7 @@ function render(){
     ctx.fillStyle = rgba('#ffffff', flash*0.35); ctx.fillRect(0, 0, CW, CH);
   }
   bloom();
-  if (aberr > 0.02) chromatic(aberr);
+  if (aberr > 0.12) chromatic(aberr);
   drawHud();
 
   if (state === 'intro')   drawIntro();
@@ -3196,18 +3253,20 @@ function chromatic(k){
   const copy = (tint, dst) => {
     dst.x.setTransform(1,0,0,1,0,0);
     dst.x.globalCompositeOperation = 'source-over';
-    dst.x.clearRect(0, 0, CW, CH);
-    dst.x.drawImage(cv, 0, 0);
+    dst.x.imageSmoothingEnabled = false;
+    dst.x.clearRect(0, 0, SW, SH);
+    dst.x.drawImage(cv, 0, 0, SW, SH);
     dst.x.globalCompositeOperation = 'multiply';
-    dst.x.fillStyle = tint; dst.x.fillRect(0, 0, CW, CH);
+    dst.x.fillStyle = tint; dst.x.fillRect(0, 0, SW, SH);
     dst.x.globalCompositeOperation = 'source-over';
   };
   copy('#ff0000', SPLIT_R);
   copy('#00ffff', SPLIT_C);
   ctx.clearRect(0, 0, CW, CH);
   ctx.globalCompositeOperation = 'lighter';
-  ctx.drawImage(SPLIT_R.c, -off, 0);
-  ctx.drawImage(SPLIT_C.c,  off, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(SPLIT_R.c, -off, 0, CW, CH);
+  ctx.drawImage(SPLIT_C.c,  off, 0, CW, CH);
   ctx.globalCompositeOperation = 'source-over';
 }
 
@@ -3224,10 +3283,8 @@ function bloom(){
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.imageSmoothingEnabled = true;
-  ctx.globalAlpha = 0.32; ctx.drawImage(b1.c, 0, 0, CW, CH);
-  ctx.globalAlpha = 0.26; ctx.drawImage(b2.c, 0, 0, CW, CH);
-  ctx.imageSmoothingEnabled = false;
-  ctx.globalAlpha = 0.18; ctx.drawImage(GLOW.c, 0, 0);
+  ctx.globalAlpha = 0.44; ctx.drawImage(b1.c, 0, 0, CW, CH);
+  ctx.globalAlpha = 0.30; ctx.drawImage(b2.c, 0, 0, CW, CH);
   ctx.restore();
   GC = null;
 }
@@ -3238,7 +3295,8 @@ function drawWorld(){
   /* Meteorwarnungen liegen auf dem Boden */
   for (const m of meteors){
     if (m.warn > 0){
-      const k = 1 - m.warn/1.1, puls = 0.35 + 0.45*Math.abs(Math.sin(m.warn*14));
+      const k = clamp(1 - m.warn/(m.warnMax || 1.25), 0, 1);
+      const puls = 0.35 + 0.45*Math.abs(Math.sin(m.warn*14));
       ctx.strokeStyle = rgba('#ff5a3c', puls); ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, TAU); ctx.stroke();
       ctx.fillStyle = rgba('#ff3b2e', 0.14);
@@ -3440,7 +3498,7 @@ function drawWorld(){
       const sz = q.size || 1;
       ctx.fillStyle = rgba(q.col, a);
       ctx.fillRect(q.x|0, q.y|0, sz, sz);
-      if (a > 0.6) glowDot(q.x, q.y, 3, q.col, (a-0.6)*0.8);
+      if (sz > 1 && a > 0.6) glowDot(q.x, q.y, 3, q.col, (a-0.6)*0.8);
     }
   }
   drawHazards();
@@ -3774,7 +3832,7 @@ function drawCleared(){
   txtO('BESIEGT', CW/2, 58, '#ffd23f', 'center', 20);
   txtGlow('BESIEGT', CW/2, 58, '#ffb03a', 'center', 20, 0.5);
   txtO(st.name + '  —  ' + st.epithet, CW/2, 84, '#ffffff', 'center', 8);
-  txtO('Leben aufgefuellt   ·   Belohnung: eine Verstaerkung', CW/2, 98, '#7ff5d4', 'center', 7, false);
+  txtO('Leben voll aufgefuellt   ·   Belohnung: eine Verstaerkung', CW/2, 98, '#7ff5d4', 'center', 7, false);
   if (Math.floor(endT*2) % 2)
     txtO(stageIdx < STAGES.length-1 ? '[ ENTER ]  weiter zur naechsten Arena' : '[ ENTER ]  Finale',
          CW/2, 132, '#ffffff', 'center', 9);

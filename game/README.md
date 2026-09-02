@@ -129,6 +129,21 @@ angelegt — die Kosten steigen mit jeder Stufe:
 
 Der vierte Held, der **Revenant**, wird einmalig für 400 Gold freigeschaltet.
 
+## Balance
+
+Die Werte sind nicht gesetzt, sondern gemessen. Ein Bot, der wie ein
+aufmerksamer Spieler agiert — Abstand zu Gegnern, Geschossen und Gefahren
+halten, Splitter einsammeln, bei Bedrängnis wegrollen — spielt je Held
+vierzehn vollständige Durchläufe. Zielband ist eine Siegquote um die Hälfte:
+was ein Bot knapp schafft, gewinnt ein aufmerksamer Mensch meistens.
+
+Der erste Durchgang ergab **0 Siege aus 20 Läufen**. Die Messung zeigte warum:
+der Schadenszufluss überstieg den Lebenspool um das Zwei- bis Dreifache
+(Arena 1: 126 Schaden/Minute gegen 100 Leben, Arena 2: 236 gegen 125,
+Arena 3: 326 gegen 100), und zwischen den Arenen wurden nur 30 % geheilt.
+Nach voller Heilung zwischen den Arenen, längerer Unverwundbarkeit und
+gesenktem Schaden liegen alle vier Helden bei rund der Hälfte.
+
 ## New Game+
 
 Nach dem Sieg über Abaddon geht es in die nächste Schleife: Bosse bekommen das
