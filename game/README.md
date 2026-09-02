@@ -56,6 +56,25 @@ Boss gibt es Heilung und eine Gratis-Verstärkung. Jeder Boss fährt mit einer
 Kamerafahrt ein, jeder Phasenwechsel schlägt als Druckwelle durch das Bild, und
 der Todesstoß läuft in Zeitlupe.
 
+## Die Arena kämpft mit
+
+Jede Arena hat eine eigene Gefahr. Alle werden angekündigt, treffen nur während
+ihrer aktiven Phase und lassen sich durch Bewegung vollständig vermeiden:
+
+| Arena | Gefahr | Ansage |
+|---|---|---|
+| Ruinen | **Steinschlag** — Brocken schlägt ein, 15 Schaden im Umkreis | Schatten wächst am Boden, der Brocken fällt sichtbar |
+| Himmel | **Lichtsäule** — wandert langsam quer, 11 Schaden alle 0,6 s | Gestrichelte Linie, bevor sie zündet |
+| Hölle | **Glutgeysir** — Flammensäule aus dem Boden, 17 Schaden alle 0,5 s | Glühender Riss im Boden |
+
+Beim Phasenwechsel kippt die Kulisse sichtbar: in den Ruinen stürzen die Türme
+zu Stümpfen zusammen, die Fackeln erlöschen und es beginnt zu regnen; im Himmel
+ziehen die Wolkenbänke zum Gewitter zu; in der Hölle glüht alles auf und es
+regnet Asche. Danach kommen die Gefahren fast doppelt so oft.
+
+Eine Vordergrund-Ebene aus Säulen, Schwaden und Knochenspitzen läuft vor den
+Figuren durch — sie hält die Spielfläche frei und gibt der Arena Tiefe.
+
 ## Zwischen den Wellen
 
 - **Eliten.** Alle 15–22 Sekunden erscheint ein deutlich größerer Gegner mit
@@ -112,6 +131,9 @@ Alles wird zur Laufzeit erzeugt, es gibt keine Bilddateien.
   kurz ein (`hitStop`), Schaden am Spieler zieht die Farbkanäle auseinander
   (Rot- und Cyan-Auszug gegeneinander verschoben), und der Bosstod läuft mit
   `timeScale` 0,22 bei zugefahrener Kamera.
+- **Kamera.** Wuchtige Bossangriffe geben einen kurzen Zoom-Stoß, Treffer kippen
+  das Bild leicht, und bei vollem Bildschirm fährt die Kamera langsam heraus.
+  Während Auftritt und Todesszene übernimmt die Inszenierung (`view.lock`).
 - **Arenen** bestehen aus fünf Ebenen, die sich unterschiedlich schnell gegen
   eine weiche Kamera verschieben, die dem Spieler folgt. Dazu kommt bewegtes
   Beiwerk: Staub und Wetterleuchten in den Ruinen, ziehende Wolken und Federn im
@@ -130,7 +152,8 @@ Die Raster für Helden, Bosse und Icons werden von `tools/emit.py` erzeugt und i
   Upgrade ist ein weiterer Eintrag plus (beim Helden) ein Zweig in `fireWeapon()`.
 - **Bosse** — je eine Fabrikfunktion mit eigener `ai(dt)`. Neue Arena = Eintrag in
   `STAGES` plus Fabrik in `BOSS_FACTORY`.
-- **Arenen / Parallax** — Ebenenaufbau, Kamera und Umgebungsflirren.
+- **Arenen / Parallax** — Ebenenaufbau, Vordergrund, Kamera, Wetter,
+  Verwandlung und die Arena-Gefahren.
 - **Update / Render / Overlays** — feste Simulationsschritte mit 60 Hz, die
   Darstellung läuft davon entkoppelt.
 

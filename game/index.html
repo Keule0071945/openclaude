@@ -1161,7 +1161,7 @@ let shake = 0, flash = 0, hitStop = 0, aberr = 0, timeScale = 1;
 let combo = 0, comboT = 0, comboPop = 0, loopN = 0;
 let choices = [], introT = 0, endT = 0, orbitAngle = 0, orbitTick = 0, auraTick = 0;
 /* Kamera fuer Inszenierung: Zoom und Blickpunkt werden weich angefahren. */
-const view = { zoom:1, tz:1, cx:CW/2, cy:CH/2, tx:CW/2, ty:CH/2, lock:0 };
+const view = { zoom:1, tz:1, cx:CW/2, cy:CH/2, tx:CW/2, ty:CH/2, lock:0, punch:0, tilt:0 };
 
 const STAGES = [
   { name:'GORGOK',    epithet:'DER STEINWAECHTER', bg:'ruins',  hp:560,  minion:'bat',
@@ -1506,6 +1506,8 @@ function eshoot(x, y, ang, spd, dmg, r, col, life = 6){
 function phaseBreak(b, title, col){
   flash = Math.max(flash, 0.85); shake = Math.max(shake, 7);
   aberr = 1; hitStop = Math.max(hitStop, 0.18);
+  camPunch(0.12); camTilt(rnd(-0.035, 0.035));
+  transformArena(b.phase - 1);
   banner(title, b.name + '  ·  PHASE ' + b.phase, col, 2.4);
   waves.push({ x:b.x, y:b.y, r:6, max:260, spd:150, dmg:0, hitP:true, deco:true });
   burst(b.x, b.y, 34, col, 160, 0.8);
@@ -1536,7 +1538,7 @@ function makeGorgok(hp){
         if (this.chargeT <= 0){
           this.chargeState = 2; this.chargeT = 0.85;
           this.chargeAng = Math.atan2(p.y - this.y, p.x - this.x);
-          sfx.boss();
+          camPunch(0.07); sfx.boss();
         }
       } else {
         this.vx = Math.cos(this.chargeAng)*185;
@@ -1553,7 +1555,7 @@ function makeGorgok(hp){
         for (let i = 0; i < n; i++)
           eshoot(this.x, this.y, off + i*TAU/n, 56, 10, 3, '#e0c088');
         this.tSpread = ph === 2 ? 2.0 : 2.8;
-        sfx.boom();
+        camPunch(0.035); sfx.boom();
       }
 
       this.tCharge -= dt;
@@ -1609,7 +1611,7 @@ function makeSeraphine(hp){
                        col:RAINBOW[i % RAINBOW.length], owner:this });
         }
         this.tBeam = ph === 2 ? 4.6 : 6.0;
-        sfx.boss();
+        camPunch(0.06); sfx.boss();
       }
 
       this.tFan -= dt;
@@ -1672,7 +1674,7 @@ function makeAbaddon(hp){
         if (this.tWave <= 0){
           waves.push({ x:this.x, y:this.y, r:8, max:230, spd:78, dmg:18, hitP:false });
           this.tWave = ph >= 3 ? 4.0 : 6.5;
-          sfx.boss();
+          camPunch(0.08); sfx.boss();
         }
       }
 
@@ -1895,16 +1897,269 @@ const ARENAS = {
   },
 };
 
+/* --------------------------- Vordergrund-Ebene --------------------------- */
+/* Laeuft vor den Figuren durch und haelt die Mitte frei, damit sie nur Tiefe
+   gibt und nie die Sicht auf das Spielgeschehen nimmt.                       */
+function foreground(kind){
+  return layer(0.85, kind === 'heaven' ? 7 : 0, (c, g) => {
+    const rng = seeded(kind.length*131 + 5);
+    const bases = [10, 62, LW-70, LW-16];         // nur an den Raendern
+    if (kind === 'ruins'){
+      for (const bx of bases){
+        const w = 20 + (rng()*12|0), h = 86 + rng()*46;
+        c.fillStyle = '#121624'; c.fillRect(bx|0, (CH-h)|0, w, h);
+        c.fillStyle = '#2b3252'; c.fillRect(bx|0, (CH-h)|0, 2, h);        // Lichtkante
+        c.fillStyle = '#080a12'; c.fillRect((bx+w-2)|0, (CH-h)|0, 2, h);  // Schattenkante
+        c.fillStyle = '#1d2338';                                          // Kapitell
+        c.fillRect((bx-3)|0, (CH-h)|0, w+6, 5);
+        for (let k = 0; k < 7; k++){               // ausgebrochene Oberkante
+          c.fillStyle = '#121624';
+          c.fillRect((bx + rng()*w)|0, (CH-h-2-rng()*7)|0, 3, 8);
+        }
+        for (let k = 0; k < 4; k++){               // Risse im Schaft
+          c.fillStyle = '#080a12';
+          c.fillRect((bx + 4 + rng()*(w-8))|0, (CH-h+10+rng()*(h-20))|0, 1, 4+(rng()*7|0));
+        }
+      }
+      c.fillStyle = '#121624';                     // umgestuerzte Saeule quer
+      c.fillRect(0, CH-13, 88, 13); c.fillRect(LW-104, CH-10, 104, 10);
+      c.fillStyle = '#1d2338';
+      c.fillRect(0, CH-13, 88, 2); c.fillRect(LW-104, CH-10, 104, 2);
+    } else if (kind === 'heaven'){
+      for (const bx of bases){                     // Wolkenschwaden
+        c.globalAlpha = 0.5; c.fillStyle = '#c9d8f7';
+        for (let i = 0; i < 16; i++){
+          const x = bx + (rng()-0.5)*70, y = CH - 6 - rng()*22, r = 5 + rng()*9;
+          c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+        }
+        c.globalAlpha = 1;
+      }
+    } else {
+      for (const bx of bases){                     // Knochenspitzen
+        for (let i = 0; i < 4; i++){
+          const x = bx + i*7 + rng()*4, h = 16 + rng()*26;
+          c.fillStyle = '#1a0508';
+          c.beginPath(); c.moveTo(x, CH); c.lineTo(x + 4, CH); c.lineTo(x + 2, CH-h);
+          c.closePath(); c.fill();
+        }
+      }
+      c.fillStyle = '#2a0a0d'; c.fillRect(0, CH-6, LW, 6);
+      g.fillStyle = 'rgba(255,110,40,0.18)'; g.fillRect(0, CH-7, LW, 3);
+    }
+  });
+}
+
 /* ----------------------- Kamera und Umgebungsflirren --------------------- */
 const cam = { x:0, y:0 };
 let arena = null, amb = [], ambT = 0, lightning = 0;
+let weather = [], hazards = [], hazardTimer = 0;
 
 function loadArena(kind){
   arena = ARENAS[kind]();
+  arena.fg = foreground(kind);
+  arena.grade = { col:'#ffffff', a:0, ta:0 };
+  arena.morph = 0;
   amb = [];
   const n = kind === 'hell' ? 70 : kind === 'heaven' ? 46 : 54;
   for (let i = 0; i < n; i++) amb.push(newAmbient(kind, true));
+  weather = []; hazards = [];
+  hazardTimer = rnd(5, 8);
   cam.x = cam.y = 0; lightning = 0;
+}
+
+/* ------------------------- Verwandlung der Arena ------------------------- */
+/* Beim Phasenwechsel kippt die Kulisse sichtbar: Ruinen stuerzen ein, der
+   Himmel zieht zu, die Hoelle glueht auf. Dazu Wetter und mehr Gefahren.     */
+function transformArena(level){
+  if (!arena || arena.morph >= level) return;
+  arena.morph = level;
+  hazardTimer = Math.min(hazardTimer, 1.4);
+  shake = Math.max(shake, 8); camPunch(0.09); camTilt(rnd(-0.03, 0.03));
+
+  if (arena.kind === 'ruins'){
+    arena.grade.ta = 0.5; arena.grade.col = '#3a4a86';
+    collapseRuins();
+    for (let i = 0; i < 90; i++) weather.push(newDrop('rain'));
+  } else if (arena.kind === 'heaven'){
+    arena.grade.ta = 0.55; arena.grade.col = '#6a6a96';
+    stormClouds();
+    for (let i = 0; i < 70; i++) weather.push(newDrop('rain'));
+  } else {
+    arena.grade.ta = 0.30 + 0.12*level; arena.grade.col = '#ff8a5a';
+    for (let i = 0; i < 60; i++) weather.push(newDrop('ash'));
+    for (let i = 0; i < 30; i++) amb.push(newAmbient('hell', true));
+  }
+}
+/* Die Halle sackt in sich zusammen — dieselbe Ebene, kuerzer und zerborstener. */
+function collapseRuins(){
+  const L = arena.layers[2];
+  const c = L.c.getContext('2d');
+  c.clearRect(0, 0, LW, CH);
+  const rng = seeded(33);
+  for (let i = 0; i < 9; i++){
+    const x = (i*58 + rng()*18)|0, h = (46 + rng()*38) * rnd(0.35, 0.62), w = 24 + (rng()*10|0);
+    let top = HORIZON - h;
+    for (let k = 0; k < w; k++){
+      if (k % 3 === 0) top = (HORIZON - h + Math.abs(Math.sin(k*0.9 + i))*7 + rng()*3)|0;
+      c.fillStyle = (k === 0 || k === w-1) ? '#39406a' : '#2d3350';
+      c.fillRect(x+k, top, 1, HORIZON-top);
+    }
+    c.fillStyle = '#22273e';                       // Schuttkegel davor
+    for (let k = 0; k < 14; k++)
+      c.fillRect((x - 4 + rng()*(w+8))|0, (HORIZON - 5 + rng()*6)|0, 2 + (rng()*3|0), 2);
+  }
+  const g = L.g.getContext('2d');
+  g.clearRect(0, 0, LW, CH);                       // Fackeln sind erloschen
+  for (let i = 0; i < 40; i++)                     // aufsteigender Staub
+    amb.push(newAmbient('ruins', true));
+}
+/* Der Himmel zieht zu: die Wolkenbaenke werden dunkel und dicht. */
+function stormClouds(){
+  for (const idx of [1, 2, 4]){
+    const L = arena.layers[idx];
+    if (!L) continue;
+    const c = L.c.getContext('2d');
+    c.clearRect(0, 0, LW, CH);
+    const rng = seeded(11 + idx*7);
+    const y = idx === 4 ? HORIZON-4 : 42 + idx*10;
+    c.globalAlpha = 0.8; c.fillStyle = idx === 4 ? '#2a3050' : '#1c2340';
+    for (let i = 0; i < 70; i++){
+      const x = rng()*LW, yy = y + (rng()-0.5)*26, r = 7 + rng()*11;
+      c.beginPath(); c.arc(x, yy, r, 0, TAU); c.fill();
+    }
+    c.globalAlpha = 1;
+    L.g.getContext('2d').clearRect(0, 0, LW, CH);
+  }
+}
+function newDrop(kind){
+  return kind === 'rain'
+    ? { k:'rain', x:rnd(-30, CW+30), y:rnd(-CH, CH), vx:-26, vy:rnd(300, 400), len:rnd(5, 11) }
+    : { k:'ash',  x:rnd(-20, CW+20), y:rnd(-CH, CH), vx:rnd(-14, 6), vy:rnd(16, 34),
+        sway:rnd(0, TAU), r:rnd(0.8, 1.8) };
+}
+
+/* ----------------------------- Arena-Gefahren ---------------------------- */
+/* Jede Arena hat eine eigene Gefahr. Alle werden angekuendigt, treffen nur
+   waehrend ihrer aktiven Phase und lassen sich durch Bewegung vermeiden.     */
+function spawnHazard(){
+  if (!arena) return;
+  const k = arena.kind;
+  if (k === 'ruins')
+    hazards.push({ kind:'rubble', x:rnd(24, CW-24), y:rnd(HORIZON+16, CH-14),
+                   warn:1.15, life:0.35, r:17, dmg:15, hitP:false });
+  else if (k === 'heaven')
+    hazards.push({ kind:'pillar', x:rnd(40, CW-40), vx:pick([-24, 24]),
+                   warn:0.95, life:3.0, w:7, dmg:11, tick:0 });
+  else
+    hazards.push({ kind:'geyser', x:rnd(20, CW-20), y:rnd(HORIZON+20, CH-10),
+                   warn:1.05, life:0.95, w:8, h:58, dmg:17, tick:0 });
+}
+function updateHazards(dt){
+  hazardTimer -= dt;
+  if (hazardTimer <= 0 && hazards.length < 5){
+    spawnHazard();
+    const fast = arena && arena.morph > 0;
+    hazardTimer = fast ? rnd(2.8, 4.4) : rnd(5.5, 8.5);
+  }
+  for (const h of hazards){
+    if (h.warn > 0){ h.warn -= dt; if (h.warn <= 0) onHazardStart(h); continue; }
+    h.life -= dt;
+    if (h.kind === 'pillar'){
+      h.x += h.vx*dt;
+      if (h.x < 20 || h.x > CW-20) h.vx = -h.vx;
+      h.tick -= dt;
+      if (h.tick <= 0 && p.iframe <= 0 && Math.abs(p.x - h.x) < h.w + 4){
+        damagePlayer(h.dmg); h.tick = 0.6;
+      }
+      if (Math.random() < 0.5)
+        parts.push({ x:h.x + rnd(-h.w, h.w), y:rnd(0, CH), vx:0, vy:-40,
+                     life:0.35, max:0.35, col:'#fff3a8', size:1 });
+    } else if (h.kind === 'geyser'){
+      h.tick -= dt;
+      if (h.tick <= 0 && p.iframe <= 0 &&
+          Math.abs(p.x - h.x) < h.w + 4 && p.y > h.y - h.h && p.y < h.y + 8){
+        damagePlayer(h.dmg); h.tick = 0.5;
+      }
+      parts.push({ x:h.x + rnd(-h.w, h.w), y:h.y - rnd(0, h.h), vx:rnd(-10,10), vy:-70,
+                   life:0.4, max:0.4, col: Math.random() < 0.4 ? '#ffe066' : '#ff8f3c', size:1 });
+    }
+  }
+  hazards = hazards.filter(h => h.warn > 0 || h.life > 0);
+}
+function onHazardStart(h){
+  if (h.kind === 'rubble'){
+    explode(h.x, h.y, h.r, 0);
+    burst(h.x, h.y, 18, '#6b7290', 120, 0.6);
+    shake = Math.max(shake, 4); camPunch(0.05);
+    if (p.iframe <= 0 && dist2(h.x, h.y, p.x, p.y) < (h.r+5)*(h.r+5)) damagePlayer(h.dmg);
+    sfx.boom();
+  } else if (h.kind === 'geyser'){
+    burst(h.x, h.y, 16, '#ff8f3c', 130, 0.6);
+    shake = Math.max(shake, 3); camPunch(0.04);
+    sfx.boom();
+  } else sfx.boss();
+}
+function drawHazardWarnings(){
+  for (const h of hazards){
+    if (h.warn <= 0) continue;
+    const puls = 0.35 + 0.45*Math.abs(Math.sin(h.warn*15));
+    if (h.kind === 'rubble'){
+      const k = 1 - h.warn/1.15;
+      ctx.fillStyle = rgba('#0b0913', 0.45);       // Schatten waechst mit
+      ctx.beginPath(); ctx.ellipse(h.x, h.y, h.r*k, h.r*k*0.45, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = rgba('#c9d4f0', puls); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(h.x, h.y, h.r, h.r*0.45, 0, 0, TAU); ctx.stroke();
+      const ry = h.y - (1-k)*90;                   // fallender Brocken
+      ctx.fillStyle = '#4a5170'; ctx.fillRect((h.x-4)|0, ry|0, 8, 7);
+      ctx.fillStyle = '#69718f'; ctx.fillRect((h.x-4)|0, ry|0, 8, 2);
+    } else if (h.kind === 'geyser'){
+      ctx.strokeStyle = rgba('#ff8f3c', puls); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(h.x, h.y, h.w+4, 4, 0, 0, TAU); ctx.stroke();
+      ctx.fillStyle = rgba('#ff5a1e', 0.3*puls);
+      ctx.beginPath(); ctx.ellipse(h.x, h.y, h.w, 3, 0, 0, TAU); ctx.fill();
+      glowDot(h.x, h.y, 12, '#ff8f3c', 0.35*puls);
+    } else {
+      ctx.strokeStyle = rgba('#fff3a8', puls*0.7); ctx.lineWidth = 1;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath(); ctx.moveTo(h.x, 0); ctx.lineTo(h.x, CH); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+function drawHazards(){
+  for (const h of hazards){
+    if (h.warn > 0) continue;
+    if (h.kind === 'pillar'){
+      const a = clamp(h.life, 0, 1);
+      const g = ctx.createLinearGradient(h.x - h.w, 0, h.x + h.w, 0);
+      g.addColorStop(0, rgba('#fff3a8', 0)); g.addColorStop(0.5, rgba('#fff8d8', 0.55*a));
+      g.addColorStop(1, rgba('#fff3a8', 0));
+      ctx.fillStyle = g; ctx.fillRect(h.x - h.w*2, 0, h.w*4, CH);
+      ctx.fillStyle = rgba('#ffffff', 0.75*a); ctx.fillRect((h.x-1)|0, 0, 2, CH);
+      glowLine(h.x, 0, h.x, CH, h.w*2.5, '#ffe066', 0.5*a);
+      ctx.strokeStyle = rgba('#fff3a8', 0.5*a); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(h.x, CH-14, h.w*2, 5, 0, 0, TAU); ctx.stroke();
+    } else if (h.kind === 'geyser'){
+      // Nach oben schmaler werdende, flackernde Saeule statt starrem Balken
+      const a = clamp(h.life/0.95, 0, 1);
+      const seg = 14, sh = h.h/seg;
+      for (let i = 0; i < seg; i++){
+        const t = i/seg;
+        const flick = 1 + Math.sin(runTime*26 + i*1.7)*0.22;
+        const w = Math.max(1, h.w * (1 - t*0.72) * flick);
+        const col = t < 0.22 ? '#fff8d8' : t < 0.55 ? '#ffb03a' : '#ff5a1e';
+        ctx.fillStyle = rgba(col, (1 - t*0.55) * a);
+        ctx.fillRect(Math.round(h.x - w), Math.round(h.y - sh*(i+1)),
+                     Math.max(2, Math.round(w*2)), Math.ceil(sh) + 1);
+      }
+      ctx.fillStyle = rgba('#fff8d8', 0.85*a);      // heisser Kern
+      ctx.fillRect((h.x - 1)|0, (h.y - h.h*0.55)|0, 3, h.h*0.55);
+      ctx.fillStyle = rgba('#ff8f3c', 0.5*a);       // Glutring am Boden
+      ctx.beginPath(); ctx.ellipse(h.x, h.y, h.w*1.6, 4, 0, 0, TAU); ctx.fill();
+      glowLine(h.x, h.y, h.x, h.y - h.h*0.7, h.w*2.4, '#ff8f3c', 0.55*a);
+      glowDot(h.x, h.y, 16, '#ffe066', 0.5*a);
+    }
+  }
 }
 function newAmbient(kind, spread){
   if (kind === 'hell')
@@ -1934,9 +2189,20 @@ function updateArena(dt){
     if (a.sway !== undefined){ a.sway += dt*2; a.x += Math.sin(a.sway)*10*dt; }
     if (a.life <= 0 || a.y < -10 || a.y > CH+10) amb[i] = newAmbient(arena.kind, false);
   }
-  if (arena.kind === 'ruins'){
+  if (arena.kind === 'ruins' || arena.morph > 0){
     lightning -= dt;
-    if (lightning < -rnd(4, 11)) lightning = 0.22;
+    const gap = arena.morph > 0 ? rnd(1.2, 3.5) : rnd(4, 11);
+    if (lightning < -gap) lightning = 0.22;
+  }
+  arena.grade.a = lerp(arena.grade.a, arena.grade.ta, 1 - Math.pow(0.15, dt));
+  arena.fg.phase = (arena.fg.phase || 0) + arena.fg.scroll*dt;
+
+  for (const w of weather){
+    w.x += w.vx*dt; w.y += w.vy*dt;
+    if (w.sway !== undefined){ w.sway += dt*2.2; w.x += Math.sin(w.sway)*8*dt; }
+    if (w.y > CH + 12 || w.x < -40 || w.x > CW + 40){
+      w.y = -rnd(4, 40); w.x = rnd(-30, CW+30);
+    }
   }
 }
 function drawArenaBack(){
@@ -1971,6 +2237,25 @@ function drawArenaFront(){
     ctx.fillStyle = rgba(a.col, al);
     ctx.fillRect(a.x|0, a.y|0, 1, 2);
   }
+  // Vordergrund-Saeulen und Schwaden laufen vor den Figuren durch
+  const L = arena.fg;
+  let ox = -((cam.x*L.depth + (L.phase || 0)) % LW);
+  if (ox > 0) ox -= LW;
+  const oy = -Math.round(cam.y*L.depth);
+  for (let x = ox - 48; x < CW; x += LW){
+    ctx.drawImage(L.c, Math.round(x), oy);
+    if (GC) GC.drawImage(L.g, Math.round(x), oy);
+  }
+  // Wetter nach der Verwandlung
+  for (const w of weather){
+    if (w.k === 'rain'){
+      ctx.strokeStyle = 'rgba(186,208,255,0.75)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(w.x + w.vx*0.02, w.y + w.len); ctx.stroke();
+    } else {
+      ctx.fillStyle = 'rgba(190,150,130,0.55)';
+      ctx.fillRect(w.x|0, w.y|0, w.r < 1.3 ? 1 : 2, w.r < 1.3 ? 1 : 2);
+    }
+  }
   // Bodennebel als Abschluss
   const g = ctx.createLinearGradient(0, CH-26, 0, CH);
   g.addColorStop(0, 'rgba(0,0,0,0)');
@@ -1997,7 +2282,7 @@ function stageHp(){
 function startStage(){
   enemies = []; bullets = []; ebullets = []; gems = [];
   parts = []; texts = []; beams = []; meteors = []; waves = [];
-  pools = []; chests = []; banners = [];
+  pools = []; chests = []; banners = []; hazards = [];
   const st = STAGES[stageIdx];
   loadArena(st.bg);
   bossGhost = 1; hpGhost = 1;
@@ -2015,6 +2300,7 @@ function startStage(){
    die Kamera auf das Spielfeld zurueck und der Name schlaegt ein.           */
 const INTRO_LEN = 3.4;
 function updateIntroCamera(dt){
+  view.lock = 1;
   const t = INTRO_LEN - introT;                 // vergangene Zeit
   if (t < 1.9){
     view.tz = 2.0; view.tx = boss.x; view.ty = boss.y + 4;
@@ -2028,7 +2314,7 @@ function updateIntroCamera(dt){
   }
 }
 function startBossDeath(){
-  state = 'bossdeath'; endT = 0;
+  state = 'bossdeath'; endT = 0; view.lock = 1;
   timeScale = 0.22; hitStop = 0.3;
   view.tz = 1.85; view.tx = boss.x; view.ty = boss.y;
   shake = 9; flash = 1; aberr = 1;
@@ -2046,16 +2332,25 @@ function updateBossDeath(dt){
     shake = 10; flash = 1;
   }
   if (endT > 2.3){
-    timeScale = 1; view.tz = 1; view.tx = CW/2; view.ty = CH/2;
+    timeScale = 1; view.lock = 0; view.tz = 1; view.tx = CW/2; view.ty = CH/2;
     state = 'cleared'; endT = 0; clearPressed();
   }
 }
-/* Weiches Nachziehen von Zoom und Blickpunkt. */
+/* Kurzer Zoom-Stoss und Kippen bei Einschlaegen. */
+function camPunch(k){ view.punch = Math.max(view.punch || 0, k); }
+function camTilt(a){ if (Math.abs(a) > Math.abs(view.tilt || 0)) view.tilt = a; }
+
+/* Weiches Nachziehen von Zoom, Blickpunkt und Stoessen. */
 function updateView(dt){
   const k = 1 - Math.pow(0.002, dt);
+  // Im freien Kampf faehrt die Kamera bei vollem Bild leicht heraus
+  if (!view.lock && state === 'play')
+    view.tz = 1 - Math.min(0.06, enemies.length*0.0016);
   view.zoom = lerp(view.zoom, view.tz, k);
   view.cx = lerp(view.cx, view.tx, k);
   view.cy = lerp(view.cy, view.ty, k);
+  view.punch = (view.punch || 0) * Math.pow(0.02, dt);
+  view.tilt  = (view.tilt  || 0) * Math.pow(0.03, dt);
 }
 function offerUpgrades(n = 3){
   const pool = UPGRADES.filter(u => p.up[u.id] < upCap(u));
@@ -2083,6 +2378,7 @@ function update(dt){
   runTime += dt;
   const s = stats();
   updateArena(dt);
+  updateHazards(dt);
 
   /* ---- Spieler ---- */
   let ix = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
@@ -2289,7 +2585,7 @@ function update(dt){
       if (m.warn <= 0){
         m.boom = 0.25;
         explode(m.x, m.y, m.r, 0);
-        shake = Math.max(shake, 3);
+        shake = Math.max(shake, 3); camPunch(0.04);
         if (p.iframe <= 0 && dist2(m.x, m.y, p.x, p.y) < (m.r+4)*(m.r+4)) damagePlayer(m.dmg);
       }
     } else m.boom -= dt;
@@ -2394,6 +2690,7 @@ function damagePlayer(dmg){
   flash = Math.max(flash, 0.25);
   aberr = Math.max(aberr, 0.9);
   hitStop = Math.max(hitStop, 0.07);
+  camPunch(0.045); camTilt(rnd(-0.018, 0.018));
   floatText(p.x, p.y - 12, '-' + Math.round(dmg), '#ff5a7a');
   burst(p.x, p.y, 8, '#ff5a7a', 70, 0.35);
   sfx.hurt();
@@ -2470,11 +2767,13 @@ function render(){
 
   const sx = shake ? rnd(-shake, shake) : 0, sy = shake ? rnd(-shake, shake) : 0;
   // Erschuetterung, dann Kamerazoom um den Blickpunkt
+  const zoom = view.zoom + (view.punch || 0);
   for (const c2 of [ctx, GC]){
     c2.save();
     c2.translate(Math.round(sx), Math.round(sy));
     c2.translate(CW/2, CH/2);
-    c2.scale(view.zoom, view.zoom);
+    if (view.tilt) c2.rotate(view.tilt);
+    c2.scale(zoom, zoom);
     c2.translate(-view.cx, -view.cy);
   }
 
@@ -2484,6 +2783,12 @@ function render(){
 
   ctx.restore(); GC.restore();
 
+  if (arena && arena.grade.a > 0.01){         // Stimmungsumschlag der Arena
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = rgba(arena.grade.col, arena.grade.a);
+    ctx.fillRect(0, 0, CW, CH);
+    ctx.globalCompositeOperation = 'source-over';
+  }
   if (flash > 0){
     ctx.fillStyle = rgba('#ffffff', flash*0.35); ctx.fillRect(0, 0, CW, CH);
   }
@@ -2548,6 +2853,7 @@ function bloom(){
 
 /* -------------------------------- Welt ---------------------------------- */
 function drawWorld(){
+  drawHazardWarnings();
   /* Meteorwarnungen liegen auf dem Boden */
   for (const m of meteors){
     if (m.warn > 0){
@@ -2756,6 +3062,7 @@ function drawWorld(){
       if (a > 0.6) glowDot(q.x, q.y, 3, q.col, (a-0.6)*0.8);
     }
   }
+  drawHazards();
   /* Schadenszahlen */
   for (const t of texts){
     ctx.globalAlpha = clamp(t.life/0.7, 0, 1);
@@ -3339,7 +3646,7 @@ function frame(now){
     introT -= dt;
     updateArena(dt);
     updateIntroCamera(dt);
-    if (introT <= 0){ state = 'play'; view.tz = 1; view.tx = CW/2; view.ty = CH/2; }
+    if (introT <= 0){ state = 'play'; view.lock = 0; view.tz = 1; view.tx = CW/2; view.ty = CH/2; }
   } else if (state === 'bossdeath'){
     updateArena(dt);
     updateBossDeath(dt);
