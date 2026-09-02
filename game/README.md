@@ -22,6 +22,7 @@ erzeugt. Es gibt keine externen Assets.
 | `WASD` / Pfeiltasten | Bewegen |
 | `Leertaste` / `Shift` | Ausweichrolle (kurze Unverwundbarkeit) |
 | `1` `2` `3` | Upgrade beim Level-Up wählen |
+| `F` | Schmiede (vom Titel oder der Heldenauswahl) |
 | `Enter` | Bestätigen / weiter |
 | `P` / `Esc` | Pause |
 | `M` | Ton an/aus |
@@ -30,11 +31,16 @@ Die Waffen zielen und feuern automatisch auf den nächstgelegenen Gegner.
 
 ## Helden
 
-| Held | Leben | Tempo | Waffe |
-|---|---|---|---|
-| **Gockel** — das magische Huhn | 100 | mittel | Feuerstab: explodierende Kugeln mit Flächenschaden |
-| **Ritter** — vergessene Wache | 145 | langsam | Kreuzklingen: Salve rundum, durchbohrt Gegner |
-| **Magierin** — Sturmruferin | 78 | schnell | Blitzlanze: schnelle Bolzen, hoher Durchschlag |
+| Held | Leben | Tempo | Waffe | Evolution |
+|---|---|---|---|---|
+| **Gockel** — das magische Huhn | 100 | mittel | Feuerstab: explodierende Kugeln | **Infernostab** — Treffer entzünden brennenden Boden |
+| **Ritter** — vergessene Wache | 145 | langsam | Kreuzklingen: Salve rundum | **Klingensturm** — Klingen kehren zurück, unbegrenzter Durchschlag |
+| **Magierin** — Sturmruferin | 78 | schnell | Blitzlanze: schnelle Bolzen | **Sturmlanze** — Bolzen gabeln sich bei jedem Treffer |
+| **Revenant** — der Wiederkehrer *(400 Gold)* | 112 | schnell | Sensenwelle: breite Sichel, durchschlägt Reihen | **Seelenernte** — Sicheln kehren zurück und ernten Extra-Splitter |
+
+Eine Evolution zündet, sobald das passende Upgrade-Paar beisammen ist — etwa
+Mehrfachschuss auf Maximum plus Schadenskern Stufe 3 beim Gockel. Sie kostet
+keinen Zug, sondern belohnt einen konsequent gebauten Build.
 
 ## Bosse
 
@@ -46,7 +52,39 @@ Die Waffen zielen und feuern automatisch auf den nächstgelegenen Gegner.
    Drei Phasen: ab 66 % zweite Spirale und Schockwellen, ab 30 % alles gleichzeitig.
 
 Level, Upgrades und Erfahrung werden über alle drei Arenen mitgenommen. Nach jedem
-Boss gibt es Heilung und eine Gratis-Verstärkung.
+Boss gibt es Heilung und eine Gratis-Verstärkung. Jeder Boss fährt mit einer
+Kamerafahrt ein, jeder Phasenwechsel schlägt als Druckwelle durch das Bild, und
+der Todesstoß läuft in Zeitlupe.
+
+## Zwischen den Wellen
+
+- **Eliten.** Alle 15–22 Sekunden erscheint ein deutlich größerer Gegner mit
+  Goldring und siebenfachem Leben. Er lässt eine **Schatztruhe** fallen: eine
+  Verstärkung, 40 % Heilung oder ein Goldfund.
+- **Kette.** Kills kurz hintereinander bauen einen Zähler auf, der bei einem
+  Treffer sofort reißt.
+
+## Bleibender Fortschritt
+
+Gold überlebt den Tod. In der **Schmiede** (`F` auf dem Titel) wird es dauerhaft
+angelegt — die Kosten steigen mit jeder Stufe:
+
+| Bonus | Stufen | Wirkung |
+|---|---|---|
+| Knochenbau | 5 | +12 Startleben |
+| Zornrune | 5 | +6 % Schaden |
+| Reisewind | 4 | +4 % Tempo |
+| Gierauge | 4 | +20 % Goldfund |
+| Erbstück | 3 | Start mit einer Verstärkung |
+| Zweites Leben | 1 | Einmal pro Runde mit halbem Leben wieder aufstehen |
+
+Der vierte Held, der **Revenant**, wird einmalig für 400 Gold freigeschaltet.
+
+## New Game+
+
+Nach dem Sieg über Abaddon geht es in die nächste Schleife: Bosse bekommen das
+1,6-fache Leben pro Schleife, Gegner werden 45 % zäher, und die Obergrenze jedes
+Upgrades steigt um eins. Level und Verstärkungen bleiben erhalten.
 
 ## Die zwölf Upgrades
 
@@ -70,6 +108,10 @@ Alles wird zur Laufzeit erzeugt, es gibt keine Bilddateien.
 - **Animation.** Helden haben vier Laufframes, Diener zwei, Bosse zwei
   (Flügelschlag bzw. Armbewegung) plus eine leichte Atembewegung über eine
   vertikale Stauchung.
+- **Trefferfeedback.** Kritische Treffer und Phasenwechsel frieren die Simulation
+  kurz ein (`hitStop`), Schaden am Spieler zieht die Farbkanäle auseinander
+  (Rot- und Cyan-Auszug gegeneinander verschoben), und der Bosstod läuft mit
+  `timeScale` 0,22 bei zugefahrener Kamera.
 - **Arenen** bestehen aus fünf Ebenen, die sich unterschiedlich schnell gegen
   eine weiche Kamera verschieben, die dem Spieler folgt. Dazu kommt bewegtes
   Beiwerk: Staub und Wetterleuchten in den Ruinen, ziehende Wolken und Federn im
@@ -92,4 +134,7 @@ Die Raster für Helden, Bosse und Icons werden von `tools/emit.py` erzeugt und i
 - **Update / Render / Overlays** — feste Simulationsschritte mit 60 Hz, die
   Darstellung läuft davon entkoppelt.
 
-Der Bestwert wird in `localStorage` unter `terrabruch.best` abgelegt.
+- **Inszenierung / Meta** — Kamerafahrten, Schmiede, New Game+.
+
+`localStorage` hält zwei Schlüssel: `terrabruch.best` (beste Runde) und
+`terrabruch.meta` (Gold, gekaufte Boni, freigeschaltete Helden, beste Schleife).

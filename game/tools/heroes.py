@@ -64,6 +64,27 @@ MAGIERIN_LEGS = [
     ['..ppPPPPPPp.....', '..pppppppp......', '...qq...qqq.....', '...HH....HHH....'],
 ]
 
+
+REVENANT = rows_of([
+    '....DDDDD.......',
+    '...DDDDDDD...S..',
+    '..DDBBBBBDD.SS..',
+    '..DDBGBGBDD.SS..',
+    '..DDBBBBBDDSS...',
+    '...DBBBBBD.S....',
+    '...dDDDDDdS.....',
+    '..dDDDDDDDS.....',
+    '.dDDDDGDDDdS....',
+    '.dDDDDGDDDd.S...',
+    '.dDDDDDDDDd.....',
+    '..dDDDDDDd......',
+])
+REVENANT_LEGS = [
+    ['..dDDDDDDd......', '...B....B.......', '...B....B.......', '..BB....BB......'],
+    ['..dDDDDDDd......', '..B......B......', '.B........B.....', 'BB........BB....'],
+    ['..dDDDDDDd......', '...BB...B.......', '...B....B.......', '..BB....BB......'],
+]
+
 def hero_frames(body, legs):
     """Vier Frames: Stand, Schritt A, Stand, Schritt B."""
     base = body + legs[0]
@@ -75,6 +96,7 @@ HEROES = {
     'gockel':   hero_frames(GOCKEL, GOCKEL_LEGS),
     'ritter':   hero_frames(RITTER, RITTER_LEGS),
     'magierin': hero_frames(MAGIERIN, MAGIERIN_LEGS),
+    'revenant': hero_frames(REVENANT, REVENANT_LEGS),
 }
 
 # --------------------------------------------------------------- Diener 12x12
