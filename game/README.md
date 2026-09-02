@@ -56,6 +56,24 @@ Boss gibt es Heilung und eine Gratis-Verstärkung. Jeder Boss fährt mit einer
 Kamerafahrt ein, jeder Phasenwechsel schlägt als Druckwelle durch das Bild, und
 der Todesstoß läuft in Zeitlupe.
 
+## Der Boden
+
+Kein leeres Kachelfeld mehr — er hat eine Mitte und er merkt sich, was passiert:
+
+- **Kampfring.** Eine Ellipse mit abgesetztem Rand und Pflastersteinen liegt in
+  der Bildmitte und gibt der Arena Maßstab. Sie ist in die Bodenebene gebacken
+  und wandert daher mit deren Parallaxe mit.
+- **Siegel.** Darüber pulsiert ein Runenkreis mit gegenläufigem Dreieck. Er
+  wechselt beim Phasenwechsel von der Arenafarbe zu glühendem Rot.
+- **Deko je Arena.** Mosaik, gestürzte Säulentrommeln, Knochen und Regenpfützen
+  in den Ruinen; Marmoradern und Goldintarsien im Himmel; gesprungene
+  Basaltplatten, Schädel und Obsidiansplitter in der Hölle.
+- **Kampfspuren.** Explosionen brennen den Boden an, Meteore und Steinschlag
+  schlagen Krater, Kills hinterlassen Spritzer in der Farbe des Gegners. Die
+  Spuren bleiben bis zum Arenawechsel; die ältesten weichen bei 80 Stück.
+- **Bewegter Untergrund.** Über die Pfützen wandert Glanz, über den Marmor
+  ziehen Wolkenschatten, und durch die Glutadern der Hölle fließen Lichtpunkte.
+
 ## Die Arena kämpft mit
 
 Jede Arena hat eine eigene Gefahr. Alle werden angekündigt, treffen nur während

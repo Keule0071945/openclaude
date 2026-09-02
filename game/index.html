@@ -1367,6 +1367,7 @@ function fireWeapon(){
 /* Brennender Boden aus dem Infernostab. */
 function ignite(x, y){
   pools.push({ x, y, r:16, life:3.2, max:3.2, tick:0 });
+  addDecal(x, y, 15, 'scorch', '#ff6b2c');
 }
 
 /* Schadensanwendung inkl. Krit, Kettenblitz und Explosionen. */
@@ -1410,6 +1411,7 @@ function killEnemy(e){
   e.dead = true;
   kills++;
   combo++; comboT = 2.6; comboPop = 1;
+  addDecal(e.x, e.y, e.elite ? 14 : 7, 'splat', e.gore || '#ff5a5a');
   burst(e.x, e.y, e.elite ? 22 : 10, e.gore || '#ff5a5a', e.elite ? 130 : 80, 0.45);
   const gemN = e.elite ? 5 : 1;
   for (let i = 0; i < gemN; i++)
@@ -1456,6 +1458,7 @@ function openChest(c){
 }
 
 function explode(x, y, radius, dmg){
+  addDecal(x, y, radius*0.7, 'scorch', '#ff8f3c');
   burst(x, y, 14, '#ffb03a', 110, 0.4);
   parts.push({ ring:true, x, y, r:radius, life:0.2, max:0.2, col:'#ffd23f' });
   shake = Math.max(shake, 2);
@@ -1704,6 +1707,27 @@ function layer(depth, scroll, draw){
   return { c:s.c, g:g.c, depth, scroll: scroll || 0 };
 }
 
+/* Der Kampfring: eine Ellipse mit abgesetztem Rand in der Mitte der Arena.
+   Er wird in die Bodenebene gebacken und wandert daher mit ihr mit.          */
+const RING = { x: LW/2, y: 158, rx: 104, ry: 46 };
+function combatRing(c, colRim, colIn, colEdge){
+  c.save();
+  c.fillStyle = colIn;                                     // eingelassene Flaeche
+  c.beginPath(); c.ellipse(RING.x, RING.y, RING.rx, RING.ry, 0, 0, TAU); c.fill();
+  c.strokeStyle = colRim; c.lineWidth = 3;                 // Ringmauer
+  c.beginPath(); c.ellipse(RING.x, RING.y, RING.rx, RING.ry, 0, 0, TAU); c.stroke();
+  c.strokeStyle = colEdge; c.lineWidth = 1;                // Lichtkante oben
+  c.beginPath(); c.ellipse(RING.x, RING.y-1, RING.rx, RING.ry, 0, Math.PI, TAU); c.stroke();
+  c.strokeStyle = colRim; c.lineWidth = 1;                 // innerer Absatz
+  c.beginPath(); c.ellipse(RING.x, RING.y, RING.rx-7, RING.ry-3, 0, 0, TAU); c.stroke();
+  for (let i = 0; i < 16; i++){                            // Pflastersteine im Rand
+    const a = i*TAU/16;
+    c.fillStyle = i % 2 ? colRim : colEdge;
+    c.fillRect((RING.x + Math.cos(a)*(RING.rx-3))|0, (RING.y + Math.sin(a)*(RING.ry-1))|0, 3, 2);
+  }
+  c.restore();
+}
+
 /* Zackenlinie fuer Gebirge und Truemmerkanten. */
 function jagged(c, rng, y0, amp, step, col, h){
   c.fillStyle = col;
@@ -1778,25 +1802,54 @@ const ARENAS = {
     A.push(layer(0.34, 0, c => {                                // Truemmerkante
       jagged(c, seeded(51), HORIZON-6, 5, 6, '#1b2033', HORIZON+4);
     }));
+    const spots = [];
     A.push(layer(0.5, 0, c => {                                 // Steinboden
+      const rng = seeded(63);
       c.fillStyle = '#3a4058'; c.fillRect(0, HORIZON, LW, CH-HORIZON);
       c.fillStyle = '#343a50';
       for (let y = HORIZON; y < CH; y += 8)
         for (let x = ((y/8)%2 ? 4 : 0); x < LW; x += 8) c.fillRect(x, y, 4, 4);
-      const rng = seeded(63);
-      c.fillStyle = '#2b3145';
-      for (let i = 0; i < 60; i++)
-        c.fillRect((rng()*LW)|0, (HORIZON + rng()*(CH-HORIZON))|0, 2+(rng()*6|0), 1);
-      c.fillStyle = '#454c6a';                                  // Schuttbrocken
+
+      combatRing(c, '#4e5678', '#333952', '#5e6890');           // Kampfring
+      c.fillStyle = '#2f3550';                                   // Mosaik im Ring
       for (let i = 0; i < 26; i++){
-        const x = (rng()*LW)|0, y = (HORIZON + 6 + rng()*(CH-HORIZON-8))|0;
-        c.fillRect(x, y, 2+(rng()*3|0), 2);
+        const a = rng()*TAU, r = Math.sqrt(rng());
+        c.fillRect((RING.x + Math.cos(a)*RING.rx*r*0.85)|0,
+                   (RING.y + Math.sin(a)*RING.ry*r*0.85)|0, 3, 3);
+      }
+
+      c.fillStyle = '#2b3145';                                   // Fugen und Risse
+      for (let i = 0; i < 70; i++)
+        c.fillRect((rng()*LW)|0, (HORIZON + rng()*(CH-HORIZON))|0, 2+(rng()*6|0), 1);
+      c.fillStyle = '#454c6a';                                   // Schuttbrocken
+      for (let i = 0; i < 30; i++)
+        c.fillRect((rng()*LW)|0, (HORIZON + 6 + rng()*(CH-HORIZON-8))|0, 2+(rng()*3|0), 2);
+
+      for (let i = 0; i < 5; i++){                               // gestuerzte Saeulentrommeln
+        const x = (rng()*LW)|0, y = (HORIZON + 14 + rng()*(CH-HORIZON-24))|0;
+        c.fillStyle = '#454c6a'; c.fillRect(x, y, 17, 6);
+        c.fillStyle = '#565f82'; c.fillRect(x, y, 17, 2);
+        c.fillStyle = '#2b3145'; c.fillRect(x+4, y, 1, 6); c.fillRect(x+10, y, 1, 6);
+      }
+      for (let i = 0; i < 7; i++){                               // Knochen im Staub
+        const x = (rng()*LW)|0, y = (HORIZON + 12 + rng()*(CH-HORIZON-20))|0;
+        c.fillStyle = '#8d8a7e';
+        c.fillRect(x, y, 7, 1); c.fillRect(x-1, y-1, 2, 3); c.fillRect(x+6, y-1, 2, 3);
+      }
+      for (let i = 0; i < 4; i++){                               // Regenpfuetzen
+        const px = 40 + rng()*(LW-80), py = HORIZON + 20 + rng()*(CH-HORIZON-34);
+        const rx = 12 + rng()*16, ry = 4 + rng()*4;
+        c.fillStyle = '#2c3550';
+        c.beginPath(); c.ellipse(px, py, rx, ry, 0, 0, TAU); c.fill();
+        c.strokeStyle = '#4a5478'; c.lineWidth = 1;
+        c.beginPath(); c.ellipse(px, py, rx, ry, 0, 0, TAU); c.stroke();
+        spots.push({ x:px, y:py, rx, ry });
       }
       const vg = c.createLinearGradient(0, HORIZON, 0, HORIZON+46);
       vg.addColorStop(0, 'rgba(14,17,32,0.5)'); vg.addColorStop(1, 'rgba(14,17,32,0)');
       c.fillStyle = vg; c.fillRect(0, HORIZON, LW, 46);
     }));
-    return { layers:A, kind:'ruins', tint:'#9aa4c4' };
+    return { layers:A, kind:'ruins', tint:'#9aa4c4', spots, seal:'#8fa6ff' };
   },
 
   /* ------------------------------- HIMMEL ------------------------------- */
@@ -1835,16 +1888,36 @@ const ARENAS = {
     }));
     A.push(layer(0.4, 14, cloudBank(41, HORIZON-4, 8, '#5a6ea2', 0.8)));
     A.push(layer(0.5, 0, (c, g) => {                            // Marmorboden
+      const rng = seeded(77);
       c.fillStyle = '#37477a'; c.fillRect(0, HORIZON, LW, CH-HORIZON);
       for (let y = HORIZON; y < CH; y += 10){
         c.fillStyle = ((y/10)|0) % 2 ? '#3d4e84' : '#334171';
         for (let x = (((y/10)|0)%2 ? 5 : 0); x < LW; x += 10) c.fillRect(x, y, 5, 5);
       }
-      c.fillStyle = 'rgba(242,193,78,0.6)';
+      c.fillStyle = '#4a5c96';                                   // Marmoradern
+      for (let i = 0; i < 40; i++){
+        let x = rng()*LW, y = HORIZON + rng()*(CH-HORIZON);
+        for (let k = 0; k < 9; k++){
+          c.fillRect(x|0, y|0, 2, 1);
+          x += (rng()-0.3)*6; y += (rng()-0.5)*3;
+        }
+      }
+      combatRing(c, '#9c8134', '#31407a', '#c9a95a');            // Kampfring in Gold
+      c.fillStyle = 'rgba(242,193,78,0.55)';                      // Intarsien im Ring
+      for (let i = 0; i < 8; i++){
+        const a = i*TAU/8;
+        c.fillRect((RING.x + Math.cos(a)*RING.rx*0.55)|0,
+                   (RING.y + Math.sin(a)*RING.ry*0.55)|0, 5, 3);
+      }
+      c.strokeStyle = 'rgba(242,193,78,0.4)'; c.lineWidth = 1;
+      c.beginPath(); c.ellipse(RING.x, RING.y, RING.rx*0.55, RING.ry*0.55, 0, 0, TAU); c.stroke();
+      c.fillStyle = 'rgba(242,193,78,0.6)';                       // Fugenband
       for (let x = 0; x < LW; x += 40) c.fillRect(x+6, HORIZON+16, 26, 1);
       g.fillStyle = 'rgba(255,225,150,0.12)'; g.fillRect(0, HORIZON, LW, 3);
+      g.fillStyle = 'rgba(255,215,120,0.07)';
+      g.beginPath(); g.ellipse(RING.x, RING.y, RING.rx, RING.ry, 0, 0, TAU); g.fill();
     }));
-    return { layers:A, kind:'heaven', tint:'#ffe08a' };
+    return { layers:A, kind:'heaven', tint:'#ffe08a', spots:[], seal:'#ffe066' };
   },
 
   /* -------------------------------- HOELLE ------------------------------ */
@@ -1878,22 +1951,46 @@ const ARENAS = {
       c.fillStyle = '#ff8f3c'; c.fillRect(0, HORIZON-1, LW, 2);
       g.fillStyle = 'rgba(255,120,40,0.32)'; g.fillRect(0, HORIZON-3, LW, 6);
     }));
+    const veins = [];
     A.push(layer(0.5, 0, (c, g) => {                            // Obsidianboden mit Adern
+      const rng = seeded(109);
       c.fillStyle = '#25090c'; c.fillRect(0, HORIZON, LW, CH-HORIZON);
       c.fillStyle = '#1c0709';
       for (let y = HORIZON; y < CH; y += 8)
         for (let x = ((y/8)%2 ? 4 : 0); x < LW; x += 8) c.fillRect(x, y, 4, 4);
-      const rng = seeded(109);
-      for (let i = 0; i < 18; i++){                              // Glutadern
+
+      combatRing(c, '#5a1a18', '#1f070a', '#8a3020');            // Kampfring aus Basalt
+      c.fillStyle = '#3a0f10';                                    // gesprungene Platten
+      for (let i = 0; i < 20; i++){
+        const a = rng()*TAU, r = Math.sqrt(rng())*0.9;
+        c.fillRect((RING.x + Math.cos(a)*RING.rx*r)|0,
+                   (RING.y + Math.sin(a)*RING.ry*r)|0, 4, 2);
+      }
+
+      for (let i = 0; i < 20; i++){                               // Glutadern als Pfade
+        const path = [];
         let x = rng()*LW, y = HORIZON + rng()*(CH-HORIZON);
-        for (let k = 0; k < 8; k++){
+        for (let k = 0; k < 10; k++){
+          path.push([x, y]);
           c.fillStyle = '#e0641f'; c.fillRect(x|0, y|0, 1, 1);
           g.fillStyle = 'rgba(255,110,40,0.24)'; g.fillRect((x-1)|0, (y-1)|0, 4, 3);
           x += (rng()-0.35)*7; y += (rng()-0.4)*4;
         }
+        veins.push({ path, t: rng() });
+      }
+      for (let i = 0; i < 6; i++){                                // Schaedel im Geroell
+        const x = (rng()*LW)|0, y = (HORIZON + 14 + rng()*(CH-HORIZON-24))|0;
+        c.fillStyle = '#6e6355'; c.fillRect(x, y, 6, 5);
+        c.fillStyle = '#1a0508'; c.fillRect(x+1, y+1, 2, 2); c.fillRect(x+4, y+1, 1, 2);
+      }
+      for (let i = 0; i < 8; i++){                                // Obsidiansplitter
+        const x = (rng()*LW)|0, y = (HORIZON + 10 + rng()*(CH-HORIZON-16))|0;
+        c.fillStyle = '#3d1013';
+        c.beginPath(); c.moveTo(x, y); c.lineTo(x+5, y+3); c.lineTo(x-2, y+4);
+        c.closePath(); c.fill();
       }
     }));
-    return { layers:A, kind:'hell', tint:'#ff8f3c' };
+    return { layers:A, kind:'hell', tint:'#ff8f3c', spots:[], veins, seal:'#ff8f3c' };
   },
 };
 
@@ -1952,11 +2049,13 @@ function foreground(kind){
 /* ----------------------- Kamera und Umgebungsflirren --------------------- */
 const cam = { x:0, y:0 };
 let arena = null, amb = [], ambT = 0, lightning = 0;
-let weather = [], hazards = [], hazardTimer = 0;
+let weather = [], hazards = [], hazardTimer = 0, decals = [];
 
 function loadArena(kind){
   arena = ARENAS[kind]();
   arena.fg = foreground(kind);
+  arena.floor = arena.layers[arena.layers.length - 1];   // unterste Ebene traegt den Ring
+  decals = [];
   arena.grade = { col:'#ffffff', a:0, ta:0 };
   arena.morph = 0;
   amb = [];
@@ -1965,6 +2064,133 @@ function loadArena(kind){
   weather = []; hazards = [];
   hazardTimer = rnd(5, 8);
   cam.x = cam.y = 0; lightning = 0;
+}
+
+/* --------------------------- Boden und Kampfspuren ----------------------- */
+/* Der Boden lebt aus drei Quellen: dem eingebackenen Kampfring, dem Siegel
+   darueber und den Spuren, die der Kampf hinterlaesst.                       */
+
+/* Versatz der Bodenebene — Siegel und Spuren wandern damit mit. */
+function floorShift(){
+  if (!arena || !arena.floor) return { x:0, y:0 };
+  const L = arena.floor;
+  let ox = -((cam.x*L.depth + (L.phase || 0)) % LW);
+  if (ox > 0) ox -= LW;
+  return { x: Math.round(ox - 48), y: -Math.round(cam.y*L.depth) };
+}
+
+/* Bleibende Spur auf dem Boden. Aeltere weichen, damit es nicht zumatscht. */
+function addDecal(x, y, r, kind, col){
+  const f = floorShift();
+  decals.push({ x: x - f.x, y: y - f.y, r, kind, col,
+                seed: Math.random()*1000, born: runTime });
+  if (decals.length > 80) decals.splice(0, decals.length - 80);
+}
+
+function drawDecals(){
+  const f = floorShift();
+  for (const d of decals){
+    const x = d.x + f.x, y = d.y + f.y;
+    if (x < -20 || x > CW+20) continue;
+    if (d.kind === 'scorch'){
+      ctx.fillStyle = rgba('#120a08', 0.55);
+      ctx.beginPath(); ctx.ellipse(x, y, d.r, d.r*0.45, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = rgba(d.col, 0.18); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(x, y, d.r*0.8, d.r*0.36, 0, 0, TAU); ctx.stroke();
+    } else if (d.kind === 'crater'){
+      ctx.fillStyle = rgba('#0d0f18', 0.6);
+      ctx.beginPath(); ctx.ellipse(x, y, d.r, d.r*0.45, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = rgba(d.col, 0.22); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(x, y-1, d.r, d.r*0.45, 0, Math.PI, TAU); ctx.stroke();
+      const rng = seeded(d.seed|0);
+      for (let i = 0; i < 6; i++)                       // Auswurf rundherum
+        ctx.fillRect((x + (rng()-0.5)*d.r*2.6)|0, (y + (rng()-0.5)*d.r*1.2)|0, 2, 1);
+    } else {                                            // Spritzer
+      const rng = seeded(d.seed|0);
+      ctx.fillStyle = rgba(d.col, 0.45);
+      for (let i = 0; i < 7; i++){
+        const a = rng()*TAU, rr = rng()*d.r;
+        ctx.fillRect((x + Math.cos(a)*rr)|0, (y + Math.sin(a)*rr*0.5)|0,
+                     rng() < 0.3 ? 2 : 1, 1);
+      }
+    }
+  }
+}
+
+/* Das Siegel: pulsierender Runenkreis unter dem Kampf, wechselt beim
+   Phasenwechsel die Farbe.                                                   */
+function drawSeal(){
+  if (!arena) return;
+  const f = floorShift();
+  const x = RING.x + f.x, y = RING.y + f.y;
+  if (x < -140 || x > CW+140) return;
+  const col = arena.morph > 0 ? '#ff6b4a' : arena.seal;
+  const puls = 0.5 + 0.5*Math.sin(runTime*1.8);
+  const a = 0.11 + 0.07*puls;
+  const rot = runTime*0.16;
+
+  ctx.save();
+  ctx.strokeStyle = rgba(col, a); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.ellipse(x, y, RING.rx*0.72, RING.ry*0.72, 0, 0, TAU); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(x, y, RING.rx*0.44, RING.ry*0.44, 0, 0, TAU); ctx.stroke();
+
+  for (let i = 0; i < 12; i++){                          // Runen auf dem Ring
+    const ang = rot + i*TAU/12;
+    const rx = x + Math.cos(ang)*RING.rx*0.58, ry = y + Math.sin(ang)*RING.ry*0.58;
+    ctx.fillStyle = rgba(col, a + 0.09);
+    ctx.fillRect(rx|0, ry|0, 2, 3);
+    if (i % 3 === 0) ctx.fillRect((rx-2)|0, (ry+1)|0, 6, 1);
+  }
+  ctx.strokeStyle = rgba(col, a*0.5); ctx.lineWidth = 1;  // gegenlaeufiges Dreieck
+  ctx.beginPath();
+  for (let i = 0; i < 3; i++){
+    const ang = -rot*1.7 + i*TAU/3;
+    const px = x + Math.cos(ang)*RING.rx*0.42, py = y + Math.sin(ang)*RING.ry*0.42;
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.closePath(); ctx.stroke();
+  ctx.restore();
+
+  if (GC){                                               // nur ein Hauch Licht
+    GC.strokeStyle = rgba(col, 0.07 + 0.05*puls); GC.lineWidth = 2;
+    GC.beginPath(); GC.ellipse(x, y, RING.rx*0.72, RING.ry*0.72, 0, 0, TAU); GC.stroke();
+  }
+}
+
+/* Bewegter Untergrund: Pfuetzenglanz, Wolkenschatten, fliessende Glut. */
+function drawFloorFx(){
+  if (!arena) return;
+  const f = floorShift();
+  if (arena.kind === 'ruins'){
+    for (const sp of arena.spots){
+      const x = sp.x + f.x, y = sp.y + f.y;
+      if (x < -40 || x > CW+40) continue;
+      for (let i = 0; i < 3; i++){                       // wandernder Glanz
+        const t = (runTime*0.35 + i*0.33 + sp.x*0.01) % 1;
+        const yy = y - sp.ry + t*sp.ry*2;
+        const w = sp.rx * Math.sqrt(Math.max(0, 1 - Math.pow((yy-y)/sp.ry, 2))) * 0.8;
+        ctx.fillStyle = rgba('#9fb4ea', 0.16*(1 - Math.abs(t-0.5)*2) + 0.04);
+        ctx.fillRect((x-w)|0, yy|0, (w*2)|0, 1);
+      }
+    }
+  } else if (arena.kind === 'heaven'){
+    for (let i = 0; i < 4; i++){                          // ziehende Wolkenschatten
+      const sx = ((runTime*9 + i*150) % (CW+240)) - 120;
+      const sy = HORIZON + 24 + i*26;
+      ctx.fillStyle = 'rgba(18,26,58,0.16)';
+      ctx.beginPath(); ctx.ellipse(sx, sy, 62, 13, 0, 0, TAU); ctx.fill();
+    }
+  } else if (arena.veins){
+    for (const v of arena.veins){                         // Glut fliesst durch die Adern
+      const t = (runTime*0.35 + v.t) % 1;
+      const i = Math.min(v.path.length-1, Math.floor(t*v.path.length));
+      const px = v.path[i][0] + f.x, py = v.path[i][1] + f.y;
+      if (px < -10 || px > CW+10) continue;
+      ctx.fillStyle = rgba('#ffd23f', 0.8);
+      ctx.fillRect(px|0, py|0, 2, 1);
+      glowDot(px, py, 5, '#ff8f3c', 0.4);
+    }
+  }
 }
 
 /* ------------------------- Verwandlung der Arena ------------------------- */
@@ -2089,11 +2315,13 @@ function updateHazards(dt){
 function onHazardStart(h){
   if (h.kind === 'rubble'){
     explode(h.x, h.y, h.r, 0);
+    addDecal(h.x, h.y, h.r*0.85, 'crater', '#8f9ac0');
     burst(h.x, h.y, 18, '#6b7290', 120, 0.6);
     shake = Math.max(shake, 4); camPunch(0.05);
     if (p.iframe <= 0 && dist2(h.x, h.y, p.x, p.y) < (h.r+5)*(h.r+5)) damagePlayer(h.dmg);
     sfx.boom();
   } else if (h.kind === 'geyser'){
+    addDecal(h.x, h.y, 13, 'scorch', '#ff8f3c');
     burst(h.x, h.y, 16, '#ff8f3c', 130, 0.6);
     shake = Math.max(shake, 3); camPunch(0.04);
     sfx.boom();
@@ -2216,6 +2444,9 @@ function drawArenaBack(){
       if (GC) GC.drawImage(L.g, Math.round(x), oy);
     }
   }
+  drawFloorFx();
+  drawDecals();
+  drawSeal();
   if (arena.kind === 'ruins' && lightning > 0){
     const a = lightning/0.22;
     ctx.fillStyle = rgba('#aebcf0', a*0.22); ctx.fillRect(0, 0, CW, CH);
@@ -2282,7 +2513,7 @@ function stageHp(){
 function startStage(){
   enemies = []; bullets = []; ebullets = []; gems = [];
   parts = []; texts = []; beams = []; meteors = []; waves = [];
-  pools = []; chests = []; banners = []; hazards = [];
+  pools = []; chests = []; banners = []; hazards = []; decals = [];
   const st = STAGES[stageIdx];
   loadArena(st.bg);
   bossGhost = 1; hpGhost = 1;
@@ -2585,6 +2816,7 @@ function update(dt){
       if (m.warn <= 0){
         m.boom = 0.25;
         explode(m.x, m.y, m.r, 0);
+        addDecal(m.x, m.y, m.r*0.8, 'crater', '#ff8f3c');
         shake = Math.max(shake, 3); camPunch(0.04);
         if (p.iframe <= 0 && dist2(m.x, m.y, p.x, p.y) < (m.r+4)*(m.r+4)) damagePlayer(m.dmg);
       }
