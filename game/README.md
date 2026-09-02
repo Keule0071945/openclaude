@@ -23,6 +23,7 @@ erzeugt. Es gibt keine externen Assets.
 | `Leertaste` / `Shift` | Ausweichrolle (kurze Unverwundbarkeit) |
 | `1` `2` `3` | Upgrade beim Level-Up wählen |
 | `F` | Schmiede (vom Titel oder der Heldenauswahl) |
+| `H` | Anleitung (vom Titel, der Auswahl oder aus der Pause) |
 | `Enter` | Bestätigen / weiter |
 | `P` / `Esc` | Pause |
 | `M` | Ton an/aus |
@@ -105,6 +106,18 @@ regnet Asche. Danach kommen die Gefahren fast doppelt so oft.
 Eine Vordergrund-Ebene aus Säulen, Schwaden und Knochenspitzen läuft vor den
 Figuren durch — sie hält die Spielfläche frei und gibt der Arena Tiefe.
 
+## Gegnerarten
+
+Nicht alle rennen stumpf auf dich zu — jede Arena mischt ihre eigene Auswahl:
+
+| Art | Verhalten |
+|---|---|
+| **Verfolger** (Fledermaus, Imp, Schädel) | Läuft direkt auf dich zu. Grundlast jeder Welle. |
+| **Schwarm** (Motten) | Erscheint zu fünft, schnell und schwach, fliegt unruhig. |
+| **Schütze** (Auge) | Hält rund 74 Pixel Abstand und feuert gezielt. Man muss zu ihm hin oder ausweichen. |
+| **Wächter** | Träge und zäh, sein Schild zeigt immer zu dir: von vorn kommen nur 20 % des Schadens an, also umlaufen. |
+| **Teiler** (Knolle) | Zerfällt beim Tod in zwei kleinere, schnellere Ableger. |
+
 ## Zwischen den Wellen
 
 - **Eliten.** Alle 15–22 Sekunden erscheint ein deutlich größerer Gegner mit
@@ -112,6 +125,18 @@ Figuren durch — sie hält die Spielfläche frei und gibt der Arena Tiefe.
   Verstärkung, 40 % Heilung oder ein Goldfund.
 - **Kette.** Kills kurz hintereinander bauen einen Zähler auf, der bei einem
   Treffer sofort reißt.
+
+## Der Einstieg
+
+Beim allerersten Durchlauf führt eine Zeile über dem Lebensbalken durch die
+Grundlagen — Bewegen, automatisches Feuern, Splitter sammeln, Ausweichrolle,
+Bossleiste, Bodengefahren. Jeder Schritt wartet auf die passende Handlung statt
+auf einen Zeitgeber, damit niemand überholt wird; nach dem ersten Sieg oder Tod
+bleibt die Führung aus.
+
+`H` öffnet jederzeit die **Anleitung** mit Steuerung, Kampfregeln und Aufbau.
+Die **Pause** zeigt zusätzlich den aktuellen Stand: alle genommenen
+Verstärkungen mit Stufe und wie weit die Waffen-Evolution noch entfernt ist.
 
 ## Bleibender Fortschritt
 
@@ -172,6 +197,11 @@ Alles wird zur Laufzeit erzeugt, es gibt keine Bilddateien.
 - **Animation.** Helden haben vier Laufframes, Diener zwei, Bosse zwei
   (Flügelschlag bzw. Armbewegung) plus eine leichte Atembewegung über eine
   vertikale Stauchung.
+- **Ton.** Jeder Effekt ist geschichtet statt ein einzelner Piepton: Tonquellen
+  mit Hüllkurve und Gleiten, dazu gefiltertes Rauschen aus einem einmal
+  erzeugten Rauschpuffer. Ein Treffer ist ein Rauschimpuls durch ein Bandfilter
+  plus tiefer Ton, ein Block zwei verstimmte Metalltöne, eine Explosion ein
+  Sinus-Abfall unter einem Tiefpassrauschen, Belohnungen sind Tonfolgen.
 - **Trefferfeedback.** Kritische Treffer und Phasenwechsel frieren die Simulation
   kurz ein (`hitStop`), Schaden am Spieler zieht die Farbkanäle auseinander
   (Rot- und Cyan-Auszug gegeneinander verschoben), und der Bosstod läuft mit
