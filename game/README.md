@@ -58,21 +58,33 @@ der Todesstoß läuft in Zeitlupe.
 
 ## Der Boden
 
-Kein leeres Kachelfeld mehr — er hat eine Mitte und er merkt sich, was passiert:
+Jede Arena steht auf einem eigenen Material — kein durchgehendes Pflaster mehr:
 
-- **Kampfring.** Eine Ellipse mit abgesetztem Rand und Pflastersteinen liegt in
-  der Bildmitte und gibt der Arena Maßstab. Sie ist in die Bodenebene gebacken
-  und wandert daher mit deren Parallaxe mit.
-- **Siegel.** Darüber pulsiert ein Runenkreis mit gegenläufigem Dreieck. Er
-  wechselt beim Phasenwechsel von der Arenafarbe zu glühendem Rot.
-- **Deko je Arena.** Mosaik, gestürzte Säulentrommeln, Knochen und Regenpfützen
-  in den Ruinen; Marmoradern und Goldintarsien im Himmel; gesprungene
-  Basaltplatten, Schädel und Obsidiansplitter in der Hölle.
+| Arena | Untergrund |
+|---|---|
+| Ruinen | Überwucherter Erdboden. Vom alten Pflaster sind nur noch Inseln übrig, dazwischen Moos, Grasbüschel, Wurzeln und Regenpfützen. |
+| Himmel | Eine Wolkendecke, auf der schwebende Marmorinseln mit Goldkante liegen. Der Kampfring ist die größte davon. |
+| Hölle | Aufgebrochene Krustenplatten. Nur wo sie zerbrochen sind, scheint der glühende Grund durch. |
+
+- **Bruchsteinpflaster statt Raster.** Wo gepflastert ist, liegen verschieden
+  große Steine in versetzten Reihen, jeder mit eigener Färbung, Lichtkante und
+  Absplitterungen. Ein Teil der Steine ragt über die Reihe hinaus und wird von
+  der nächsten teilweise überzeichnet — dadurch entsteht kein Mauerwerksmuster.
+- **Der alte Weg.** Ein gepflastertes Band mit Bordsteinen zieht sich quer durch
+  jede Arena und teilt den Boden sichtbar: Straße in den Ruinen, Marmorsteg im
+  Himmel, Basaltweg in der Hölle.
+- **Kampfring.** Eine Ellipse mit abgesetztem Rand und Pflastersteinen in der
+  Bildmitte. Sie ist in die Bodenebene gebacken und wandert mit deren Parallaxe.
+- **Siegel.** Darüber pulsiert ein Runenkreis mit gegenläufigem Dreieck, der beim
+  Phasenwechsel von der Arenafarbe zu glühendem Rot wechselt.
 - **Kampfspuren.** Explosionen brennen den Boden an, Meteore und Steinschlag
   schlagen Krater, Kills hinterlassen Spritzer in der Farbe des Gegners. Die
   Spuren bleiben bis zum Arenawechsel; die ältesten weichen bei 80 Stück.
-- **Bewegter Untergrund.** Über die Pfützen wandert Glanz, über den Marmor
-  ziehen Wolkenschatten, und durch die Glutadern der Hölle fließen Lichtpunkte.
+- **Bewegter Untergrund.** Über die Pfützen wandert Glanz, über die Wolkendecke
+  ziehen Schatten, und durch die Glutadern der Hölle fließen Lichtpunkte.
+
+Alle Bodentöne liegen bewusst dunkel: Figuren und Projektile bleiben die
+hellsten Dinge im Bild.
 
 ## Die Arena kämpft mit
 

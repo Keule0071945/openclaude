@@ -1707,6 +1707,75 @@ function layer(depth, scroll, draw){
   return { c:s.c, g:g.c, depth, scroll: scroll || 0 };
 }
 
+/* ------------------------- Bodenwerkzeuge -------------------------------- */
+/* Bruchsteinpflaster: versetzte Reihen aus verschieden grossen Steinen, jeder
+   mit eigener Faerbung, Lichtkante oben und Schattenkante unten. Kein Raster. */
+function cobbles(c, rng, x0, y0, x1, y1, pal, opt = {}){
+  const rowH = opt.rowH || 6;
+  for (let y = y0; y < y1; ){
+    const rh = Math.max(3, rowH + (rng() < 0.35 ? 2 : 0) - (rng() < 0.35 ? 1 : 0));
+    let x = x0 - rng()*22;
+    while (x < x1){
+      // Groesse und Hoehe schwanken stark; manche Steine ueberlappen die naechste
+      // Reihe und werden dort teils ueberzeichnet — das loest das Raster auf.
+      const big = rng() < 0.18;
+      const w = (opt.wMin || 5) + (rng()*(opt.wVar || 7)|0) + (big ? 6 + (rng()*10|0) : 0);
+      const h = rh - 1 - (rng() < 0.3 ? 1 : 0) + (rng() < 0.24 ? rh : 0);
+      const yy = y - (rng() < 0.35 ? 1 : 0) + (rng() < 0.35 ? 1 : 0);
+      if (x + w > x0 && x < x1 && yy + h > y0 && h > 0){
+        const col = pal[(rng()*pal.length)|0];
+        c.fillStyle = col; c.fillRect(x|0, yy|0, w, h);
+        c.fillStyle = tone(col, 0.13); c.fillRect(x|0, yy|0, w, 1);
+        c.fillStyle = tone(col, -0.3);  c.fillRect(x|0, (yy+h-1)|0, w, 1);
+        if (rng() < 0.22){ c.fillStyle = tone(col, -0.42);   // Absplitterung
+          c.fillRect((x + rng()*(w-2))|0, (yy + 1 + rng()*Math.max(1,h-2))|0,
+                     1 + (rng()*2|0), 1); }
+      }
+      x += w + 1 + (rng() < 0.3 ? 1 : 0);
+    }
+    y += rh;
+  }
+}
+
+/* Weiche, unregelmaessige Flaeche aus ueberlagerten Ellipsen. */
+function blob(c, rng, cx, cy, rx, ry, cols, lumps = 7){
+  for (let i = 0; i < lumps; i++){
+    c.fillStyle = cols[(rng()*cols.length)|0];
+    const ox = (rng()-0.5)*rx, oy = (rng()-0.5)*ry;
+    c.beginPath();
+    c.ellipse(cx+ox, cy+oy, rx*(0.4+rng()*0.5), ry*(0.4+rng()*0.5), 0, 0, TAU);
+    c.fill();
+  }
+}
+
+/* Moosinsel mit Grasbueschseln an der Oberkante. */
+function moss(c, rng, cx, cy, rx, ry){
+  blob(c, rng, cx, cy, rx, ry, ['#2f4f30','#385c36','#28452a'], 8);
+  for (let i = 0; i < rx*0.5; i++){                     // Halme
+    const x = cx + (rng()-0.5)*rx*1.7, y = cy + (rng()-0.5)*ry*1.3;
+    const h = 2 + (rng()*3|0);
+    c.fillStyle = rng() < 0.35 ? '#587c46' : '#3f6338';
+    c.fillRect(x|0, (y-h)|0, 1, h);
+  }
+  if (rng() < 0.5){                                     // vereinzelte Blueten
+    c.fillStyle = rng() < 0.5 ? '#d8c85a' : '#c96a86';
+    c.fillRect((cx + (rng()-0.5)*rx)|0, (cy + (rng()-0.5)*ry)|0, 1, 1);
+  }
+}
+
+/* Der alte Weg: ein gepflastertes Band quer durch die Arena mit Bordsteinen. */
+function oldRoad(c, rng, y, h, stonePal, kerbCol){
+  c.fillStyle = tone(kerbCol, -0.45);                   // Bettung
+  c.fillRect(0, y-2, LW, h+4);
+  cobbles(c, rng, 0, y, LW, y+h, stonePal, { rowH:6, wMin:6, wVar:8 });
+  for (const ky of [y-2, y+h]){                         // Bordsteine
+    c.fillStyle = kerbCol; c.fillRect(0, ky, LW, 3);
+    c.fillStyle = tone(kerbCol, 0.22); c.fillRect(0, ky, LW, 1);
+    c.fillStyle = tone(kerbCol, -0.35);
+    for (let x = 0; x < LW; x += 11) c.fillRect(x, ky, 1, 3);
+  }
+}
+
 /* Der Kampfring: eine Ellipse mit abgesetztem Rand in der Mitte der Arena.
    Er wird in die Bodenebene gebacken und wandert daher mit ihr mit.          */
 const RING = { x: LW/2, y: 158, rx: 104, ry: 46 };
@@ -1803,41 +1872,65 @@ const ARENAS = {
       jagged(c, seeded(51), HORIZON-6, 5, 6, '#1b2033', HORIZON+4);
     }));
     const spots = [];
-    A.push(layer(0.5, 0, c => {                                 // Steinboden
+    A.push(layer(0.5, 0, c => {                    // Erdboden, vom Pflaster nur Reste
       const rng = seeded(63);
-      c.fillStyle = '#3a4058'; c.fillRect(0, HORIZON, LW, CH-HORIZON);
-      c.fillStyle = '#343a50';
-      for (let y = HORIZON; y < CH; y += 8)
-        for (let x = ((y/8)%2 ? 4 : 0); x < LW; x += 8) c.fillRect(x, y, 4, 4);
+      const EARTH = ['#332c22','#3a3227','#2c261e','#40382b'];
+      const STONE = ['#3d4256','#353a4d','#454b61','#2f3446'];
 
-      combatRing(c, '#4e5678', '#333952', '#5e6890');           // Kampfring
-      c.fillStyle = '#2f3550';                                   // Mosaik im Ring
-      for (let i = 0; i < 26; i++){
-        const a = rng()*TAU, r = Math.sqrt(rng());
-        c.fillRect((RING.x + Math.cos(a)*RING.rx*r*0.85)|0,
-                   (RING.y + Math.sin(a)*RING.ry*r*0.85)|0, 3, 3);
+      c.fillStyle = '#312a20'; c.fillRect(0, HORIZON, LW, CH-HORIZON);
+      for (let i = 0; i < 90; i++)                  // Erdschollen und Staubwehen
+        blob(c, rng, rng()*LW, HORIZON + rng()*(CH-HORIZON), 9 + rng()*20, 3 + rng()*7,
+             EARTH, 4);
+      c.fillStyle = '#262019';                      // Kiesel und Furchen
+      for (let i = 0; i < 120; i++)
+        c.fillRect((rng()*LW)|0, (HORIZON + rng()*(CH-HORIZON))|0, 1+(rng()*4|0), 1);
+
+      // Reste des alten Pflasters, nur noch in Inseln
+      for (let i = 0; i < 6; i++){
+        const px = rng()*LW, py = HORIZON + 6 + rng()*(CH-HORIZON-14);
+        const pw = 20 + rng()*30, ph = 9 + rng()*11;
+        c.save();
+        c.beginPath(); c.ellipse(px, py, pw/2, ph/2, 0, 0, TAU); c.clip();
+        cobbles(c, rng, px-pw/2, py-ph/2, px+pw/2, py+ph/2, STONE, { rowH:6 });
+        c.restore();
       }
 
-      c.fillStyle = '#2b3145';                                   // Fugen und Risse
-      for (let i = 0; i < 70; i++)
-        c.fillRect((rng()*LW)|0, (HORIZON + rng()*(CH-HORIZON))|0, 2+(rng()*6|0), 1);
-      c.fillStyle = '#454c6a';                                   // Schuttbrocken
-      for (let i = 0; i < 30; i++)
-        c.fillRect((rng()*LW)|0, (HORIZON + 6 + rng()*(CH-HORIZON-8))|0, 2+(rng()*3|0), 2);
+      oldRoad(c, rng, 108, 26, ['#4c4a52','#565259','#434148','#5d5860'], '#6a6470');
+                                                    // der alte Weg quer durchs Bild
 
-      for (let i = 0; i < 5; i++){                               // gestuerzte Saeulentrommeln
+      combatRing(c, '#4e5678', '#3a3428', '#5e6890');
+      c.save();                                     // Ringinneres bleibt gepflastert
+      c.beginPath(); c.ellipse(RING.x, RING.y, RING.rx-4, RING.ry-2, 0, 0, TAU); c.clip();
+      cobbles(c, rng, RING.x-RING.rx, RING.y-RING.ry, RING.x+RING.rx, RING.y+RING.ry,
+              STONE, { rowH:6 });
+      c.restore();
+
+      for (let i = 0; i < 30; i++)                  // Moos schiebt sich darueber
+        moss(c, rng, rng()*LW, HORIZON + 4 + rng()*(CH-HORIZON-8), 5 + rng()*13, 3 + rng()*5);
+      for (let i = 0; i < 10; i++)                  // Bewuchs an den Wegkanten
+        moss(c, rng, rng()*LW, 106 + (rng()<0.5 ? 0 : 30), 6 + rng()*10, 2 + rng()*3);
+      for (let i = 0; i < 14; i++){                 // Wurzeln
+        let x = rng()*LW, y = HORIZON + rng()*(CH-HORIZON), a = rng()*TAU;
+        c.fillStyle = '#4b3d2a';
+        for (let k = 0; k < 10; k++){
+          c.fillRect(x|0, y|0, 2, 1);
+          a += (rng()-0.5)*0.9; x += Math.cos(a)*4; y += Math.sin(a)*2;
+        }
+      }
+
+      for (let i = 0; i < 5; i++){                  // gestuerzte Saeulentrommeln
         const x = (rng()*LW)|0, y = (HORIZON + 14 + rng()*(CH-HORIZON-24))|0;
-        c.fillStyle = '#454c6a'; c.fillRect(x, y, 17, 6);
-        c.fillStyle = '#565f82'; c.fillRect(x, y, 17, 2);
-        c.fillStyle = '#2b3145'; c.fillRect(x+4, y, 1, 6); c.fillRect(x+10, y, 1, 6);
+        c.fillStyle = '#545a74'; c.fillRect(x, y, 17, 6);
+        c.fillStyle = '#6a7189'; c.fillRect(x, y, 17, 2);
+        c.fillStyle = '#3a3f56'; c.fillRect(x+4, y, 1, 6); c.fillRect(x+10, y, 1, 6);
       }
-      for (let i = 0; i < 7; i++){                               // Knochen im Staub
+      for (let i = 0; i < 7; i++){                  // Knochen im Staub
         const x = (rng()*LW)|0, y = (HORIZON + 12 + rng()*(CH-HORIZON-20))|0;
         c.fillStyle = '#8d8a7e';
         c.fillRect(x, y, 7, 1); c.fillRect(x-1, y-1, 2, 3); c.fillRect(x+6, y-1, 2, 3);
       }
-      for (let i = 0; i < 4; i++){                               // Regenpfuetzen
-        const px = 40 + rng()*(LW-80), py = HORIZON + 20 + rng()*(CH-HORIZON-34);
+      for (let i = 0; i < 4; i++){                  // Regenpfuetzen in Mulden
+        const px = 40 + rng()*(LW-80), py = HORIZON + 24 + rng()*(CH-HORIZON-38);
         const rx = 12 + rng()*16, ry = 4 + rng()*4;
         c.fillStyle = '#2c3550';
         c.beginPath(); c.ellipse(px, py, rx, ry, 0, 0, TAU); c.fill();
@@ -1887,37 +1980,63 @@ const ARENAS = {
       }
     }));
     A.push(layer(0.4, 14, cloudBank(41, HORIZON-4, 8, '#5a6ea2', 0.8)));
-    A.push(layer(0.5, 0, (c, g) => {                            // Marmorboden
+    const isles = [];
+    A.push(layer(0.5, 0, (c, g) => {               // Wolkendecke, darauf Marmorinseln
       const rng = seeded(77);
-      c.fillStyle = '#37477a'; c.fillRect(0, HORIZON, LW, CH-HORIZON);
-      for (let y = HORIZON; y < CH; y += 10){
-        c.fillStyle = ((y/10)|0) % 2 ? '#3d4e84' : '#334171';
-        for (let x = (((y/10)|0)%2 ? 5 : 0); x < LW; x += 10) c.fillRect(x, y, 5, 5);
+      const MARBLE = ['#5d6a93','#67759f','#525f85','#6f7daa'];
+
+      const gr = c.createLinearGradient(0, HORIZON, 0, CH);   // Wolkendecke
+      gr.addColorStop(0, '#38477a'); gr.addColorStop(1, '#212d52');
+      c.fillStyle = gr; c.fillRect(0, HORIZON, LW, CH-HORIZON);
+      for (let i = 0; i < 150; i++){                          // Wolkenballen
+        const x = rng()*LW, y = HORIZON + rng()*(CH-HORIZON), r = 6 + rng()*16;
+        c.globalAlpha = 0.28 + rng()*0.3;
+        c.fillStyle = rng() < 0.45 ? '#465892' : '#33447a';
+        c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
       }
-      c.fillStyle = '#4a5c96';                                   // Marmoradern
-      for (let i = 0; i < 40; i++){
-        let x = rng()*LW, y = HORIZON + rng()*(CH-HORIZON);
-        for (let k = 0; k < 9; k++){
-          c.fillRect(x|0, y|0, 2, 1);
-          x += (rng()-0.3)*6; y += (rng()-0.5)*3;
-        }
+      c.globalAlpha = 1;
+      c.fillStyle = 'rgba(160,185,240,0.13)';                 // Lichtkanten oben
+      for (let i = 0; i < 60; i++){
+        const x = rng()*LW, y = HORIZON + rng()*(CH-HORIZON), r = 5 + rng()*12;
+        c.beginPath(); c.arc(x, y, r, Math.PI, TAU); c.fill();
       }
-      combatRing(c, '#9c8134', '#31407a', '#c9a95a');            // Kampfring in Gold
-      c.fillStyle = 'rgba(242,193,78,0.55)';                      // Intarsien im Ring
+
+      // Schwebende Marmorinseln aus Bruchstein, mit Goldkante
       for (let i = 0; i < 8; i++){
-        const a = i*TAU/8;
-        c.fillRect((RING.x + Math.cos(a)*RING.rx*0.55)|0,
-                   (RING.y + Math.sin(a)*RING.ry*0.55)|0, 5, 3);
+        const ix = rng()*LW, iy = HORIZON + 10 + rng()*(CH-HORIZON-20);
+        const rx = 16 + rng()*26, ry = 6 + rng()*8;
+        c.fillStyle = 'rgba(24,32,64,0.4)';                   // Schatten darunter
+        c.beginPath(); c.ellipse(ix, iy+3, rx, ry, 0, 0, TAU); c.fill();
+        c.save();
+        c.beginPath(); c.ellipse(ix, iy, rx, ry, 0, 0, TAU); c.clip();
+        cobbles(c, rng, ix-rx, iy-ry, ix+rx, iy+ry, MARBLE, { rowH:5, wMin:5, wVar:6 });
+        c.restore();
+        c.strokeStyle = '#9c8134'; c.lineWidth = 1;
+        c.beginPath(); c.ellipse(ix, iy, rx, ry, 0, 0, TAU); c.stroke();
+        c.strokeStyle = '#b39a4c';
+        c.beginPath(); c.ellipse(ix, iy-1, rx, ry, 0, Math.PI, TAU); c.stroke();
+        isles.push({ x:ix, y:iy, rx, ry });
       }
-      c.strokeStyle = 'rgba(242,193,78,0.4)'; c.lineWidth = 1;
-      c.beginPath(); c.ellipse(RING.x, RING.y, RING.rx*0.55, RING.ry*0.55, 0, 0, TAU); c.stroke();
-      c.fillStyle = 'rgba(242,193,78,0.6)';                       // Fugenband
-      for (let x = 0; x < LW; x += 40) c.fillRect(x+6, HORIZON+16, 26, 1);
-      g.fillStyle = 'rgba(255,225,150,0.12)'; g.fillRect(0, HORIZON, LW, 3);
-      g.fillStyle = 'rgba(255,215,120,0.07)';
+
+      oldRoad(c, rng, 108, 26, MARBLE, '#7a6528');            // Marmorsteg quer durchs Bild
+
+      combatRing(c, '#9c8134', '#4a5b96', '#c9a95a');         // Hauptinsel
+      c.save();
+      c.beginPath(); c.ellipse(RING.x, RING.y, RING.rx-4, RING.ry-2, 0, 0, TAU); c.clip();
+      cobbles(c, rng, RING.x-RING.rx, RING.y-RING.ry, RING.x+RING.rx, RING.y+RING.ry,
+              MARBLE, { rowH:5, wMin:5, wVar:6 });
+      c.restore();
+      c.fillStyle = 'rgba(242,193,78,0.5)';                   // Intarsien
+      for (let i = 0; i < 8; i++){
+        const ang = i*TAU/8;
+        c.fillRect((RING.x + Math.cos(ang)*RING.rx*0.55)|0,
+                   (RING.y + Math.sin(ang)*RING.ry*0.55)|0, 5, 3);
+      }
+      g.fillStyle = 'rgba(255,225,150,0.10)'; g.fillRect(0, HORIZON, LW, 3);
+      g.fillStyle = 'rgba(255,215,120,0.06)';
       g.beginPath(); g.ellipse(RING.x, RING.y, RING.rx, RING.ry, 0, 0, TAU); g.fill();
     }));
-    return { layers:A, kind:'heaven', tint:'#ffe08a', spots:[], seal:'#ffe066' };
+    return { layers:A, kind:'heaven', tint:'#ffe08a', spots:[], isles, seal:'#ffe066' };
   },
 
   /* -------------------------------- HOELLE ------------------------------ */
@@ -1952,42 +2071,72 @@ const ARENAS = {
       g.fillStyle = 'rgba(255,120,40,0.32)'; g.fillRect(0, HORIZON-3, LW, 6);
     }));
     const veins = [];
-    A.push(layer(0.5, 0, (c, g) => {                            // Obsidianboden mit Adern
+    A.push(layer(0.5, 0, (c, g) => {               // aufgebrochene Kruste ueber Glut
       const rng = seeded(109);
-      c.fillStyle = '#25090c'; c.fillRect(0, HORIZON, LW, CH-HORIZON);
-      c.fillStyle = '#1c0709';
-      for (let y = HORIZON; y < CH; y += 8)
-        for (let x = ((y/8)%2 ? 4 : 0); x < LW; x += 8) c.fillRect(x, y, 4, 4);
+      const CRUST = ['#2c0e11','#351317','#250b0e','#3d181c'];
+      const BASALT = ['#3a1512','#2f100e','#452019','#341410'];
 
-      combatRing(c, '#5a1a18', '#1f070a', '#8a3020');            // Kampfring aus Basalt
-      c.fillStyle = '#3a0f10';                                    // gesprungene Platten
-      for (let i = 0; i < 20; i++){
-        const a = rng()*TAU, r = Math.sqrt(rng())*0.9;
-        c.fillRect((RING.x + Math.cos(a)*RING.rx*r)|0,
-                   (RING.y + Math.sin(a)*RING.ry*r)|0, 4, 2);
+      c.fillStyle = '#1c0a0c'; c.fillRect(0, HORIZON, LW, CH-HORIZON);
+      // Grosse Krustenplatten als Grundflaeche
+      cobbles(c, rng, -8, HORIZON-2, LW+8, CH+4, CRUST, { rowH:11, wMin:12, wVar:20 });
+      for (let i = 0; i < 26; i++)                            // aufgeworfene Schollen
+        blob(c, rng, rng()*LW, HORIZON + rng()*(CH-HORIZON), 8 + rng()*18, 3 + rng()*6,
+             CRUST, 4);
+
+      // Nur wo die Kruste aufgebrochen ist, scheint der gluehende Grund durch
+      for (let i = 0; i < 9; i++){
+        const fx = rng()*LW, fy = HORIZON + 8 + rng()*(CH-HORIZON-16);
+        const rx = 10 + rng()*22, ry = 4 + rng()*7;
+        c.save();
+        c.beginPath(); c.ellipse(fx, fy, rx, ry, 0, 0, TAU); c.clip();
+        const fg = c.createLinearGradient(0, fy-ry, 0, fy+ry);
+        fg.addColorStop(0, '#7a2409'); fg.addColorStop(0.5, '#c04a15'); fg.addColorStop(1, '#5c1a06');
+        c.fillStyle = fg; c.fillRect(fx-rx, fy-ry, rx*2, ry*2);
+        for (let k = 0; k < 6; k++){                          // Brocken schwimmen darin
+          c.fillStyle = CRUST[(rng()*CRUST.length)|0];
+          c.fillRect((fx + (rng()-0.5)*rx*1.7)|0, (fy + (rng()-0.5)*ry*1.5)|0,
+                     3+(rng()*6|0), 2+(rng()*2|0));
+        }
+        c.restore();
+        c.strokeStyle = '#6b2a12'; c.lineWidth = 1;
+        c.beginPath(); c.ellipse(fx, fy, rx, ry, 0, 0, TAU); c.stroke();
+        g.fillStyle = 'rgba(255,110,40,0.26)';
+        g.beginPath(); g.ellipse(fx, fy, rx, ry, 0, 0, TAU); g.fill();
       }
 
-      for (let i = 0; i < 20; i++){                               // Glutadern als Pfade
+      for (let i = 0; i < 20; i++){                           // Glutadern als Pfade
         const path = [];
         let x = rng()*LW, y = HORIZON + rng()*(CH-HORIZON);
         for (let k = 0; k < 10; k++){
           path.push([x, y]);
-          c.fillStyle = '#e0641f'; c.fillRect(x|0, y|0, 1, 1);
-          g.fillStyle = 'rgba(255,110,40,0.24)'; g.fillRect((x-1)|0, (y-1)|0, 4, 3);
+          c.fillStyle = '#e0641f'; c.fillRect(x|0, y|0, 2, 1);
+          c.fillStyle = '#ffb03a'; c.fillRect(x|0, y|0, 1, 1);
+          g.fillStyle = 'rgba(255,110,40,0.26)'; g.fillRect((x-1)|0, (y-1)|0, 4, 3);
           x += (rng()-0.35)*7; y += (rng()-0.4)*4;
         }
         veins.push({ path, t: rng() });
       }
-      for (let i = 0; i < 6; i++){                                // Schaedel im Geroell
+
+      oldRoad(c, rng, 108, 26, BASALT, '#5a2a1c');            // Basaltweg quer durchs Bild
+
+      combatRing(c, '#5a1a18', '#260d10', '#8a3020');
+      c.save();
+      c.beginPath(); c.ellipse(RING.x, RING.y, RING.rx-4, RING.ry-2, 0, 0, TAU); c.clip();
+      cobbles(c, rng, RING.x-RING.rx, RING.y-RING.ry, RING.x+RING.rx, RING.y+RING.ry,
+              BASALT, { rowH:7, wMin:7, wVar:10 });
+      c.restore();
+
+      for (let i = 0; i < 6; i++){                            // Schaedel im Geroell
         const x = (rng()*LW)|0, y = (HORIZON + 14 + rng()*(CH-HORIZON-24))|0;
         c.fillStyle = '#6e6355'; c.fillRect(x, y, 6, 5);
         c.fillStyle = '#1a0508'; c.fillRect(x+1, y+1, 2, 2); c.fillRect(x+4, y+1, 1, 2);
       }
-      for (let i = 0; i < 8; i++){                                // Obsidiansplitter
+      for (let i = 0; i < 10; i++){                           // Obsidiansplitter
         const x = (rng()*LW)|0, y = (HORIZON + 10 + rng()*(CH-HORIZON-16))|0;
-        c.fillStyle = '#3d1013';
+        c.fillStyle = '#1a0508';
         c.beginPath(); c.moveTo(x, y); c.lineTo(x+5, y+3); c.lineTo(x-2, y+4);
         c.closePath(); c.fill();
+        c.fillStyle = '#4a1c1a'; c.fillRect(x, y+1, 2, 1);
       }
     }));
     return { layers:A, kind:'hell', tint:'#ff8f3c', spots:[], veins, seal:'#ff8f3c' };
