@@ -1326,25 +1326,25 @@ function iconFor(name, color){
 const CHARS = [
   {
     id:'chicken', name:'GOCKEL', title:'Das magische Huhn',
-    spr:SPR.gockel, hp:108, speed:83, color:'#ffb02e', dps:27,
+    spr:SPR.gockel, hp:132, speed:83, color:'#ffb02e', dps:27,
     weapon:'fire',
     blurb:['Feuerstab: langsame,','explodierende Kugeln','mit Flaechenschaden.'],
   },
   {
     id:'knight', name:'RITTER', title:'Vergessene Wache',
-    spr:SPR.ritter, hp:150, speed:71, color:'#5b93e8', dps:23,
+    spr:SPR.ritter, hp:184, speed:71, color:'#5b93e8', dps:23,
     weapon:'blades',
     blurb:['Kreuzklingen: Salve','rundum, durchbohrend.','Zaeh, aber langsam.'],
   },
   {
     id:'mage', name:'MAGIERIN', title:'Sturmruferin',
-    spr:SPR.magierin, hp:78, speed:88, color:'#7ee8ff', dps:25,
+    spr:SPR.magierin, hp:104, speed:88, color:'#7ee8ff', dps:25,
     weapon:'bolt',
     blurb:['Blitzlanze: schnelle','Bolzen, hoher','Durchschlag. Fragil.'],
   },
   {
     id:'revenant', name:'REVENANT', title:'Der Wiederkehrer',
-    spr:SPR.revenant, hp:104, speed:78, color:'#66f5c8', dps:26,
+    spr:SPR.revenant, hp:128, speed:78, color:'#66f5c8', dps:26,
     weapon:'scythe', cost:400,
     blurb:['Sensenwelle: breite','Sichel, durchschlaegt','ganze Reihen.'],
   },
@@ -1377,8 +1377,8 @@ let p = null;
 let enemies = [], bullets = [], ebullets = [], gems = [], parts = [], texts = [];
 let beams = [], meteors = [], waves = [];
 let stageIdx = 0, boss = null;
-let pools = [], chests = [], banners = [];
-let spawnTimer = 0, eliteTimer = 0, runTime = 0, kills = 0;
+let pools = [], chests = [], banners = [], summons = [];
+let runTime = 0, kills = 0;
 let shake = 0, flash = 0, hitStop = 0, aberr = 0, timeScale = 1;
 let combo = 0, comboT = 0, comboPop = 0, loopN = 0;
 let choices = [], introT = 0, endT = 0, orbitAngle = 0, orbitTick = 0, auraTick = 0;
@@ -1386,14 +1386,14 @@ let choices = [], introT = 0, endT = 0, orbitAngle = 0, orbitTick = 0, auraTick 
 const view = { zoom:1, tz:1, cx:CW/2, cy:CH/2, tx:CW/2, ty:CH/2, lock:0, punch:0, tilt:0 };
 
 const STAGES = [
-  { name:'GORGOK',    epithet:'DER STEINWAECHTER', bg:'ruins',  hp:520,  minion:'bat',
-    spawn:3.0, tint:'#8a8f9c',
+  { name:'GORGOK',    epithet:'DER STEINWAECHTER', bg:'ruins',  hp:8200,  minion:'bat',
+    tint:'#8a8f9c',
     roster:[['bat',5],['motte',3],['waechter',2]] },
-  { name:'SERAPHINE', epithet:'DIE ERZENGELIN',    bg:'heaven', hp:1020, minion:'imp',
-    spawn:2.8, tint:'#f2c14e',
+  { name:'SERAPHINE', epithet:'DIE ERZENGELIN',    bg:'heaven', hp:12500, minion:'imp',
+    tint:'#f2c14e',
     roster:[['imp',4],['auge',3],['knolle',2],['motte',2]] },
-  { name:'ABADDON',   epithet:'DIE APOKALYPSE',    bg:'hell',   hp:1850, minion:'skull',
-    spawn:2.4, tint:'#c8342f',
+  { name:'ABADDON',   epithet:'DIE APOKALYPSE',    bg:'hell',   hp:26000, minion:'skull',
+    tint:'#c8342f',
     roster:[['skull',4],['auge',3],['waechter',2],['knolle',2]] },
 ];
 
@@ -1449,13 +1449,15 @@ const TUTORIAL = [
   { text:'WASD oder die Pfeiltasten bewegen dich',
     fertig: () => tutMove > 0.8 },
   { text:'Deine Waffe zielt und feuert von allein — du weichst nur aus',
-    fertig: () => kills >= 2 },
+    fertig: () => boss && boss.hp < boss.maxHp*0.96 },
   { text:'Sammle die gruenen Seelensplitter, sie bringen dich eine Stufe hoeher',
     fertig: () => p.level >= 2 },
   { text:'LEERTASTE rollt dich aus der Gefahr und macht kurz unverwundbar',
     fertig: () => tutDash },
-  { text:'Oben laeuft die Lebensleiste des Bosses — bring sie auf null',
-    fertig: () => boss && boss.hp < boss.maxHp*0.75 },
+  { text:'Wenn er ERSCHOEPFT ist, nimmt er mehr Schaden — halte dann drauf',
+    fertig: () => boss && boss.tired > 0 },
+  { text:'Er ruft Diener herbei. Die Kreise am Boden zeigen wo.',
+    fertig: () => summons.length > 0 || enemies.some(e => e.minion) },
   { text:'Angekuendigte Gefahren im Boden treffen wirklich. Geh weg davon.',
     fertig: () => tutHazard },
 ];
@@ -1652,8 +1654,12 @@ function hurtEnemy(e, dmg, opt = {}){
     }
   }
   if (!opt.noCrit && Math.random() < s.crit){ d *= 2.2; crit = true; }
+  if (e.boss && e.tired > 0) d *= 1.7;      // erschoepfter Boss nimmt mehr
   e.hp -= d;
   e.flash = 0.08;
+  if (e.boss && Math.random() < 0.06)        // Druck machen wird belohnt
+    gems.push({ x:e.x + rnd(-8,8), y:e.y + rnd(-6,6), vx:rnd(-34,34), vy:rnd(-44,-12),
+                val:4, life:14, t:0 });
   floatText(e.x + rnd(-3,3), e.y - e.r - 2, Math.round(d), crit ? '#ffe680' : '#ffffff');
   // Funken fliegen entgegen der Einschlagrichtung
   const sa = opt.ang === undefined ? rnd(0, TAU) : opt.ang + Math.PI;
@@ -1750,7 +1756,7 @@ function explode(x, y, radius, dmg){
 }
 
 /* ============================ Gegner & Bosse ============================= */
-function spawnMinion(kind, elite){
+function spawnMinion(kind, elite, einzeln){
   // Am Rand ausserhalb des Sichtfelds einfliegen lassen
   const side = rndi(0, 3);
   let x, y;
@@ -1776,7 +1782,7 @@ function spawnMinion(kind, elite){
     enemies.push(e);
     return e;
   };
-  if (d.art === 'schwarm' && !elite){   // Motten kommen als Pulk
+  if (d.art === 'schwarm' && !elite && !einzeln){   // Motten kommen als Pulk
     let first = null;
     for (let i = 0; i < d.flock; i++){
       const e = mk(x + rnd(-14, 14), y + rnd(-12, 12));
@@ -1808,6 +1814,11 @@ function eshoot(x, y, ang, spd, dmg, r, col, life = 6){
 
 /* Phasenwechsel: Bildschirmpuls, Hitstop und eine Druckwelle vom Boss aus. */
 function phaseBreak(b, title, col){
+  if (p && p.alive){                             // Fortschritt heilt
+    const heil = stats().maxHp*0.18;
+    p.hp = Math.min(stats().maxHp, p.hp + heil);
+    floatText(p.x, p.y - 16, '+' + Math.round(heil), '#7ef29a');
+  }
   flash = Math.max(flash, 0.85); shake = Math.max(shake, 7);
   aberr = 1; hitStop = Math.max(hitStop, 0.18);
   camPunch(0.12); camTilt(rnd(-0.035, 0.035));
@@ -1816,6 +1827,74 @@ function phaseBreak(b, title, col){
   waves.push({ x:b.x, y:b.y, r:6, max:260, spd:150, dmg:0, hitP:true, deco:true });
   burst(b.x, b.y, 34, col, 160, 0.8);
   sfx.boss();
+}
+
+/* --------------------------- Beschwoerung -------------------------------- */
+/* Diener kommen nicht mehr im Dauerstrom, sondern nur wenn der Boss sie ruft.
+   Jeder Ruf wird ueber Kreise am Boden angekuendigt, damit man Platz machen
+   kann, bevor die Gruppe aufsteigt.                                          */
+function callSummons(b, anzahl, elite){
+  const stehen = enemies.filter(e => e.minion).length + summons.length;
+  if (stehen >= 5) return;                  // die alte Gruppe lebt noch
+  anzahl = Math.min(anzahl, 6 - stehen);
+  const arten = STAGES[stageIdx].roster.map(r => r[0]);
+  for (let i = 0; i < anzahl; i++){
+    const a = rnd(0, TAU), d = rnd(52, 108);
+    summons.push({
+      x: clamp(b.x + Math.cos(a)*d, 20, CW-20),
+      y: clamp(b.y + Math.sin(a)*d + 20, HORIZON+14, CH-16),
+      kind: pick(arten), warn: 1.35, warnMax: 1.35,
+      elite: elite && i === 0,
+    });
+  }
+  banner(b.name + ' RUFT', anzahl + ' DIENER STEIGEN AUF', STAGES[stageIdx].tint, 1.8);
+  camPunch(0.05); shake = Math.max(shake, 3); sfx.boss();
+}
+function updateSummons(dt){
+  for (const su of summons){
+    su.warn -= dt;
+    if (su.warn <= 0 && !su.done){
+      su.done = true;
+      const e = spawnMinion(su.kind, su.elite, true);
+      e.x = su.x; e.y = su.y;
+      burst(su.x, su.y, 14, su.elite ? '#ffd23f' : '#9b7fd4', 90, 0.5);
+      if (su.elite) sfx.elite();
+    }
+  }
+  summons = summons.filter(su => !su.done);
+}
+function drawSummons(){
+  for (const su of summons){
+    const k = clamp(1 - su.warn/su.warnMax, 0, 1);
+    const col = su.elite ? '#ffd23f' : '#b48cff';
+    const r = 4 + k*11;
+    ctx.strokeStyle = rgba(col, 0.35 + 0.4*k); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(su.x, su.y, r, r*0.45, 0, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(su.x, su.y, r*0.6, r*0.27, 0, 0, TAU); ctx.stroke();
+    for (let i = 0; i < 6; i++){                    // Runenzeichen im Kreis
+      const a = k*3 + i*TAU/6;
+      ctx.fillStyle = rgba(col, 0.5 + 0.4*k);
+      ctx.fillRect((su.x + Math.cos(a)*r*0.8)|0, (su.y + Math.sin(a)*r*0.36)|0, 2, 2);
+    }
+    glowDot(su.x, su.y, 10 + k*10, col, 0.25 + 0.3*k);
+    if (Math.random() < 0.5)                        // aufsteigender Rauch
+      parts.push({ x:su.x + rnd(-r, r), y:su.y, vx:0, vy:-34,
+                   life:0.4, max:0.4, col, size:1 });
+  }
+}
+
+/* --------------------------- Erschoepfungsfenster ------------------------ */
+/* Nach schweren Angriffen sackt der Boss kurz zusammen: er greift nicht an
+   und nimmt mehr Schaden. Das gibt dem Kampf Takt und ein Zeitfenster.       */
+function exhaust(b, dauer){
+  b.tired = dauer;
+  b.tiredMax = dauer;
+  for (let i = 0; i < 5; i++)                    // das offene Fenster lohnt sich
+    gems.push({ x:b.x + rnd(-12,12), y:b.y + rnd(-8,8), vx:rnd(-46,46), vy:rnd(-56,-16),
+                val:6, life:16, t:0 });
+  banner('ERSCHOEPFT', 'JETZT DRAUFHALTEN', '#7ff5d4', Math.min(1.6, dauer));
+  burst(b.x, b.y, 16, '#7ff5d4', 80, 0.6);
+  sfx.gem();
 }
 
 /* ---------------------------- Gegnerarten -------------------------------- */
@@ -1848,58 +1927,98 @@ function rollMinion(){
 }
 
 /* --- Boss 1: Gorgok, der Steinwaechter ---------------------------------- */
+/* Drei Phasen. Jeder Sturmangriff und jeder Steinregen endet in einer kurzen
+   Erschoepfung — das ist das Zeitfenster, in dem man wirklich Schaden macht. */
 function makeGorgok(hp){
   return {
     boss:true, name:'GORGOK', x:CW/2, y:64, vx:0, vy:0, hp, maxHp:hp, r:16,
-    spr:SPR.gorgok, dmg:13, flash:0, phase:1, t:0, frame:0, fps:2.2,
-    tSpread:1.6, tCharge:4.5, tSummon:3.0, chargeState:0, chargeAng:0, chargeT:0,
+    spr:SPR.gorgok, dmg:10, flash:0, phase:1, t:0, frame:0, fps:2.2, tired:0,
+    tSpread:2.4, tCharge:6.0, tSummon:12.0, tRegen:14.0, tWelle:20.0,
+    chargeState:0, chargeAng:0, chargeT:0, chargeLeft:0,
     ai(dt){
       this.t += dt;
-      if (this.phase === 1 && this.hp < this.maxHp*0.5){
+      if (this.phase === 1 && this.hp < this.maxHp*0.66){
         this.phase = 2; phaseBreak(this, 'ERZUERNT', '#ffd23f');
       }
+      if (this.phase === 2 && this.hp < this.maxHp*0.33){
+        this.phase = 3; phaseBreak(this, 'DER FELS BRICHT', '#ffb03a');
+      }
       const ph = this.phase;
+      if (this.tired > 0){ this.vx = this.vy = 0; return; }   // sammelt sich
 
       if (this.chargeState === 0){
-        // Traeges Verfolgen
         const a = Math.atan2(p.y - this.y, p.x - this.x);
-        this.vx = Math.cos(a) * (ph === 2 ? 26 : 18);
-        this.vy = Math.sin(a) * (ph === 2 ? 26 : 18);
+        const sp = 16 + ph*6;
+        this.vx = Math.cos(a)*sp; this.vy = Math.sin(a)*sp;
       } else if (this.chargeState === 1){
         this.vx = this.vy = 0;
         this.chargeT -= dt;
         if (this.chargeT <= 0){
-          this.chargeState = 2; this.chargeT = 0.85;
+          this.chargeState = 2; this.chargeT = 0.8;
           this.chargeAng = Math.atan2(p.y - this.y, p.x - this.x);
           camPunch(0.07); sfx.boss();
         }
       } else {
-        this.vx = Math.cos(this.chargeAng)*185;
-        this.vy = Math.sin(this.chargeAng)*185;
+        this.vx = Math.cos(this.chargeAng)*195;
+        this.vy = Math.sin(this.chargeAng)*195;
         this.chargeT -= dt;
         burst(this.x, this.y + 8, 1, '#8a8f9c', 30, 0.3);
-        if (this.chargeT <= 0){ this.chargeState = 0; this.tCharge = ph === 2 ? 3.6 : 5.2; }
+        if (this.chargeT <= 0){
+          if (--this.chargeLeft > 0){              // Phase 3: Dreifachangriff
+            this.chargeState = 1; this.chargeT = 0.45;
+          } else {
+            this.chargeState = 0;
+            this.tCharge = ph === 3 ? 8.0 : ph === 2 ? 7.0 : 9.0;
+            exhaust(this, 2.2);                    // nach dem Ansturm offen
+          }
+        }
       }
 
       this.tSpread -= dt;
       if (this.tSpread <= 0 && this.chargeState === 0){
-        const n = ph === 2 ? 14 : 9;
+        const n = 8 + ph*3;
         const off = rnd(0, TAU);
         for (let i = 0; i < n; i++)
-          eshoot(this.x, this.y, off + i*TAU/n, 56, 8, 3, '#e0c088');
-        this.tSpread = ph === 2 ? 2.0 : 2.8;
+          eshoot(this.x, this.y, off + i*TAU/n, 56, 6, 3, '#e0c088');
+        this.tSpread = 3.4 - ph*0.3;
         camPunch(0.035); sfx.boom();
       }
 
       this.tCharge -= dt;
       if (this.tCharge <= 0 && this.chargeState === 0){
-        this.chargeState = 1; this.chargeT = 0.7;
+        this.chargeState = 1; this.chargeT = 0.75;
+        this.chargeLeft = ph === 3 ? 3 : 1;
+      }
+
+      // Steinregen: der Boss schlaegt auf und Brocken gehen ueber die Arena nieder
+      if (ph >= 2){
+        this.tRegen -= dt;
+        if (this.tRegen <= 0 && this.chargeState === 0){
+          this.tRegen = 16 - ph*2;
+          banner('STEINREGEN', 'SUCH DIR EINE LUECKE', '#b9c0cf', 1.6);
+          shake = Math.max(shake, 6); camPunch(0.09); sfx.boss();
+          for (let i = 0; i < 5 + ph*2; i++)
+            hazards.push({ kind:'rubble', x:rnd(24, CW-24), y:rnd(HORIZON+16, CH-14),
+                           warn:1.0 + i*0.16, warnMax:1.0 + i*0.16,
+                           life:0.35, r:17, dmg:12, hitP:false });
+          exhaust(this, 2.6);
+        }
+      }
+      // Erdwelle mit Luecke: man muss die Oeffnung finden
+      if (ph >= 3){
+        this.tWelle -= dt;
+        if (this.tWelle <= 0 && this.chargeState === 0){
+          this.tWelle = 9.0;
+          waves.push({ x:this.x, y:this.y, r:8, max:300, spd:96, dmg:14, hitP:false,
+                       gap:rnd(0, TAU), gapW:0.75 });
+          camPunch(0.08); sfx.boss();
+        }
       }
 
       this.tSummon -= dt;
-      if (this.tSummon <= 0){
-        for (let i = 0; i < (ph === 2 ? 4 : 2); i++) spawnMinion('bat');
-        this.tSummon = ph === 2 ? 4.0 : 5.5;
+      if (this.tSummon <= 0 && this.chargeState === 0){
+        callSummons(this, 3 + ph, ph >= 2);
+        this.tSummon = 24 - ph*2;
       }
     },
   };
@@ -1910,16 +2029,21 @@ const RAINBOW = ['#ff5a5a','#ffb03a','#ffe680','#9be15d','#4ad4f0','#7a9dff','#e
 function makeSeraphine(hp){
   return {
     boss:true, name:'SERAPHINE', x:CW/2, y:56, vx:0, vy:0, hp, maxHp:hp, r:16,
-    spr:SPR.seraphine, dmg:14, flash:0, phase:1, t:0, hover:rnd(0,TAU), frame:0, fps:3.2,
-    tBeam:3.0, tFan:2.2, tPort:5.0, tSummon:4.0, beamAng:0,
+    spr:SPR.seraphine, dmg:11, flash:0, phase:1, t:0, hover:rnd(0,TAU),
+    frame:0, fps:3.2, tired:0,
+    tBeam:4.0, tFan:3.0, tPort:6.0, tSummon:13.0, tKreuz:11.0, tGericht:8.0,
+    tSturm:18.0,
     ai(dt){
       this.t += dt; this.hover += dt*1.8;
-      if (this.phase === 1 && this.hp < this.maxHp*0.5){
+      if (this.phase === 1 && this.hp < this.maxHp*0.66){
         this.phase = 2; phaseBreak(this, 'HIMMELSZORN', '#ffe680');
       }
+      if (this.phase === 2 && this.hp < this.maxHp*0.33){
+        this.phase = 3; phaseBreak(this, 'DAS LETZTE GERICHT', '#fff3a8');
+      }
       const ph = this.phase;
+      if (this.tired > 0){ this.vx = this.vy = 0; return; }
 
-      // Sanftes Schweben, haelt Abstand nach oben
       const tx = clamp(p.x, 40, CW-40);
       this.vx = (tx - this.x) * 0.8;
       this.vy = (56 + Math.sin(this.hover)*10 - this.y) * 1.6;
@@ -1929,36 +2053,79 @@ function makeSeraphine(hp){
         burst(this.x, this.y, 16, '#fdfdff', 90, 0.4);
         this.x = rnd(50, CW-50); this.y = rnd(38, 80);
         burst(this.x, this.y, 16, '#f2c14e', 90, 0.4);
-        this.tPort = ph === 2 ? 3.6 : 5.4;
+        this.tPort = 7.5 - ph;
       }
 
-      // Rotierende Regenbogen-Strahlen
       this.tBeam -= dt;
       if (this.tBeam <= 0){
-        const n = ph === 2 ? 6 : 4;
+        const n = 2 + ph*2;
         const base = Math.atan2(p.y - this.y, p.x - this.x);
         for (let i = 0; i < n; i++){
           beams.push({ x:this.x, y:this.y, ang:base + i*TAU/n,
-                       spin:(i%2 ? 1 : -1) * (ph === 2 ? 0.55 : 0.38),
+                       spin:(i%2 ? 1 : -1) * (0.28 + ph*0.1),
                        warn:0.9, life:2.2, dmg:10, w:2.5,
                        col:RAINBOW[i % RAINBOW.length], owner:this });
         }
-        this.tBeam = ph === 2 ? 4.6 : 6.0;
+        this.tBeam = 9.0 - ph;
         camPunch(0.06); sfx.boss();
+        this.tiredAfterBeam = 3.2;                 // nach dem Strahlenkranz offen
+      }
+      if (this.tiredAfterBeam){                    // wartet, bis die Strahlen aus sind
+        this.tiredAfterBeam -= dt;
+        if (this.tiredAfterBeam <= 0){ this.tiredAfterBeam = 0; exhaust(this, 2.4); }
       }
 
       this.tFan -= dt;
       if (this.tFan <= 0){
         const a = Math.atan2(p.y - this.y, p.x - this.x);
-        for (let i = -2; i <= 2; i++)
-          eshoot(this.x, this.y + 6, a + i*0.17, 92, 8, 2, '#fff3a8');
-        this.tFan = ph === 2 ? 1.5 : 2.3;
+        const k = 1 + ph;
+        for (let i = -k; i <= k; i++)
+          eshoot(this.x, this.y + 6, a + i*0.17, 92, 6, 2, '#fff3a8');
+        this.tFan = 3.2 - ph*0.4;
+      }
+
+      // Lichtkreuz: vier Strahlen als starres Kreuz, das langsam schwenkt
+      if (ph >= 2){
+        this.tKreuz -= dt;
+        if (this.tKreuz <= 0){
+          this.tKreuz = 13;
+          banner('LICHTKREUZ', 'BLEIB IN DEN VIERTELN', '#fff3a8', 1.6);
+          const base = rnd(0, TAU);
+          for (let i = 0; i < 4; i++)
+            beams.push({ x:CW/2, y:CH/2 - 20, ang:base + i*TAU/4, spin:0.24,
+                         warn:1.2, life:3.4, dmg:11, w:3, col:'#fff3a8', owner:null });
+          sfx.boss();
+        }
+        // Gericht: markiert deinen Standort, die Marke waechst und schlaegt ein
+        this.tGericht -= dt;
+        if (this.tGericht <= 0){
+          this.tGericht = 7.5;
+          for (let i = 0; i < ph; i++)
+            meteors.push({ x:clamp(p.x + rnd(-24,24), 20, CW-20),
+                           y:clamp(p.y + rnd(-18,18), HORIZON+16, CH-16),
+                           warn:1.4, warnMax:1.4, r:26, dmg:14, boom:0 });
+        }
+      }
+      // Federsturm: eine Spirale, die sich nach aussen schraubt
+      if (ph >= 3){
+        this.tSturm -= dt;
+        if (this.tSturm <= 0){
+          this.tSturm = 12;
+          banner('FEDERSTURM', 'HALTE DICH IN BEWEGUNG', '#ffffff', 1.6);
+          this.sturm = 2.2; this.sturmAng = 0;
+        }
+        if (this.sturm > 0){
+          this.sturm -= dt; this.sturmAng += dt*5.5;
+          for (let k = 0; k < 2; k++)
+            eshoot(this.x, this.y, this.sturmAng + k*Math.PI, 74, 9, 2, '#ffffff');
+          if (this.sturm <= 0) exhaust(this, 2.0);
+        }
       }
 
       this.tSummon -= dt;
       if (this.tSummon <= 0){
-        for (let i = 0; i < (ph === 2 ? 3 : 2); i++) spawnMinion('imp');
-        this.tSummon = ph === 2 ? 4.2 : 6.0;
+        callSummons(this, 3 + ph, ph >= 2);
+        this.tSummon = 25 - ph*2;
       }
     },
   };
@@ -1968,54 +2135,86 @@ function makeSeraphine(hp){
 function makeAbaddon(hp){
   return {
     boss:true, name:'ABADDON', x:CW/2, y:62, vx:0, vy:0, hp, maxHp:hp, r:21,
-    spr:SPR.abaddon, dmg:17, flash:0, phase:1, t:0, spiral:0, frame:0, fps:2.6,
-    tSpiral:0, tMeteor:3.2, tSummon:4.0, tWave:6.0,
+    spr:SPR.abaddon, dmg:13, flash:0, phase:1, t:0, spiral:0, frame:0, fps:2.6,
+    tired:0, tSpiral:0, tMeteor:5.0, tSummon:14.0, tWave:9.0, tKreuz:16.0,
+    tUntergang:26.0,
     ai(dt){
       this.t += dt;
-      if (this.phase === 1 && this.hp < this.maxHp*0.66){
+      if (this.phase === 1 && this.hp < this.maxHp*0.75){
         this.phase = 2; phaseBreak(this, 'DAS SIEGEL BRICHT', '#ff6b2c');
       }
-      if (this.phase === 2 && this.hp < this.maxHp*0.30){
-        this.phase = 3; phaseBreak(this, 'DAS ENDE', '#ff5a5a');
+      if (this.phase === 2 && this.hp < this.maxHp*0.45){
+        this.phase = 3; phaseBreak(this, 'DIE FLAMMEN STEIGEN', '#ff8f3c');
+      }
+      if (this.phase === 3 && this.hp < this.maxHp*0.20){
+        this.phase = 4; phaseBreak(this, 'DAS ENDE', '#ff5a5a');
       }
       const ph = this.phase;
+      if (this.tired > 0){ this.vx = this.vy = 0; return; }
 
       const a = Math.atan2(p.y - this.y, p.x - this.x);
-      const sp = 16 + ph*7;
+      const sp = 14 + ph*5;
       this.vx = Math.cos(a)*sp; this.vy = Math.sin(a)*sp*0.6;
 
-      // Dauerhafte Spiralen
       this.tSpiral -= dt;
       if (this.tSpiral <= 0){
         this.spiral += 0.42;
-        const arms = ph >= 3 ? 3 : ph === 2 ? 2 : 1;
+        const arms = ph >= 4 ? 3 : ph >= 3 ? 2 : 1;
         for (let k = 0; k < arms; k++)
-          eshoot(this.x, this.y, this.spiral + k*TAU/arms, 62, 9, 3, '#ff6b2c');
-        this.tSpiral = 0.10;
+          eshoot(this.x, this.y, this.spiral + k*TAU/arms, 62, 7, 3, '#ff6b2c');
+        this.tSpiral = 0.12;
       }
 
       this.tMeteor -= dt;
       if (this.tMeteor <= 0){
         const n = 2 + ph;
         for (let i = 0; i < n; i++)
-          meteors.push({ x:rnd(20, CW-20), y:rnd(30, CH-20), warn:1.25, warnMax:1.25,
-                         r:22, dmg:14, boom:0 });
-        this.tMeteor = ph >= 3 ? 2.4 : 3.6;
+          meteors.push({ x:rnd(20, CW-20), y:rnd(HORIZON+16, CH-16),
+                         warn:1.25 + i*0.1, warnMax:1.25 + i*0.1, r:22, dmg:14, boom:0 });
+        this.tMeteor = 7.5 - ph*0.6;
+        if (ph >= 2) exhaust(this, 1.8);      // nach dem Hagel kurz offen
       }
 
       if (ph >= 2){
         this.tWave -= dt;
         if (this.tWave <= 0){
-          waves.push({ x:this.x, y:this.y, r:8, max:230, spd:78, dmg:13, hitP:false });
-          this.tWave = ph >= 3 ? 4.0 : 6.5;
+          waves.push({ x:this.x, y:this.y, r:8, max:260, spd:84, dmg:13, hitP:false });
+          this.tWave = 10 - ph;
           camPunch(0.08); sfx.boss();
+        }
+      }
+      // Feuerkreuz: vier rotierende Flammenstrahlen aus der Bildmitte
+      if (ph >= 3){
+        this.tKreuz -= dt;
+        if (this.tKreuz <= 0){
+          this.tKreuz = 15;
+          banner('FEUERKREUZ', 'LAUF MIT DER DREHUNG', '#ff8f3c', 1.6);
+          const base = rnd(0, TAU);
+          for (let i = 0; i < 4; i++)
+            beams.push({ x:CW/2, y:CH/2 - 16, ang:base + i*TAU/4, spin:0.42,
+                         warn:1.1, life:3.6, dmg:12, w:3, col:'#ff8f3c', owner:null });
+          sfx.boss();
+        }
+      }
+      // Untergang: drei Ringe mit Luecke, die man durchqueren muss
+      if (ph >= 4){
+        this.tUntergang -= dt;
+        if (this.tUntergang <= 0){
+          this.tUntergang = 22;
+          banner('UNTERGANG', 'FINDE DIE LUECKE', '#ff5a5a', 2.0);
+          shake = Math.max(shake, 8); camPunch(0.12); sfx.boss();
+          const g = rnd(0, TAU);
+          for (let i = 0; i < 3; i++)
+            waves.push({ x:CW/2, y:CH/2, r:8 - i*60, max:320, spd:78, dmg:16,
+                         hitP:false, gap:g + i*0.9, gapW:0.7 });
+          exhaust(this, 3.0);
         }
       }
 
       this.tSummon -= dt;
       if (this.tSummon <= 0){
-        for (let i = 0; i < 1 + ph; i++) spawnMinion('skull');
-        this.tSummon = 5.0;
+        callSummons(this, 3 + ph, ph >= 2);
+        this.tSummon = 26 - ph*2;
       }
     },
   };
@@ -3027,14 +3226,14 @@ function stageHp(){
 function startStage(){
   enemies = []; bullets = []; ebullets = []; gems = [];
   parts = []; texts = []; beams = []; meteors = []; waves = [];
-  pools = []; chests = []; banners = []; hazards = [];
+  pools = []; chests = []; banners = []; hazards = []; summons = [];
   const st = STAGES[stageIdx];
   loadArena(st.bg);
   bossGhost = 1; hpGhost = 1;
   boss = BOSS_FACTORY[stageIdx](stageHp());
   enemies.push(boss);
   p.x = CW/2; p.y = CH - 45; p.vx = p.vy = 0; p.iframe = 1.2;
-  spawnTimer = 2.4; eliteTimer = rnd(14, 20); introT = INTRO_LEN;
+  introT = INTRO_LEN;
   view.zoom = view.tz = 1; view.cx = view.tx = CW/2; view.cy = view.ty = CH/2;
   state = 'intro';
   sfx.boss();
@@ -3125,6 +3324,7 @@ function update(dt){
   updateArena(dt);
   updateHazards(dt);
   updateTutorial(dt);
+  const st = STAGES[stageIdx];
 
   /* ---- Spieler ---- */
   let ix = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
@@ -3186,22 +3386,7 @@ function update(dt){
   }
 
   /* ---- Gegner ---- */
-  const st = STAGES[stageIdx];
-  spawnTimer -= dt;
-  if (spawnTimer <= 0 && enemies.length < 44){
-    spawnMinion(rollMinion());
-    if (runTime > 25) spawnMinion(rollMinion());
-    spawnTimer = Math.max(0.9, st.spawn - runTime/70);
-  }
-  eliteTimer -= dt;                       // Elitegegner mit Truhe im Schlepptau
-  if (eliteTimer <= 0 && enemies.length < 40 && !enemies.some(e => e.elite)){
-    const e = spawnMinion(pick(['bat','imp','skull','waechter','knolle'])
-                          .replace(/^(bat|imp|skull)$/, st.minion), true);
-    banner('ELITE', 'ERLEGE IHN FUER EINEN SCHATZ', '#ffd23f', 1.8);
-    burst(e.x, e.y, 16, '#ffd23f', 90, 0.6);
-    sfx.elite();
-    eliteTimer = rnd(15, 22);
-  }
+  updateSummons(dt);
 
   for (const e of enemies){
     if (e.dead) continue;
@@ -3211,14 +3396,18 @@ function update(dt){
       e.ai(dt);
       e.x = clamp(e.x + e.vx*dt, e.r, CW-e.r);
       e.y = clamp(e.y + e.vy*dt, e.r, CH-e.r-4);
-      // HP-Schwellen lassen Seelensplitter fallen
+      // Der Boss ist die Erfahrungsquelle: an Lebensschwellen bricht er auf
       const frac = e.hp/e.maxHp;
       e.lastDrop = e.lastDrop === undefined ? 1 : e.lastDrop;
-      while (frac < e.lastDrop - 0.08){
-        e.lastDrop -= 0.08;
-        for (let i = 0; i < 3; i++)
-          gems.push({ x:e.x + rnd(-8,8), y:e.y + rnd(-6,6), vx:rnd(-30,30), vy:rnd(-40,-10),
-                      val:6, life:14, t:0 });
+      while (frac < e.lastDrop - 0.05){
+        e.lastDrop -= 0.05;
+        for (let i = 0; i < 4; i++)
+          gems.push({ x:e.x + rnd(-10,10), y:e.y + rnd(-8,8), vx:rnd(-42,42), vy:rnd(-52,-14),
+                      val:7, life:16, t:0 });
+      }
+      if (e.tired > 0){                        // Erschoepfung laeuft ab
+        e.tired -= dt;
+        if (e.tired <= 0) banner(e.name, 'SAMMELT SICH WIEDER', '#ff8f3c', 1.1);
       }
     } else {
       e.wob += dt*4;
@@ -3365,8 +3554,17 @@ function update(dt){
   /* ---- Schockwellen ---- */
   for (const w of waves){
     w.r += w.spd*dt;
+    if (w.r < 0) continue;
     const d = Math.hypot(p.x - w.x, p.y - w.y);
-    if (!w.hitP && p.iframe <= 0 && Math.abs(d - w.r) < 6){ damagePlayer(w.dmg); w.hitP = true; }
+    if (!w.hitP && p.iframe <= 0 && Math.abs(d - w.r) < 6){
+      let sicher = false;
+      if (w.gap !== undefined){                  // in der Luecke passiert nichts
+        const a = Math.atan2(p.y - w.y, p.x - w.x);
+        const diff = Math.abs(((a - w.gap + Math.PI*3) % TAU) - Math.PI);
+        sicher = diff < w.gapW;
+      }
+      if (!sicher){ damagePlayer(w.dmg); w.hitP = true; }
+    }
   }
   waves = waves.filter(w => w.r < w.max);
 
@@ -3628,6 +3826,7 @@ function bloom(){
 /* -------------------------------- Welt ---------------------------------- */
 function drawWorld(){
   drawHazardWarnings();
+  drawSummons();
   /* Meteorwarnungen liegen auf dem Boden */
   for (const m of meteors){
     if (m.warn > 0){
@@ -3652,12 +3851,20 @@ function drawWorld(){
   }
   /* Schockwellen */
   for (const w of waves){
+    if (w.r <= 0) continue;
     const a = 1 - w.r/w.max;
     const col = w.deco ? '#ffffff' : '#ff8f3c';
+    // Ringe mit Luecke werden als offener Bogen gezeichnet
+    const von = w.gap !== undefined ? w.gap + w.gapW : 0;
+    const bis = w.gap !== undefined ? w.gap - w.gapW + TAU : TAU;
     ctx.strokeStyle = rgba(col, a); ctx.lineWidth = w.deco ? 2 : 3;
-    ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(w.x, w.y, w.r, von, bis); ctx.stroke();
     if (GC){ GC.strokeStyle = rgba(w.deco ? '#ffe066' : '#ff6b2c', a*0.8); GC.lineWidth = 5;
-             GC.beginPath(); GC.arc(w.x, w.y, w.r, 0, TAU); GC.stroke(); }
+             GC.beginPath(); GC.arc(w.x, w.y, w.r, von, bis); GC.stroke(); }
+    if (w.gap !== undefined){                    // Luecke sichtbar markieren
+      ctx.strokeStyle = rgba('#7ff5d4', a*0.7); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(w.x, w.y, w.r, w.gap - w.gapW, w.gap + w.gapW); ctx.stroke();
+    }
   }
 
   /* Brennender Boden */
@@ -3717,7 +3924,18 @@ function drawWorld(){
     }
     const spr = pickFrame(e.spr, e.frame);
     const bob = e.boss ? Math.sin(runTime*2.0)*1.5 : Math.sin(e.wob)*1.5;
-    const squash = e.boss ? 1 + Math.sin(runTime*2.0)*0.025 : 1;
+    let squash = e.boss ? 1 + Math.sin(runTime*2.0)*0.025 : 1;
+    if (e.boss && e.tired > 0) squash = 0.86;       // sackt in sich zusammen
+    if (e.boss && e.tired > 0){                       // offenes Zeitfenster
+      const k = 0.4 + 0.3*Math.sin(runTime*8);
+      ctx.strokeStyle = rgba('#7ff5d4', k); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(e.x, e.y + e.r*0.7, e.r*1.5, e.r*0.6, 0, 0, TAU); ctx.stroke();
+      glowDot(e.x, e.y, e.r*1.8, '#7ff5d4', 0.22 + 0.12*Math.sin(runTime*8));
+      // unter den Boss, damit die Einblendungen oben nichts verdecken
+      txtO('OFFEN', e.x, e.y + e.r + 6, '#7ff5d4', 'center', 8);
+      ctx.strokeStyle = rgba('#7ff5d4', k*0.8); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(e.x, e.y + e.r*0.7, e.r*1.9, e.r*0.78, 0, 0, TAU); ctx.stroke();
+    }
     if (e.elite){                                     // Elite traegt einen Goldring
       const a = 0.35 + 0.2*Math.sin(runTime*5);
       ctx.strokeStyle = rgba('#ffd23f', a); ctx.lineWidth = 1;

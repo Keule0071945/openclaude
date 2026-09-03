@@ -106,9 +106,35 @@ regnet Asche. Danach kommen die Gefahren fast doppelt so oft.
 Eine Vordergrund-Ebene aus Säulen, Schwaden und Knochenspitzen läuft vor den
 Figuren durch — sie hält die Spielfläche frei und gibt der Arena Tiefe.
 
+## Der Bosskampf
+
+Es gibt keine Gegnerwellen. Jede Arena ist ein einzelner, langer Zweikampf von
+zwei bis drei Minuten, in dem nur der Boss den Takt vorgibt:
+
+- **Phasen.** Gorgok hat drei, Seraphine drei, Abaddon vier. Jeder Wechsel
+  schlägt als Druckwelle durch das Bild, verwandelt die Arena und gibt dir 18 %
+  deines Lebens zurück.
+- **Erschöpfung.** Nach schweren Angriffen — Sturmangriff, Steinregen,
+  Strahlenkranz, Meteorhagel, Untergang — sackt der Boss zusammen. Er greift
+  nicht an, nimmt **70 % mehr Schaden** und wirft Seelensplitter ab. Das ist das
+  Zeitfenster, in dem der Kampf entschieden wird.
+- **Erfahrung kommt vom Boss.** An Lebensschwellen bricht er auf, jeder Treffer
+  kann einen Splitter absprengen. Wer Druck macht, steigt schneller auf.
+- **Beschwörung.** Alle 20–25 Sekunden ruft der Boss eine kleine Gruppe. Kreise
+  am Boden zeigen vorher, wo sie aufsteigt; höchstens sechs stehen gleichzeitig,
+  und im zweiten Ruf ist eine Elite mit Schatztruhe dabei.
+
+### Angriffsmuster
+
+| Boss | Muster |
+|---|---|
+| **Gorgok** | Felssalve, angekündigter Sturmangriff (ab Phase 3 dreifach), Steinregen über die ganze Arena, Erdwelle mit Lücke |
+| **Seraphine** | Rotierende Regenbogen-Laser, Federfächer, Teleport, Lichtkreuz aus vier schwenkenden Strahlen, Gericht auf deine Position, Federsturm als Spirale |
+| **Abaddon** | Dauerspiralen, Meteorhagel, Schockwellen, Feuerkreuz aus der Bildmitte, Untergang mit drei Ringen, durch deren Lücke man muss |
+
 ## Gegnerarten
 
-Nicht alle rennen stumpf auf dich zu — jede Arena mischt ihre eigene Auswahl:
+Die gerufenen Diener kommen in fünf Sorten, je Arena anders gemischt:
 
 | Art | Verhalten |
 |---|---|
