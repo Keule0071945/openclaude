@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Drohnenflug durch eine Voxel-Pixelwelt: acht Einstellungen ueber eine schwebende Insel, ohne Bedienelemente.">
+<meta name="description" content="Drohnenflug durch eine Voxel-Pixelwelt in goldenem Abendlicht: acht Einstellungen ueber eine schwebende Insel mit Dorf, See und Wasserfall.">
 <title>Meadow Hill Flyover</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -100,7 +100,7 @@
     rock:'#8f92ab', rockDk:'#666a86',
     path:'#d8bd8b', water:'#3fa8d0', waterLt:'#63c8e2', waterDk:'#2b86b0',
     wood:'#9a6a3e', woodDk:'#6d4a2c',
-    wall:'#f0dfbe', wallDk:'#cfb896',
+    wall:'#f0dfbe', wallDk:'#cfb896', win:'#6d8ab0',
     roofA:'#d4645c', roofB:'#5f8fc4', roofC:'#d99a4f',
     leaf:'#4fa14a', leafDk:'#2f7440', leafLt:'#79c25c',
     pine:'#3d8c5a', pineDk:'#2a6a45',
@@ -142,12 +142,13 @@
     fogRGB = rgbOf(horizonHex);
     colCache.clear();
   }
-  function faceCol(base, f, fg){
-    var key = base + '|' + f + '|' + fg;
+  function faceCol(base, f, fg, sh){
+    var key = base + '|' + f + '|' + fg + '|' + sh;
     var c = colCache.get(key);
     if(c !== undefined) return c;
     var rgb = rgbOf(base), L = light[f], t = (fg/FOG_STEPS)*FOG_MAX;
-    var r = Math.min(255, rgb[0]*L[0]), g = Math.min(255, rgb[1]*L[1]), b = Math.min(255, rgb[2]*L[2]);
+    var sd = 1 - sh*0.085;                       // Wolkenschatten
+    var r = Math.min(255, rgb[0]*L[0]*sd), g = Math.min(255, rgb[1]*L[1]*sd), b = Math.min(255, rgb[2]*L[2]*sd);
     r += (fogRGB[0]-r)*t; g += (fogRGB[1]-g)*t; b += (fogRGB[2]-b)*t;
     c = 'rgb(' + (r|0) + ',' + (g|0) + ',' + (b|0) + ')';
     colCache.set(key, c);
@@ -188,6 +189,24 @@
     return kinds[idx(i,j)];
   }
 
+  var paved = new Uint8Array(G*G);
+  var PATH_PTS = [
+    [20.5,10.5],[18.6,12.4],[16.8,14.6],[14.2,16.4],[11.8,18.6],[10.6,20.0],
+    null,
+    [17.6,13.4],[17.9,16.4],[17.4,19.2],[16.9,21.4]
+  ];
+  function onPath(i,j){
+    for(var k=0;k<PATH_PTS.length-1;k++){
+      var a = PATH_PTS[k], b = PATH_PTS[k+1];
+      if(!a || !b) continue;
+      var vx = b[0]-a[0], vy = b[1]-a[1];
+      var len2 = vx*vx+vy*vy;
+      var t = Math.max(0, Math.min(1, ((i-a[0])*vx + (j-a[1])*vy)/len2));
+      var dx = i - (a[0]+vx*t), dy = j - (a[1]+vy*t);
+      if(dx*dx+dy*dy < 0.62) return true;
+    }
+    return false;
+  }
   function buildTerrain(){
     var dirLen = Math.hypot(LAKE_X-CX, LAKE_Y-CY);
     spillDir = [(LAKE_X-CX)/dirLen, (LAKE_Y-CY)/dirLen];
@@ -217,6 +236,7 @@
         }
         h = Math.round(h*2)/2;
         heights[idx(i,j)] = h;
+        if(onPath(i,j)) paved[idx(i,j)] = 1;
         kinds[idx(i,j)] = (h < WATER_Z - 0.2 && (dl < LAKE_R + 1.0 || (proj > dirLen-1 && perp < 1.5))) ? K_WATER : K_LAND;
       }
     }
@@ -235,6 +255,10 @@
         if(isW){ topC = PAL.water; sideC = PAL.waterDk; }
         else if(h2 < 3.0){ topC = PAL.sand; sideC = ((i2*7+j2*13) % 5 < 2) ? PAL.rockDk : PAL.rock; }
         else if(h2 > 6.9){ topC = PAL.rock; sideC = PAL.rockDk; }
+        else if(paved[idx(i2,j2)]){
+          topC = ((i2*5+j2*3) % 4 === 0) ? '#c9ab7a' : PAL.path;
+          sideC = PAL.dirt;
+        }
         else {
           topC = (i2*3+j2*5) % 7 < 2 ? PAL.grassLt : PAL.grass;
           sideC = PAL.dirt;
@@ -294,6 +318,24 @@
     P(x,y,g+2.85,g+3.2, w*0.26,d*0.26, roof, roof);
     // Schornstein
     P(x+w*0.32, y-d*0.28, g+1.8, g+3.5, 0.4,0.4, PAL.stone, PAL.rockDk);
+    // Fensterrahmen und Scheiben an allen vier Waenden
+    var wz = g + 0.55;
+    var sides = [[ w/2+0.03, -0.3, 0.07, 0.62],[ -w/2-0.03, 0.3, 0.07, 0.62],
+                 [ 0.3, d/2+0.03, 0.62, 0.07],[ -0.3, -d/2-0.03, 0.62, 0.07]];
+    for(var q=0;q<4;q++){
+      var sd2 = sides[q];
+      P(x+sd2[0], y+sd2[1], wz-0.12, wz+0.7, sd2[2]+0.16, sd2[3]+0.16, PAL.woodDk, PAL.woodDk, 0.9);
+      P(x+sd2[0], y+sd2[1], wz, wz+0.56, sd2[2]+0.04, sd2[3]+0.04, PAL.win, PAL.win, 1.0);
+    }
+    // Tuer mit Stufe
+    P(x, y - d/2 - 0.04, g-0.6, g+1.15, 0.62, 0.1, PAL.woodDk, PAL.woodDk, 0.9);
+    P(x, y - d/2 - 0.06, g-0.6, g+1.02, 0.48, 0.1, PAL.wood, PAL.wood, 1.0);
+    P(x+0.16, y - d/2 - 0.1, g+0.5, g+0.6, 0.08, 0.08, EM.lamp, EM.lamp, 1.1);
+    P(x, y - d/2 - 0.42, g-0.5, g-0.18, 0.9, 0.5, PAL.stone, PAL.stoneDk || PAL.rockDk, 0.6);
+    // Blumenkasten unter dem Seitenfenster
+    P(x + w/2 + 0.12, y - 0.3, wz-0.34, wz-0.06, 0.22, 0.72, PAL.woodDk, PAL.woodDk, 1.0);
+    P(x + w/2 + 0.12, y - 0.42, wz-0.06, wz+0.08, 0.2, 0.2, '#ff8fb1', '#ff8fb1', 1.1);
+    P(x + w/2 + 0.12, y - 0.18, wz-0.06, wz+0.08, 0.2, 0.2, '#ffd166', '#ffd166', 1.1);
     HOUSES.push({x:x, y:y, g:g, w:w, d:d});
   }
   function fenceRun(x,y,dx,dy,n){
@@ -329,6 +371,16 @@
     lampAt(VIL_X+0.4, VIL_Y+3.2);
     fenceRun(VIL_X-3.2, VIL_Y+3.6, 1, 0, 5);
     fenceRun(VIL_X-3.2, VIL_Y+3.6, 0, -1, 4);
+    // Treppe vom Weg aufs Dorfplateau
+    for(var st=0; st<4; st++){
+      P(VIL_X-3.6+st*0.62, VIL_Y+4.6-st*0.5, hAt(VIL_X-3.6+st*0.62, VIL_Y+4.6-st*0.5)-0.6,
+        hAt(VIL_X-3.6, VIL_Y+4.6)+0.15+st*0.42, 0.95, 0.7, PAL.stone, PAL.rockDk, 0.4);
+    }
+    // Wegweiser am Abzweig
+    var sgx = 17.6, sgy = 13.6, sgg = hAt(sgx,sgy);
+    P(sgx, sgy, sgg-0.4, sgg+1.7, 0.16,0.16, PAL.woodDk, PAL.woodDk, 0.5);
+    P(sgx+0.42, sgy, sgg+1.15, sgg+1.5, 0.75,0.1, PAL.wood, PAL.woodLt || PAL.wood, 0.7);
+    P(sgx-0.35, sgy+0.2, sgg+0.7, sgg+1.02, 0.6,0.1, PAL.wood, PAL.wood, 0.7);
     // Steg am See
     dock(LAKE_X+2.2, LAKE_Y-1.2, 0.9, 0.3, 3);
     lampAt(LAKE_X+2.0, LAKE_Y-2.4);
@@ -411,7 +463,7 @@
   }
   var FILM = 57;
   function catAt(t){
-    var u = ((t*(2/FILM)) % 1 + 1) % 1;
+    var u = ((t*(2/FILM) + 0.5) % 1 + 1) % 1;
     var a = pathPoint(u), b = pathPoint(u + 0.004);
     var dx = b[0]-a[0], dy = b[1]-a[1], l = Math.hypot(dx,dy) || 1;
     return { x:a[0]-CX, y:a[1]-CY, z:hAt(a[0],a[1]), dx:dx/l, dy:dy/l };
@@ -483,36 +535,53 @@
     ctx.fill();
   }
 
-  function drawBox(b, fg){
+  function drawBox(b, fg, sh){
+    if(b.alpha !== undefined) ctx.globalAlpha = b.alpha;
     var hx = b.sx/2, hy = b.sy/2;
     var x0 = b.x-hx, x1 = b.x+hx, y0 = b.y-hy, y1 = b.y+hy, z0 = b.z0, z1 = b.z1;
-    var top = b.em ? emCol(b.top, fg) : faceCol(b.top, 0, fg);
+    var top = b.em ? emCol(b.top, fg) : faceCol(b.top, 0, fg, sh);
     var sideBase = b.side || b.top;
     if(cam[2] > z1){
       face([x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1], top);
     } else if(cam[2] < z0){
       face([x0,y0,z0],[x0,y1,z0],[x1,y1,z0],[x1,y0,z0],
-           b.em ? emCol(sideBase, fg) : faceCol(sideBase, 5, fg));
+           b.em ? emCol(sideBase, fg) : faceCol(sideBase, 5, fg, sh));
     }
     var f;
     if(cam[0] > x1){
       f = b.nPX !== undefined ? b.nPX : z0;
       if(f < z1) face([x1,y0,z1],[x1,y1,z1],[x1,y1,f],[x1,y0,f],
-                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,1,fg));
+                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,1,fg,sh));
     } else if(cam[0] < x0){
       f = b.nMX !== undefined ? b.nMX : z0;
       if(f < z1) face([x0,y0,z1],[x0,y1,z1],[x0,y1,f],[x0,y0,f],
-                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,2,fg));
+                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,2,fg,sh));
     }
     if(cam[1] > y1){
       f = b.nPY !== undefined ? b.nPY : z0;
       if(f < z1) face([x0,y1,z1],[x1,y1,z1],[x1,y1,f],[x0,y1,f],
-                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,3,fg));
+                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,3,fg,sh));
     } else if(cam[1] < y0){
       f = b.nMY !== undefined ? b.nMY : z0;
       if(f < z1) face([x0,y0,z1],[x1,y0,z1],[x1,y0,f],[x0,y0,f],
-                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,4,fg));
+                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,4,fg,sh));
     }
+    if(b.alpha !== undefined) ctx.globalAlpha = 1;
+  }
+
+  /* --------- Wetter: ziehende Wolkenschatten --------- */
+  var SHADOW_C = [[-4,3,7.5],[9,-6,6.5],[3,11,8.5]];
+  function shadowAt(x,y,t){
+    var s2 = 0;
+    for(var i=0;i<3;i++){
+      var cx2 = SHADOW_C[i][0] + (((t*0.6 + i*19) % 52) - 26);
+      var cy2 = SHADOW_C[i][1] + Math.sin(t*0.07 + i)*2.5;
+      var r2 = SHADOW_C[i][2];
+      var dx2 = x-cx2, dy2 = y-cy2;
+      var d2 = Math.sqrt(dx2*dx2 + dy2*dy2);
+      if(d2 < r2) s2 += 1 - d2/r2;
+    }
+    return Math.round(Math.min(1, s2)*3);
   }
 
   /* =========================================================
@@ -629,10 +698,13 @@
     var mg = WINDMILL[2] + 3.1;
     for(var b=0;b<4;b++){
       var a = t*1.1 + b*Math.PI/2;
-      for(var d=1; d<=4; d++){
-        var bz = mg + Math.sin(a)*d*0.62;
-        D(WINDMILL[0] + Math.cos(a)*d*0.62, WINDMILL[1]-1.15, bz-0.17, bz+0.17, 0.34, 0.32,
-          d > 2 ? PAL.wall : PAL.woodDk, d > 2 ? PAL.wallDk : PAL.woodDk, 0.8);
+      for(var d=1; d<=9; d++){
+        var rr2 = d*0.29;
+        var bz = mg + Math.sin(a)*rr2;
+        var sail = d >= 4;
+        var th = sail ? 0.44 : 0.24;
+        D(WINDMILL[0] + Math.cos(a)*rr2, WINDMILL[1]-1.15, bz-th/2, bz+th/2, th+0.1, 0.3,
+          sail ? PAL.wall : PAL.woodDk, sail ? PAL.wallDk : PAL.woodDk, 0.8);
       }
     }
     D(WINDMILL[0], WINDMILL[1]-1.02, mg-0.26, mg+0.26, 0.44,0.44, PAL.woodDk, PAL.woodDk, 0.9);
@@ -709,28 +781,88 @@
     D(cwx+c.dx*0.56+c.dy*0.1, cwy+c.dy*0.56-c.dx*0.1, c.z+0.62+step, c.z+0.7+step, 0.07,0.07, PAL.ink, PAL.ink, 1.7);
     D(cwx+c.dx*0.56-c.dy*0.1, cwy+c.dy*0.56+c.dx*0.1, c.z+0.62+step, c.z+0.7+step, 0.07,0.07, PAL.ink, PAL.ink, 1.7);
     D(cwx-c.dx*0.46, cwy-c.dy*0.46, c.z+0.45+step+Math.sin(t*6)*0.12, c.z+0.74+step, 0.16,0.16, PAL.catDk, PAL.catDk, 1.4);
-    // Licht bei Nacht
-    if(night > 0.22){
+    // Fenster, Laternen (brennen zur blauen Stunde bereits)
+    if(LIGHTS){
       for(var hw=0; hw<HOUSES.length; hw++){
         var hh = HOUSES[hw], wz = hh.g + 0.55;
-        De(hh.x + hh.w/2 + 0.04, hh.y - 0.3, wz, wz+0.55, 0.06, 0.5, EM.win, 1.0);
-        De(hh.x - hh.w/2 - 0.04, hh.y + 0.3, wz, wz+0.55, 0.06, 0.5, EM.win, 1.0);
-        De(hh.x + 0.3, hh.y + hh.d/2 + 0.04, wz, wz+0.55, 0.5, 0.06, EM.win, 1.0);
-        De(hh.x - 0.3, hh.y - hh.d/2 - 0.04, wz, wz+0.55, 0.5, 0.06, EM.win, 1.0);
+        De(hh.x + hh.w/2 + 0.04, hh.y - 0.3, wz, wz+0.55, 0.06, 0.5, EM.win, 1.2);
+        De(hh.x - hh.w/2 - 0.04, hh.y + 0.3, wz, wz+0.55, 0.06, 0.5, EM.win, 1.2);
+        De(hh.x + 0.3, hh.y + hh.d/2 + 0.04, wz, wz+0.55, 0.5, 0.06, EM.win, 1.2);
+        De(hh.x - 0.3, hh.y - hh.d/2 - 0.04, wz, wz+0.55, 0.5, 0.06, EM.win, 1.2);
       }
       for(var lp=0; lp<LAMPS.length; lp++){
         De(LAMPS[lp].x, LAMPS[lp].y, LAMPS[lp].z, LAMPS[lp].z+0.36, 0.36,0.36, EM.lamp, 1.0);
       }
-      for(var ff=0; ff<26; ff++){
-        var fa = t*0.5 + ff*1.7, fr = 3 + (ff % 8)*1.3;
-        var fx2 = CX + Math.cos(fa)*fr, fy2 = CY + Math.sin(fa*0.8+ff)*fr;
-        var fi = Math.round(fx2), fj = Math.round(fy2);
-        if(kindAt(fi,fj) !== K_LAND) continue;
-        var pulse = 0.4 + 0.6*Math.sin(t*2.6 + ff*2.1);
-        if(pulse < 0.25) continue;
-        var fz2 = heights[idx(fi,fj)] + 0.9 + Math.sin(t*1.3+ff)*0.6;
-        De(fx2, fy2, fz2, fz2+0.16, 0.16,0.16, EM.fly, 1.3);
-      }
+    }
+    // ---- Bewohner auf ihren kleinen Runden
+    var COATS = ['#4d6fb3','#b3564d','#6a8f4a','#8a5aa8'];
+    for(var vi=0; vi<4; vi++){
+      var va = t*(0.30 + vi*0.05) + vi*1.9;
+      var vr = 1.5 + (vi % 3)*0.8;
+      var vx2 = VIL_X - 1.0 + Math.cos(va)*vr + (vi-1.5)*1.1;
+      var vy2 = VIL_Y + 1.2 + Math.sin(va)*vr*0.75;
+      var vg = hAt(vx2, vy2);
+      var bobv = Math.abs(Math.sin(t*4 + vi))*0.07;
+      D(vx2, vy2, vg-0.15+bobv, vg+0.62+bobv, 0.32,0.28, COATS[vi], COATS[vi], 1.3);
+      D(vx2, vy2, vg+0.62+bobv, vg+0.9+bobv, 0.26,0.24, '#f0c9a0', '#dcb188', 1.4);
+      D(vx2, vy2, vg+0.9+bobv, vg+1.0+bobv, 0.32,0.3, vi%2 ? '#3b3350' : '#7a5a3a', '#2b2038', 1.5);
+    }
+    // ---- Hühner am Zaun
+    for(var ch=0; ch<3; ch++){
+      var cxh = VIL_X - 2.6 + ch*0.9 + Math.sin(t*0.7 + ch*2)*0.5;
+      var cyh = VIL_Y + 3.9 + Math.cos(t*0.6 + ch)*0.4;
+      var cgh = hAt(cxh, cyh);
+      var peck = Math.max(0, Math.sin(t*3 + ch*2))*0.12;
+      D(cxh, cyh, cgh-0.1, cgh+0.28, 0.26,0.2, '#fbf6ea', '#e3dccb', 1.2);
+      D(cxh+0.12, cyh, cgh+0.24-peck, cgh+0.42-peck, 0.14,0.13, '#fbf6ea', '#e3dccb', 1.3);
+      D(cxh+0.12, cyh, cgh+0.42-peck, cgh+0.5-peck, 0.09,0.08, '#d4645c', '#d4645c', 1.4);
+    }
+    // ---- Wäscheleine zwischen zwei Häusern
+    var la1 = HOUSES[0], la2b = HOUSES[2];
+    for(var wl=0; wl<4; wl++){
+      var u2 = (wl+1)/5;
+      var lx = la1.x + (la2b.x-la1.x)*u2, ly = la1.y + (la2b.y-la1.y)*u2;
+      var sag = Math.sin(u2*Math.PI)*0.22;
+      var sway = Math.sin(t*1.6 + wl)*0.09;
+      var lz = la1.g + 2.0 - sag;
+      D(lx+sway, ly, lz-0.52, lz, 0.36, 0.06, ['#f2f0e6','#8fd3ff','#ffd166','#ff9fb8'][wl], '#ddd8c8', 1.3);
+    }
+    // ---- Fischsprung im See
+    var fsp = (t*0.5) % 1;
+    if(fsp < 0.22){
+      var fk = fsp/0.22;
+      var fxs = LAKE_X - 1.2 + Math.sin(Math.floor(t*0.5)*3.3)*2.0;
+      var fys = LAKE_Y + 0.4 + Math.cos(Math.floor(t*0.5)*2.1)*1.6;
+      var fzs = WATER_Z + Math.sin(fk*Math.PI)*0.75;
+      D(fxs, fys, fzs, fzs+0.24, 0.2,0.16, '#bcd8e6', '#8fb4c8', 1.4);
+      De(fxs, fys, WATER_Z+0.01, WATER_Z+0.03, 0.5+fk*1.1, 0.5+fk*1.1, '#bfeaf7', 0.9);
+    }
+    // ---- Küken hinter der ersten Ente
+    for(var kk=0; kk<2; kk++){
+      var ka = t*0.28 - 0.32 - kk*0.22;
+      var kx = LAKE_X + Math.cos(ka)*1.4, ky = LAKE_Y + Math.sin(ka)*1.2;
+      var kb = Math.sin(t*2.6 + kk)*0.05;
+      D(kx, ky, WATER_Z-0.04+kb, WATER_Z+0.2+kb, 0.26,0.22, '#ffe9a8', '#e6cf8c', 0.85);
+    }
+    // ---- Nebelbänke über den Senken
+    for(var nb=0; nb<26; nb++){
+      var na = nb*1.31 + t*0.04;
+      var nr = 2.5 + (nb % 6)*1.9;
+      var nx = CX + Math.cos(na)*nr, ny = CY + Math.sin(na)*nr*0.9;
+      var ni = Math.round(nx), nj = Math.round(ny);
+      if(kindAt(ni,nj) === K_VOID) continue;
+      var nz = heights[idx(ni,nj)] + 0.35 + Math.sin(t*0.5+nb)*0.18;
+      dyn.push({x:nx-CX, y:ny-CY, z0:nz, z1:nz+0.3, sx:1.5, sy:1.3,
+                top:'#fff3e2', side:'#f6e6d0', em:true, alpha:0.13, bias:1.9});
+    }
+    // ---- Hohe Wolken, die die Schatten werfen
+    for(var hc=0; hc<3; hc++){
+      var hcx = SHADOW_C[hc][0] + (((t*0.6 + hc*19) % 52) - 26);
+      var hcy = SHADOW_C[hc][1] + Math.sin(t*0.07 + hc)*2.5;
+      dyn.push({x:hcx, y:hcy, z0:15, z1:16.4, sx:SHADOW_C[hc][2]*1.5, sy:SHADOW_C[hc][2]*1.2,
+                top:'#fff4e4', side:'#e6d3bd', em:true, bias:-1});
+      dyn.push({x:hcx+2.5, y:hcy-1.2, z0:15.8, z1:17.2, sx:SHADOW_C[hc][2]*0.9, sy:SHADOW_C[hc][2]*0.7,
+                top:'#fff9ef', side:'#e6d3bd', em:true, bias:-1});
     }
     // Wolken rundum und tief darunter
     for(var cl=0; cl<11; cl++){
@@ -774,30 +906,31 @@
   MB = WINDMILL[2];
 
   var SHOTS = [
-    { d:7, name:'Anflug', hint:'Die ganze Insel',
-      go:function(k){ return [lp([28,-25,19],[16,-15,11.5],k), [0,0,4.5]]; } },
-    { d:7, name:'Über dem Dorf', hint:'Rauch, Dächer, Zaun',
-      go:function(k){ return [lp([16,-15,12],[10,-0.5,10.5],k), lp([VX,VY,5],[MX,MY,MB+2.2],k)]; } },
-    { d:6, name:'Mühlenflügel', hint:'Rotor im Anschnitt',
+    { d:7, name:'Anflug',
+      go:function(k){ return [lp([22,-20,15],[12,-11,8.5],k), [0,0,4.2]]; } },
+    { d:7, name:'Zwischen den Häusern',
+      go:function(k){ return [lp([13,-11.5,9.2],[3.4,-0.2,7.8],k), lp([VX,VY,5],[MX,MY,MB+2.4],k)]; } },
+    { d:6, name:'Mühlenflügel',
       go:function(k){ var a = -2.5 + k*1.9;
-        return [[MX + Math.cos(a)*7.2, MY + Math.sin(a)*7.2 - 1.2, MB+4.2], [MX, MY-1.1, MB+2.7]]; } },
-    { d:7.5, name:'Katzenspur', hint:'Auf Pfotenhöhe',
+        return [[MX + Math.cos(a)*6.2, MY + Math.sin(a)*6.2 - 1.2, MB+3.9], [MX, MY-1.1, MB+2.8]]; } },
+    { d:7.5, name:'Auf Pfotenhöhe',
       go:function(k,t){ var c = catAt(t);
-        return [[c.x - c.dx*4.2 - c.dy*0.7, c.y - c.dy*4.2 + c.dx*0.7, c.z + 2.4],
-                [c.x + c.dx*1.5, c.y + c.dy*1.5, c.z + 0.55]]; } },
-    { d:7, name:'Waldkante', hint:'Über die Wipfel',
-      go:function(k){ return [lp([9.5,0.5,13],[0.5,8.5,9.5],k), lp([3.5,5.5,3.5],[LX,LY,2.6],k)]; } },
-    { d:7.5, name:'Über dem See', hint:'Boot, Enten, Steg',
-      go:function(k){ return [lp([1,8.5,7],[-2.5,9.5,5.5],k), lp([LX,LY,2.6],[SPX,SPY,1.5],k)]; } },
-    { d:9, name:'Wasserfall', hint:'Unter die Insel',
+        var sx2 = -c.dy, sy2 = c.dx;
+        return [[c.x + sx2*3.1 - c.dx*1.5, c.y + sy2*3.1 - c.dy*1.5, c.z + 2.9],
+                [c.x + c.dx*0.3, c.y + c.dy*0.3, c.z + 0.3]]; } },
+    { d:7, name:'Durch die Wipfel',
+      go:function(k){ return [lp([8.5,1.5,11.5],[0.2,8.2,8.6],k), lp([3.5,5.5,3.5],[LX,LY,2.6],k)]; } },
+    { d:7.5, name:'Knapp über dem See',
+      go:function(k){ return [lp([1.5,7.6,5.2],[-3.6,9.0,3.6],k), lp([LX,LY,2.6],[SPX,SPY,1.6],k)]; } },
+    { d:9, name:'Wasserfall',
       go:function(k){
-        var pos = [-15.8 + k*1.6, 8.1 - k*1.3, 5.0 - k*13.5];
+        var pos = [-19.5 - k*2.5, 11.5 + k*3.0, 5.2 - k*10.5];
         var lookLow = [SPX, SPY, WATER_Z - 0.5 - k*9];
         var lookUp  = [-2.5, 3.2, -3.2];
         var m = Math.max(0, Math.min(1, (k-0.68)/0.32));
         return [pos, lp(lookLow, lookUp, ease(m))]; } },
-    { d:6, name:'Nachtflug', hint:'Alle Lichter an',
-      go:function(k){ return [lp([-14.2,6.8,-8.5],[-24,20,14],k), lp([-4,4,-2],[0,0,3.5],k)]; } }
+    { d:6, name:'Abendlicht',
+      go:function(k){ return [lp([-22,14.5,-5.3],[-25,20,12],k), lp([-4,4,-2],[0,0,3.5],k)]; } }
   ];
   var CUT = [];
   (function(){ var acc0 = 0; for(var i=0;i<SHOTS.length;i++){ CUT.push(acc0); acc0 += SHOTS[i].d; } })();
@@ -811,6 +944,14 @@
   /* =========================================================
      Frame
      ========================================================= */
+  var GOLD_P = 0.4695;
+  var SUN = (function(){
+    var a = GOLD_P*Math.PI*2, v = [Math.cos(a), 0.34, Math.sin(a)];
+    var l = Math.hypot(v[0],v[1],v[2]);
+    return [v[0]/l, v[1]/l, v[2]/l];
+  })();
+  var GOLD_NIGHT = 0.10, GOLD_WARM = 0.62, LIGHTS = true;
+
   var order = [];
   function renderScene(t){
     var tc = ((t % TOTAL) + TOTAL) % TOTAL;
@@ -827,14 +968,8 @@
     if(g !== null && pos[2] < g + 1.15) pos[2] = g + 1.15;   // nicht durch den Boden
     setCamera(pos, res[1]);
 
-    // Tageszeit
-    var p = 0.09 + (tc/TOTAL)*0.47;
-    var ang = p*Math.PI*2;
-    var sun = [Math.cos(ang), 0.34, Math.sin(ang)];
-    var sl = Math.hypot(sun[0],sun[1],sun[2]);
-    sun[0]/=sl; sun[1]/=sl; sun[2]/=sl;
-    var night = 1 - Math.max(0, Math.min(1, (sun[2]+0.06)/0.26));
-    var warm = Math.max(0, 1 - Math.abs(sun[2])/0.30);
+    // Goldene Stunde: fester, tief stehender Sonnenstand
+    var p = GOLD_P, sun = SUN, night = GOLD_NIGHT, warm = GOLD_WARM;
 
     var hor = drawSky(p, night, t);
     computeLight(sun, night, warm, hor);
@@ -869,12 +1004,12 @@
       b = order[i];
       var dist = Math.sqrt(Math.max(0, b.key));
       var fg = Math.min(FOG_STEPS, Math.round((1 - Math.exp(-dist*FOG_K)) * FOG_STEPS));
-      drawBox(b, fg);
+      drawBox(b, fg, b.em ? 0 : shadowAt(b.x, b.y, t));
     }
 
     // Feuer- und Laternenschein
-    if(night > 0.25){
-      var a2 = (night-0.25)/0.75;
+    if(LIGHTS){
+      var a2 = 0.42;
       var cg2 = hAt(CAMPFIRE[0], CAMPFIRE[1]);
       var qf = projPoint(CAMPFIRE[0]-CX, CAMPFIRE[1]-CY, cg2+1.2);
       if(qf){
