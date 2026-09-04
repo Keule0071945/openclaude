@@ -1,0 +1,1099 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Drohnenflug durch eine Voxel-Pixelwelt: acht geschnittene Einstellungen ueber eine schwebende Insel, vom Morgenanflug bis zum Nachtflug unter den Wasserfall.">
+<title>Meadow Hill Flyover</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ground:#171226; --shell:#241c3c; --shell-hi:#33285a; --bezel:#0e0b1a;
+    --ink:#f1e9ff; --muted:#9c8fc4; --accent:#ffd166; --accent-dim:#a37c2c; --line:#372c5c;
+    --pixel:'Silkscreen','Courier New',monospace;
+    --mono:'IBM Plex Mono',ui-monospace,'Courier New',monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:radial-gradient(120% 80% at 50% -10%, #2a2047 0%, var(--ground) 60%, #0f0b1c 100%);
+    color:var(--ink);font-family:var(--mono);min-height:100vh;
+    display:flex;align-items:flex-start;justify-content:center;padding:28px 16px 56px;
+  }
+  .cabinet{width:100%;max-width:880px;display:flex;flex-direction:column;gap:14px}
+  .bezel{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;
+    background:linear-gradient(180deg,var(--shell-hi),var(--shell));
+    border:2px solid #120d22;border-bottom:none;border-radius:14px 14px 4px 4px;
+  }
+  .brand{
+    font-family:var(--pixel);font-weight:700;font-size:clamp(13px,2.4vw,19px);
+    letter-spacing:.06em;color:var(--accent);text-shadow:0 2px 0 #6d4a10;
+  }
+  .badge{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);letter-spacing:.08em}
+  .led{width:9px;height:9px;border-radius:50%;background:#ff6f5e;box-shadow:0 0 8px #ff6f5e,0 0 2px #fff inset}
+  .led.off{background:#4a2f34;box-shadow:none}
+  .clock{
+    font-variant-numeric:tabular-nums;font-size:13px;color:var(--ink);
+    background:#120d22;border:1px solid var(--line);border-radius:4px;padding:3px 8px;
+  }
+  .screen{
+    position:relative;background:var(--bezel);border:2px solid #120d22;border-top:none;
+    border-radius:0 0 4px 4px;padding:10px;line-height:0;
+  }
+  canvas{
+    display:block;width:100%;height:auto;aspect-ratio:16/9;
+    image-rendering:pixelated;image-rendering:crisp-edges;
+    background:#141838;border-radius:2px;cursor:grab;touch-action:none;
+  }
+  canvas.dragging{cursor:grabbing}
+  .crt{
+    position:absolute;inset:10px;pointer-events:none;border-radius:2px;
+    background:repeating-linear-gradient(to bottom,rgba(0,0,0,.22) 0 2px,rgba(0,0,0,0) 2px 4px);
+    box-shadow:inset 0 0 42px rgba(10,6,24,.75);mix-blend-mode:multiply;
+  }
+  .crt[hidden]{display:none}
+  .hud{position:absolute;left:20px;top:20px;display:flex;flex-direction:column;gap:4px;pointer-events:none;line-height:1.2}
+  .shot{
+    font-family:var(--pixel);font-size:clamp(11px,1.7vw,15px);color:#fff6de;
+    background:rgba(14,11,26,.55);padding:3px 7px;border-radius:2px;text-shadow:0 2px 0 rgba(0,0,0,.55);
+  }
+  .tc{
+    font-size:10px;letter-spacing:.14em;color:#cbb6ff;background:rgba(14,11,26,.45);
+    padding:2px 7px;border-radius:2px;width:max-content;font-variant-numeric:tabular-nums;
+  }
+  .rec{
+    position:absolute;right:20px;top:20px;display:flex;align-items:center;gap:5px;
+    font-size:10px;letter-spacing:.16em;color:#ffd9d4;background:rgba(14,11,26,.45);
+    padding:3px 7px;border-radius:2px;pointer-events:none;
+  }
+  .rec i{width:6px;height:6px;border-radius:50%;background:#ff5e4d;animation:blink 1.6s steps(2,end) infinite}
+  @keyframes blink{50%{opacity:.15}}
+  @media (prefers-reduced-motion: reduce){.rec i{animation:none}}
+  .rail{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .seg{
+    appearance:none;border:1px solid var(--line);background:#1b1531;color:var(--muted);
+    font-family:var(--mono);font-size:11px;letter-spacing:.03em;text-align:left;
+    padding:7px 8px 8px;border-radius:4px;cursor:pointer;display:flex;flex-direction:column;gap:6px;
+    transition:color .15s,border-color .15s,background .15s;
+  }
+  .seg:hover{border-color:var(--accent-dim);color:var(--ink)}
+  .seg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .seg[aria-current="true"]{color:var(--ink);background:#241c40;border-color:var(--accent-dim)}
+  .seg .bar{height:3px;background:#0f0b1c;border-radius:2px;overflow:hidden}
+  .seg .bar i{display:block;height:100%;width:0;background:var(--accent)}
+  .seg[aria-current="true"] .bar i{box-shadow:0 0 6px rgba(255,209,102,.7)}
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  button.key{
+    appearance:none;font-family:var(--pixel);font-size:13px;letter-spacing:.04em;color:#241c3c;
+    background:linear-gradient(180deg,#f6ecd6,#d8c9ad);border:2px solid #0f0b1c;border-radius:5px;
+    padding:8px 14px 9px;cursor:pointer;box-shadow:0 3px 0 #0f0b1c;transition:transform .06s,box-shadow .06s;
+  }
+  button.key:active{transform:translateY(3px);box-shadow:0 0 0 #0f0b1c}
+  button.key:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  button.key.alt{background:linear-gradient(180deg,#8f7fd0,#6a58ab);color:#fff}
+  .note{flex:1 1 250px;min-width:220px;margin:0;font-size:12px;line-height:1.55;color:var(--muted)}
+  .note b{color:var(--ink);font-weight:500}
+  .legend{
+    display:flex;flex-wrap:wrap;gap:10px 18px;font-size:11px;color:var(--muted);
+    border-top:1px solid var(--line);margin-top:2px;padding-top:12px;
+  }
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:9px;height:9px;border-radius:1px;display:inline-block}
+  @media (max-width:620px){.rail{grid-template-columns:repeat(2,1fr)}}
+</style>
+
+</head>
+<body>
+<main class="cabinet">
+  <header class="bezel">
+    <span class="brand">MEADOW HILL FLYOVER</span>
+    <span class="badge"><i class="led" id="led" aria-hidden="true"></i>256×144 · Voxel · 8 Einstellungen<span class="clock" id="clock">06:00</span></span>
+  </header>
+
+  <section class="screen">
+    <canvas id="scene" width="256" height="144" role="img"
+      aria-label="Drohnenflug durch eine 3D-Pixelwelt: Anflug auf eine schwebende Insel, Tiefflug über Dorf und Windmühle, Verfolgung einer Katze, Gleitflug über den See und Sturzflug am Wasserfall unter die Insel."></canvas>
+    <div class="hud">
+      <span class="shot" id="shotName">Anflug</span>
+      <span class="tc" id="tc">00:00 / 01:18</span>
+    </div>
+    <div class="rec"><i></i>REC</div>
+    <div class="crt" id="crt"></div>
+  </section>
+
+  <nav class="rail" id="rail" aria-label="Einstellungen"></nav>
+
+  <div class="controls">
+    <button class="key" id="play" type="button">Pause</button>
+    <button class="key alt" id="speed" type="button">Tempo 1×</button>
+    <button class="key alt" id="mode" type="button">Freiflug</button>
+    <button class="key alt" id="crtBtn" type="button">Scanlines an</button>
+    <p class="note">Acht geschnittene Einstellungen, <b>78 Sekunden</b>, in Schleife. Der Tag läuft mit: Anflug im Morgenlicht, Abendsonne über dem See, Nachtflug zum Schluss. <b>Ziehen</b> schaltet in den Freiflug und dreht die Kamera selbst, <b>Filmflug</b> geht zurück in die Fahrt.</p>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:#d4645c"></i>Dorf: Rauch, Fensterlicht, Zaun</span>
+    <span><i style="background:#f0dfbe"></i>Mühle: 16 Flügelwürfel</span>
+    <span><i style="background:#4bb8d8"></i>See: Boot, Enten, Steg</span>
+    <span><i style="background:#ffb03a"></i>Nacht: Feuer, Laternen, Glühwürmchen</span>
+  </div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  var cv = document.getElementById('scene');
+  var ctx = cv.getContext('2d');
+  var W = 256, H = 144;
+
+  /* =========================================================
+     Farben & Licht  (6 Flaechen-Normalen + Distanznebel)
+     ========================================================= */
+  var PAL = {
+    grass:'#5cb04a', grassLt:'#79c95c', grassDk:'#3f8f43',
+    sand:'#e3cd94', dirt:'#9c6c40', dirtDk:'#7a5230',
+    rock:'#8f92ab', rockDk:'#666a86',
+    path:'#d8bd8b', water:'#3fa8d0', waterLt:'#63c8e2', waterDk:'#2b86b0',
+    wood:'#9a6a3e', woodDk:'#6d4a2c',
+    wall:'#f0dfbe', wallDk:'#cfb896',
+    roofA:'#d4645c', roofB:'#5f8fc4', roofC:'#d99a4f',
+    leaf:'#4fa14a', leafDk:'#2f7440', leafLt:'#79c25c',
+    pine:'#3d8c5a', pineDk:'#2a6a45',
+    fleece:'#f5eee0', duck:'#fbf6ea', ink:'#2b2038',
+    cat:'#ef9f52', catDk:'#c9762f',
+    cloud:'#e9eefb', mist:'#dff0f7',
+    stone:'#a9adc2', canvasT:'#e07a63'
+  };
+  var EM = { win:'#ffd27a', fire:'#ffb03a', fireHot:'#fff2b0', lamp:'#ffdf9a', fly:'#d8ff96' };
+
+  var hexCache = {};
+  function rgbOf(h){
+    var v = hexCache[h];
+    if(!v){ v = [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; hexCache[h] = v; }
+    return v;
+  }
+  // 0 oben, 1 +X, 2 -X, 3 +Y, 4 -Y, 5 unten
+  var NORM = [[0,0,1],[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,-1]];
+  var light = [[1,1,1],[1,1,1],[1,1,1],[1,1,1],[1,1,1],[1,1,1]];
+  var colCache = new Map();
+  var fogRGB = [120,140,180], FOG_STEPS = 10, FOG_MAX = 0.66, FOG_K = 0.017;
+
+  function computeLight(sun, night, warm, horizonHex){
+    var ambR = 0.52 - night*0.24, ambG = 0.55 - night*0.22, ambB = 0.62 - night*0.10;
+    var sr = (0.90 + warm*0.30) * (1-night);
+    var sg = (0.84 - warm*0.24) * (1-night);
+    var sb = (0.72 - warm*0.44) * (1-night);
+    var mr = 0.20*night, mg = 0.24*night, mb = 0.42*night;
+    for(var f=0; f<6; f++){
+      var n = NORM[f];
+      var d = Math.max(0, n[0]*sun[0] + n[1]*sun[1] + n[2]*sun[2]);
+      var m = Math.max(0, -(n[0]*sun[0] + n[1]*sun[1]) - n[2]*sun[2]*0.4);
+      var sky = f === 0 ? 0.14 : (f === 5 ? 0.0 : 0.04);
+      var dim = f === 5 ? 0.72 : 1;          // Unterseiten bleiben dunkel
+      light[f][0] = (ambR + sr*d + mr*m + sky*(0.4+0.6*(1-night)))*dim;
+      light[f][1] = (ambG + sg*d + mg*m + sky*(0.45+0.55*(1-night)))*dim;
+      light[f][2] = (ambB + sb*d + mb*m + sky*(0.7+0.3*(1-night)))*dim;
+    }
+    fogRGB = rgbOf(horizonHex);
+    colCache.clear();
+  }
+  function faceCol(base, f, fg){
+    var key = base + '|' + f + '|' + fg;
+    var c = colCache.get(key);
+    if(c !== undefined) return c;
+    var rgb = rgbOf(base), L = light[f], t = (fg/FOG_STEPS)*FOG_MAX;
+    var r = Math.min(255, rgb[0]*L[0]), g = Math.min(255, rgb[1]*L[1]), b = Math.min(255, rgb[2]*L[2]);
+    r += (fogRGB[0]-r)*t; g += (fogRGB[1]-g)*t; b += (fogRGB[2]-b)*t;
+    c = 'rgb(' + (r|0) + ',' + (g|0) + ',' + (b|0) + ')';
+    colCache.set(key, c);
+    return c;
+  }
+  function emCol(base, fg){
+    var key = base + '|e|' + fg;
+    var c = colCache.get(key);
+    if(c !== undefined) return c;
+    var rgb = rgbOf(base), t = (fg/FOG_STEPS)*FOG_MAX*0.7;
+    var r = rgb[0] + (fogRGB[0]-rgb[0])*t, g = rgb[1] + (fogRGB[1]-rgb[1])*t, b = rgb[2] + (fogRGB[2]-rgb[2])*t;
+    c = 'rgb(' + (r|0) + ',' + (g|0) + ',' + (b|0) + ')';
+    colCache.set(key, c);
+    return c;
+  }
+
+  /* =========================================================
+     Welt
+     ========================================================= */
+  var G = 30, CX = 14.5, CY = 14.5, RAD = 13.0;
+  var SLAB = -3.2, WATER_Z = 2.6;
+  var LAKE_X = 9.4, LAKE_Y = 20.6, LAKE_R = 3.9;
+  var VIL_X = 20.5, VIL_Y = 10.5;
+  var heights = new Float32Array(G*G);
+  var kinds = new Uint8Array(G*G);      // 0 = leer, 1 = Land, 2 = Wasser
+  var K_VOID = 0, K_LAND = 1, K_WATER = 2;
+  var terrain = [];
+  var spillDir = [0,0], spillPt = [0,0];
+
+  function idx(i,j){ return j*G + i; }
+  function hAt(x,y){
+    var i = Math.round(x), j = Math.round(y);
+    if(i<0||j<0||i>=G||j>=G) return 0;
+    return heights[idx(i,j)];
+  }
+  function kindAt(i,j){
+    if(i<0||j<0||i>=G||j>=G) return K_VOID;
+    return kinds[idx(i,j)];
+  }
+
+  function buildTerrain(){
+    var dirLen = Math.hypot(LAKE_X-CX, LAKE_Y-CY);
+    spillDir = [(LAKE_X-CX)/dirLen, (LAKE_Y-CY)/dirLen];
+    for(var j=0;j<G;j++){
+      for(var i=0;i<G;i++){
+        var dx = i-CX, dy = j-CY, r = Math.hypot(dx,dy);
+        if(r > RAD){ kinds[idx(i,j)] = K_VOID; continue; }
+        var e = 1 - r/RAD;
+        var h = 1.3 + 5.2*Math.pow(e, 0.42);
+        h += 0.62*Math.sin(i*0.46+0.4)*Math.cos(j*0.41-0.2);
+        h += 0.28*Math.sin((i+j)*0.62+1.1);
+        // Dorfplateau
+        var dv = Math.hypot(i-VIL_X, j-VIL_Y);
+        if(dv < 4.2){ var w = Math.min(1,(4.2-dv)/1.8); h = h*(1-w) + 4.6*w; }
+        // Seebecken
+        var dl = Math.hypot(i-LAKE_X, j-LAKE_Y);
+        if(dl < LAKE_R + 1.2){
+          var wl = Math.min(1, (LAKE_R+1.2-dl)/2.2);
+          h = h*(1-wl) + 1.5*wl;
+        }
+        // Abflussrinne Richtung Inselrand
+        var proj = ((i-CX)*spillDir[0] + (j-CY)*spillDir[1]);
+        var perp = Math.abs((i-CX)*(-spillDir[1]) + (j-CY)*spillDir[0]);
+        if(proj > dirLen - 1 && perp < 1.6){
+          var wc = Math.min(1, (1.6-perp)/1.2);
+          h = h*(1-wc) + (2.0 - (proj-(dirLen-1))*0.16)*wc;
+        }
+        h = Math.round(h*2)/2;
+        heights[idx(i,j)] = h;
+        kinds[idx(i,j)] = (h < WATER_Z - 0.2 && (dl < LAKE_R + 1.0 || (proj > dirLen-1 && perp < 1.5))) ? K_WATER : K_LAND;
+      }
+    }
+    // Ausflusspunkt am Rand merken
+    spillPt = [CX + spillDir[0]*(RAD-0.6), CY + spillDir[1]*(RAD-0.6)];
+
+    // statische Terrain-Boxen
+    for(var j2=0;j2<G;j2++){
+      for(var i2=0;i2<G;i2++){
+        var k = kinds[idx(i2,j2)];
+        if(k === K_VOID) continue;
+        var h2 = heights[idx(i2,j2)];
+        var isW = k === K_WATER;
+        var top = isW ? WATER_Z : h2;
+        var topC, sideC;
+        if(isW){ topC = PAL.water; sideC = PAL.waterDk; }
+        else if(h2 < 3.0){ topC = PAL.sand; sideC = ((i2*7+j2*13) % 5 < 2) ? PAL.rockDk : PAL.rock; }
+        else if(h2 > 6.9){ topC = PAL.rock; sideC = PAL.rockDk; }
+        else {
+          topC = (i2*3+j2*5) % 7 < 2 ? PAL.grassLt : PAL.grass;
+          sideC = PAL.dirt;
+        }
+        var nb = [];
+        var dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+        for(var d=0; d<4; d++){
+          var ni = i2+dirs[d][0], nj = j2+dirs[d][1];
+          var nk = kindAt(ni,nj);
+          nb.push(nk === K_VOID ? SLAB : Math.min(heights[idx(ni,nj)], isW ? top : 99));
+        }
+        terrain.push({
+          x:i2-CX, y:j2-CY, z0:SLAB, z1:top, sx:1, sy:1,
+          top:topC, side:sideC, water:isW,
+          nPX:nb[0], nMX:nb[1], nPY:nb[2], nMY:nb[3],
+          bias:0
+        });
+      }
+    }
+  }
+  buildTerrain();
+
+  /* --------- Requisiten (statische Voxelcluster) --------- */
+  var props = [];
+  function P(x,y,z0,z1,sx,sy,top,side,bias){
+    props.push({x:x-CX, y:y-CY, z0:z0, z1:z1, sx:sx, sy:sy, top:top, side:side||top, bias:bias||0});
+  }
+  function Pe(x,y,z0,z1,sx,sy,col,bias){
+    props.push({x:x-CX, y:y-CY, z0:z0, z1:z1, sx:sx, sy:sy, top:col, side:col, em:true, bias:bias||0});
+  }
+  function tree(x,y,s){
+    var g = hAt(x,y);
+    P(x,y,g-0.4,g+1.1*s, 0.34,0.34, PAL.woodDk, PAL.woodDk);
+    P(x,y,g+1.0*s,g+2.0*s, 1.9*s,1.9*s, PAL.leaf, PAL.leafDk);
+    P(x,y,g+2.0*s,g+2.7*s, 1.35*s,1.35*s, PAL.leafLt, PAL.leaf);
+    P(x,y,g+2.7*s,g+3.05*s, 0.7*s,0.7*s, PAL.leafLt, PAL.leaf);
+  }
+  function pineTree(x,y,s){
+    var g = hAt(x,y);
+    P(x,y,g-0.4,g+0.8*s, 0.3,0.3, PAL.woodDk, PAL.woodDk);
+    P(x,y,g+0.7*s,g+1.6*s, 1.8*s,1.8*s, PAL.pine, PAL.pineDk);
+    P(x,y,g+1.6*s,g+2.4*s, 1.25*s,1.25*s, PAL.pine, PAL.pineDk);
+    P(x,y,g+2.4*s,g+3.1*s, 0.7*s,0.7*s, PAL.pine, PAL.pineDk);
+  }
+  function bushAt(x,y){
+    var g = hAt(x,y);
+    P(x,y,g-0.3,g+0.55, 0.95,0.95, PAL.leafDk, PAL.leafDk);
+    P(x,y,g+0.55,g+0.85, 0.55,0.55, PAL.leaf, PAL.leafDk);
+  }
+  var HOUSES = [];
+  function house(x,y,roof,wide){
+    var g = hAt(x,y);
+    var w = wide ? 2.6 : 2.1, d = wide ? 2.2 : 1.9;
+    P(x,y,g-0.6,g+1.8, w,d, PAL.wall, PAL.wallDk);
+    P(x,y,g+1.8,g+2.35, w+0.5,d+0.5, roof, roof);
+    P(x,y,g+2.35,g+2.85, w*0.62,d*0.62, roof, roof);
+    P(x,y,g+2.85,g+3.2, w*0.26,d*0.26, roof, roof);
+    // Schornstein
+    P(x+w*0.32, y-d*0.28, g+1.8, g+3.5, 0.4,0.4, PAL.stone, PAL.rockDk);
+    HOUSES.push({x:x, y:y, g:g, w:w, d:d});
+  }
+  function fenceRun(x,y,dx,dy,n){
+    for(var i=0;i<n;i++){
+      var fx = x+dx*i, fy = y+dy*i, g = hAt(fx,fy);
+      P(fx,fy,g-0.3,g+1.0, 0.22,0.22, PAL.wood, PAL.woodDk);
+      if(i < n-1){
+        P(fx+dx*0.5, fy+dy*0.5, g+0.45, g+0.62, dx?1:0.14, dy?1:0.14, PAL.wood, PAL.woodDk);
+        P(fx+dx*0.5, fy+dy*0.5, g+0.78, g+0.95, dx?1:0.14, dy?1:0.14, PAL.wood, PAL.woodDk);
+      }
+    }
+  }
+  var LAMPS = [];
+  function lampAt(x,y){
+    var g = hAt(x,y);
+    P(x,y,g-0.3,g+2.1, 0.2,0.2, PAL.woodDk, PAL.woodDk);
+    P(x,y,g+2.1,g+2.5, 0.5,0.5, PAL.rockDk, PAL.rockDk);
+    LAMPS.push({x:x, y:y, z:g+2.15});
+  }
+  function dock(x,y,dx,dy,n){
+    for(var i=0;i<n;i++){
+      P(x+dx*i, y+dy*i, WATER_Z-0.9, WATER_Z+0.35, 1.0,1.0, PAL.wood, PAL.woodDk);
+    }
+  }
+
+  // Landschaft bestuecken
+  (function populate(){
+    // Dorf
+    house(VIL_X-1.4, VIL_Y-1.2, PAL.roofA, false);
+    house(VIL_X+1.6, VIL_Y+0.4, PAL.roofB, true);
+    house(VIL_X-0.6, VIL_Y+2.4, PAL.roofC, false);
+    lampAt(VIL_X+0.2, VIL_Y-0.6);
+    lampAt(VIL_X+0.4, VIL_Y+3.2);
+    fenceRun(VIL_X-3.2, VIL_Y+3.6, 1, 0, 5);
+    fenceRun(VIL_X-3.2, VIL_Y+3.6, 0, -1, 4);
+    // Steg am See
+    dock(LAKE_X+2.2, LAKE_Y-1.2, 0.9, 0.3, 3);
+    lampAt(LAKE_X+2.0, LAKE_Y-2.4);
+    // Baeume: Mischwald im Westen, Nadelwald im Norden
+    var spots = [
+      [8.5,9.5,1.05],[10.8,7.4,0.9],[6.9,12.6,1.0],[9.6,13.8,0.85],
+      [12.4,6.4,1.0],[15.8,5.6,0.95],[18.6,6.2,0.85],[7.6,16.4,0.9],
+      [13.2,21.4,1.0],[16.4,20.2,0.9],[19.2,18.4,1.05],[21.8,15.4,0.9],
+      [22.6,19.2,0.85],[17.8,23.0,0.9],[11.4,24.2,0.85],[5.6,19.4,0.8]
+    ];
+    for(var i=0;i<spots.length;i++){
+      var s = spots[i];
+      if(kindAt(Math.round(s[0]), Math.round(s[1])) !== K_LAND) continue;
+      if(i % 3 === 0) pineTree(s[0], s[1], s[2]); else tree(s[0], s[1], s[2]);
+    }
+    var bushes = [[12.6,12.4],[16.2,9.4],[8.2,22.2],[20.4,22.0],[24.0,13.2],[6.4,15.0],[14.8,17.6],[11.2,17.0]];
+    for(var b=0;b<bushes.length;b++){
+      if(kindAt(Math.round(bushes[b][0]), Math.round(bushes[b][1])) === K_LAND) bushAt(bushes[b][0], bushes[b][1]);
+    }
+    // Blumen
+    for(var f=0; f<46; f++){
+      var fx = CX + (Math.sin(f*12.9898)*43758.5453 % 1) * 0;
+      var a = f*2.39996, rr = 2 + (f % 11);
+      var x = CX + Math.cos(a)*rr, y = CY + Math.sin(a)*rr;
+      var i2 = Math.round(x), j2 = Math.round(y);
+      if(kindAt(i2,j2) !== K_LAND) continue;
+      var g = heights[idx(i2,j2)];
+      if(g < 3.1 || g > 6.4) continue;
+      var cols = ['#ff8fb1','#ffd166','#c58bff','#fff2d8','#ff9f6b'];
+      P(x, y, g, g+0.3, 0.2,0.2, cols[f % cols.length], cols[f % cols.length], 0.6);
+    }
+    // Lagerfeuerplatz im Wald
+    var cf = [16.9, 21.6];
+    for(var r2=0; r2<6; r2++){
+      var aa = r2/6*Math.PI*2;
+      P(cf[0]+Math.cos(aa)*0.85, cf[1]+Math.sin(aa)*0.85, hAt(cf[0],cf[1])-0.2, hAt(cf[0],cf[1])+0.25, 0.4,0.4, PAL.stone, PAL.rockDk);
+    }
+    // Zelt
+    var tx = 18.9, ty = 22.6, tg = hAt(tx,ty);
+    P(tx,ty,tg-0.4,tg+0.9, 2.0,1.7, PAL.canvasT, '#a8443f');
+    P(tx,ty,tg+0.9,tg+1.5, 1.35,1.15, PAL.canvasT, '#a8443f');
+    P(tx,ty,tg+1.5,tg+1.9, 0.6,0.5, PAL.canvasT, '#a8443f');
+    // Steine
+    var rocks = [[23.5,11.4],[5.2,11.0],[12.0,25.0],[22.4,7.6]];
+    for(var rk=0; rk<rocks.length; rk++){
+      var rg = hAt(rocks[rk][0], rocks[rk][1]);
+      P(rocks[rk][0], rocks[rk][1], rg-0.4, rg+0.55, 1.0,0.9, PAL.rock, PAL.rockDk);
+      P(rocks[rk][0]+0.2, rocks[rk][1]-0.1, rg+0.55, rg+0.95, 0.55,0.5, PAL.rock, PAL.rockDk);
+    }
+    // Haengender Fels unter der Insel
+    for(var hr=0; hr<7; hr++){
+      var ha = hr*2.39996 + 0.6, hrr = 1.2 + (hr % 4)*2.2;
+      var hx = CX + Math.cos(ha)*hrr, hy = CY + Math.sin(ha)*hrr;
+      var depth = 1.6 + (hr % 3)*1.4;
+      P(hx, hy, SLAB-depth, SLAB, 2.2 - (hr%3)*0.4, 2.0 - (hr%3)*0.4, PAL.rockDk, PAL.rockDk);
+      P(hx, hy, SLAB-depth-1.1, SLAB-depth, 1.1, 1.0, PAL.rockDk, PAL.rockDk);
+      if(hr % 2 === 0) P(hx, hy, SLAB-depth-1.9, SLAB-depth-1.1, 0.5, 0.5, PAL.rockDk, PAL.rockDk);
+    }
+  })();
+
+  var CAMPFIRE = [16.9, 21.6];
+  var WINDMILL = [22.4, 9.0];
+  (function mill(){
+    var g = hAt(WINDMILL[0], WINDMILL[1]);
+    P(WINDMILL[0], WINDMILL[1], g-0.6, g+1.6, 2.0,2.0, PAL.wall, PAL.wallDk);
+    P(WINDMILL[0], WINDMILL[1], g+1.6, g+2.9, 1.65,1.65, PAL.wall, PAL.wallDk);
+    P(WINDMILL[0], WINDMILL[1], g+2.9, g+3.5, 1.9,1.9, PAL.roofA, '#a8443f');
+    P(WINDMILL[0], WINDMILL[1], g+3.5, g+3.9, 1.0,1.0, PAL.roofA, '#a8443f');
+    WINDMILL[2] = g;
+  })();
+
+
+  /* =========================================================
+     Katze & Rundweg
+     ========================================================= */
+  function pathPoint(u){
+    var a = u*Math.PI*2;
+    var r = 4.2 + 1.0*Math.sin(a*3 + 0.6);
+    return [CX + Math.cos(a)*r, CY + Math.sin(a)*r*0.92];
+  }
+  var FILM = 78;
+  function catAt(t){
+    var u = ((t*(2/FILM)) % 1 + 1) % 1;
+    var a = pathPoint(u), b = pathPoint(u + 0.004);
+    var dx = b[0]-a[0], dy = b[1]-a[1], l = Math.hypot(dx,dy) || 1;
+    return { x:a[0]-CX, y:a[1]-CY, z:hAt(a[0],a[1]), dx:dx/l, dy:dy/l };
+  }
+  function gh(x,y){                       // Bodenhoehe in zentrierten Koordinaten
+    var i = Math.round(x+CX), j = Math.round(y+CY);
+    if(kindAt(i,j) === K_VOID) return null;
+    return heights[idx(i,j)];
+  }
+
+  /* =========================================================
+     Perspektivische Kamera
+     ========================================================= */
+  var FL = 165, NEAR = 0.32, OX = W/2, OY = H/2;
+  var cam = [0,0,0];
+  var Rx=1,Ry=0,Rz=0, Ux=0,Uy=0,Uz=1, Fx=0,Fy=1,Fz=0;
+
+  function setCamera(p, target){
+    cam[0]=p[0]; cam[1]=p[1]; cam[2]=p[2];
+    var fx = target[0]-p[0], fy = target[1]-p[1], fz = target[2]-p[2];
+    var fl = Math.hypot(fx,fy,fz) || 1;
+    Fx = fx/fl; Fy = fy/fl; Fz = fz/fl;
+    var rx = Fy*1 - Fz*0, ry = Fz*0 - Fx*1, rz = 0;   // F x (0,0,1)
+    var rl = Math.hypot(rx,ry,rz);
+    if(rl < 1e-4){ rx = 1; ry = 0; rz = 0; rl = 1; }  // Blick genau senkrecht
+    Rx = rx/rl; Ry = ry/rl; Rz = rz/rl;
+    Ux = Ry*Fz - Rz*Fy; Uy = Rz*Fx - Rx*Fz; Uz = Rx*Fy - Ry*Fx;
+  }
+  var vTmp = [[0,0,0],[0,0,0],[0,0,0],[0,0,0]];
+  function view(x,y,z,out){
+    var dx = x-cam[0], dy = y-cam[1], dz = z-cam[2];
+    out[0] = dx*Rx + dy*Ry + dz*Rz;
+    out[1] = dx*Ux + dy*Uy + dz*Uz;
+    out[2] = dx*Fx + dy*Fy + dz*Fz;
+    return out;
+  }
+  function projPoint(x,y,z){
+    var v = view(x,y,z,[0,0,0]);
+    if(v[2] < NEAR) return null;
+    return [OX + v[0]*FL/v[2], OY - v[1]*FL/v[2]];
+  }
+  // Flaeche zeichnen: 4 Weltpunkte, an der Near-Plane geclippt
+  var clipBuf = [];
+  function face(p0,p1,p2,p3,col){
+    view(p0[0],p0[1],p0[2],vTmp[0]);
+    view(p1[0],p1[1],p1[2],vTmp[1]);
+    view(p2[0],p2[1],p2[2],vTmp[2]);
+    view(p3[0],p3[1],p3[2],vTmp[3]);
+    clipBuf.length = 0;
+    for(var i=0;i<4;i++){
+      var a = vTmp[i], b = vTmp[(i+1)%4];
+      var ain = a[2] >= NEAR, bin = b[2] >= NEAR;
+      if(ain) clipBuf.push(a[0], a[1], a[2]);
+      if(ain !== bin){
+        var t = (NEAR - a[2]) / (b[2] - a[2]);
+        clipBuf.push(a[0] + (b[0]-a[0])*t, a[1] + (b[1]-a[1])*t, NEAR);
+      }
+    }
+    var n = clipBuf.length/3;
+    if(n < 3) return;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    for(var k=0;k<n;k++){
+      var vz = clipBuf[k*3+2], s = FL/vz;
+      var sx = OX + clipBuf[k*3]*s, sy = OY - clipBuf[k*3+1]*s;
+      if(k === 0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawBox(b, fg){
+    var hx = b.sx/2, hy = b.sy/2;
+    var x0 = b.x-hx, x1 = b.x+hx, y0 = b.y-hy, y1 = b.y+hy, z0 = b.z0, z1 = b.z1;
+    var top = b.em ? emCol(b.top, fg) : faceCol(b.top, 0, fg);
+    var sideBase = b.side || b.top;
+    if(cam[2] > z1){
+      face([x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1], top);
+    } else if(cam[2] < z0){
+      face([x0,y0,z0],[x0,y1,z0],[x1,y1,z0],[x1,y0,z0],
+           b.em ? emCol(sideBase, fg) : faceCol(sideBase, 5, fg));
+    }
+    var f;
+    if(cam[0] > x1){
+      f = b.nPX !== undefined ? b.nPX : z0;
+      if(f < z1) face([x1,y0,z1],[x1,y1,z1],[x1,y1,f],[x1,y0,f],
+                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,1,fg));
+    } else if(cam[0] < x0){
+      f = b.nMX !== undefined ? b.nMX : z0;
+      if(f < z1) face([x0,y0,z1],[x0,y1,z1],[x0,y1,f],[x0,y0,f],
+                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,2,fg));
+    }
+    if(cam[1] > y1){
+      f = b.nPY !== undefined ? b.nPY : z0;
+      if(f < z1) face([x0,y1,z1],[x1,y1,z1],[x1,y1,f],[x0,y1,f],
+                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,3,fg));
+    } else if(cam[1] < y0){
+      f = b.nMY !== undefined ? b.nMY : z0;
+      if(f < z1) face([x0,y0,z1],[x1,y0,z1],[x1,y0,f],[x0,y0,f],
+                      b.em ? emCol(sideBase,fg) : faceCol(sideBase,4,fg));
+    }
+  }
+
+  /* =========================================================
+     Himmel
+     ========================================================= */
+  var SKY = [
+    [0.00,'#4a3f7a','#f8b98c'],[0.06,'#6ea3d8','#ffd6a8'],[0.16,'#6fb9ea','#cdeafb'],
+    [0.36,'#4a9fe0','#b6e4f7'],[0.46,'#5f83cf','#ffdcae'],[0.53,'#6d4585','#f5906a'],
+    [0.60,'#3a2c68','#a85c88'],[0.70,'#171b40','#2b2f5e'],[0.90,'#101430','#1e2350'],
+    [1.00,'#4a3f7a','#f8b98c']
+  ];
+  function mixHex(a,b,t){
+    var A = rgbOf(a), B = rgbOf(b);
+    return '#' + [0,1,2].map(function(i){
+      return ('0' + Math.round(A[i]+(B[i]-A[i])*t).toString(16)).slice(-2);
+    }).join('');
+  }
+  function skyPair(p){
+    for(var i=0;i<SKY.length-1;i++){
+      if(p >= SKY[i][0] && p <= SKY[i+1][0]){
+        var t = (p-SKY[i][0])/(SKY[i+1][0]-SKY[i][0]);
+        return [mixHex(SKY[i][1],SKY[i+1][1],t), mixHex(SKY[i][2],SKY[i+1][2],t)];
+      }
+    }
+    return [SKY[0][1], SKY[0][2]];
+  }
+  var STARS = [];
+  (function(){
+    for(var i=0;i<130;i++){
+      var u = ((Math.sin(i*127.1)*43758.5453)%1+1)%1;
+      var v = ((Math.sin(i*311.7)*24634.6345)%1+1)%1;
+      var th = u*Math.PI*2, ph = Math.acos(1 - v*0.92);
+      STARS.push([Math.sin(ph)*Math.cos(th), Math.sin(ph)*Math.sin(th), Math.cos(ph)]);
+    }
+  })();
+  function horizonY(){
+    var l = Math.hypot(Fx,Fy);
+    if(l < 1e-3) return Fz > 0 ? -400 : 400;
+    var v = view(cam[0]+Fx/l*400, cam[1]+Fy/l*400, cam[2], [0,0,0]);
+    if(v[2] < NEAR) return Fz > 0 ? -400 : 400;
+    return OY - v[1]*FL/v[2];
+  }
+  function drawSky(p, night, t){
+    var pair = skyPair(p), zen = pair[0], hor = pair[1];
+    var haze = mixHex(hor, '#2b3a63', 0.45);
+    var hy = horizonY();
+    var bands = 18;
+    for(var b=0;b<bands;b++){
+      var y0 = Math.round(b*H/bands), y1 = Math.round((b+1)*H/bands);
+      var ym = (y0+y1)/2, col;
+      if(ym <= hy){
+        var k = Math.max(0, Math.min(1, (ym - (hy-150))/150));
+        col = mixHex(zen, hor, k);
+      } else {
+        var k2 = Math.max(0, Math.min(1, (ym - hy)/110));
+        col = mixHex(hor, haze, k2);
+      }
+      ctx.fillStyle = col;
+      ctx.fillRect(0, y0, W, y1-y0);
+    }
+    if(night > 0.05){
+      for(var s=0;s<STARS.length;s++){
+        var d = STARS[s];
+        var q = projPoint(cam[0]+d[0]*300, cam[1]+d[1]*300, cam[2]+d[2]*300);
+        if(!q || q[0]<0 || q[0]>=W || q[1]<0 || q[1]>=H) continue;
+        ctx.globalAlpha = night * (0.5 + 0.5*Math.sin(t*2+s));
+        ctx.fillStyle = s % 8 === 0 ? '#ffeab8' : '#ffffff';
+        ctx.fillRect(q[0]|0, q[1]|0, 1, 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+    return hor;
+  }
+  function disc(cx2,cy2,r,c){
+    ctx.fillStyle = c;
+    for(var dy=-r; dy<=r; dy++){
+      var dx = Math.floor(Math.sqrt(Math.max(0, r*r-dy*dy)));
+      ctx.fillRect((cx2-dx)|0, (cy2+dy)|0, dx*2+1, 1);
+    }
+  }
+  function drawSunMoon(sun, night){
+    var q = projPoint(cam[0]+sun[0]*300, cam[1]+sun[1]*300, cam[2]+sun[2]*300);
+    if(q && sun[2] > -0.1){
+      ctx.globalAlpha = 0.25; disc(q[0], q[1], 15, '#fff2c0'); ctx.globalAlpha = 1;
+      disc(q[0], q[1], 8, '#ffe07a');
+      disc(q[0], q[1], 5, '#fff8d4');
+    }
+    if(night > 0.12){
+      var m = projPoint(cam[0]-sun[0]*300, cam[1]-sun[1]*300, cam[2]-sun[2]*300);
+      if(m){
+        ctx.globalAlpha = 0.2*night; disc(m[0], m[1], 13, '#e8e6ff');
+        ctx.globalAlpha = night;
+        disc(m[0], m[1], 7, '#f4f1ff');
+        disc(m[0]+2, m[1]-2, 2, '#d5d0f0');
+        disc(m[0]-3, m[1]+2, 1, '#d5d0f0');
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  /* =========================================================
+     Bewegte Objekte
+     ========================================================= */
+  var dyn = [];
+  function D(x,y,z0,z1,sx,sy,top,side,bias){
+    dyn.push({x:x-CX, y:y-CY, z0:z0, z1:z1, sx:sx, sy:sy, top:top, side:side||top, bias:bias||0});
+  }
+  function De(x,y,z0,z1,sx,sy,col,bias){
+    dyn.push({x:x-CX, y:y-CY, z0:z0, z1:z1, sx:sx, sy:sy, top:col, side:col, em:true, bias:bias||0});
+  }
+  function buildDynamic(t, night){
+    dyn.length = 0;
+    // Windmuehlenfluegel
+    var mg = WINDMILL[2] + 3.1;
+    for(var b=0;b<4;b++){
+      var a = t*1.1 + b*Math.PI/2;
+      for(var d=1; d<=4; d++){
+        var bz = mg + Math.sin(a)*d*0.62;
+        D(WINDMILL[0] + Math.cos(a)*d*0.62, WINDMILL[1]-1.15, bz-0.17, bz+0.17, 0.34, 0.32,
+          d > 2 ? PAL.wall : PAL.woodDk, d > 2 ? PAL.wallDk : PAL.woodDk, 0.8);
+      }
+    }
+    D(WINDMILL[0], WINDMILL[1]-1.02, mg-0.26, mg+0.26, 0.44,0.44, PAL.woodDk, PAL.woodDk, 0.9);
+    // Rauch
+    for(var hI=0; hI<HOUSES.length; hI++){
+      var ho = HOUSES[hI];
+      for(var k=0;k<5;k++){
+        var pr = ((t*0.22 + k/5 + hI*0.31) % 1);
+        var sz = 0.3 + pr*0.62;
+        D(ho.x + ho.w*0.32 + Math.sin(pr*4+hI)*0.6, ho.y - ho.d*0.28 + Math.cos(pr*3)*0.35,
+          ho.g + 3.5 + pr*3.4, ho.g + 3.5 + pr*3.4 + sz*0.7, sz, sz,
+          night > 0.5 ? '#787ca4' : '#eef2fb', night > 0.5 ? '#63678c' : '#d6dcee', 1.2);
+      }
+    }
+    // Lagerfeuer
+    var cg = hAt(CAMPFIRE[0], CAMPFIRE[1]);
+    D(CAMPFIRE[0], CAMPFIRE[1], cg-0.2, cg+0.28, 1.0,0.34, PAL.woodDk, PAL.woodDk, 0.4);
+    D(CAMPFIRE[0], CAMPFIRE[1], cg-0.2, cg+0.28, 0.34,1.0, PAL.wood, PAL.woodDk, 0.5);
+    var fl = 0.55 + 0.25*Math.sin(t*9) + 0.2*Math.sin(t*14.3);
+    De(CAMPFIRE[0], CAMPFIRE[1], cg+0.25, cg+0.3+fl*0.95, 0.62,0.62, EM.fire, 0.9);
+    De(CAMPFIRE[0], CAMPFIRE[1], cg+0.3+fl*0.95, cg+0.42+fl*1.6, 0.34,0.34, EM.fireHot, 1.0);
+    for(var sp=0; sp<5; sp++){
+      var spr = ((t*0.7 + sp*0.2) % 1);
+      De(CAMPFIRE[0] + Math.sin(spr*6+sp)*0.7, CAMPFIRE[1] + Math.cos(spr*5+sp)*0.7,
+         cg+1.6+spr*2.6, cg+1.76+spr*2.6, 0.17,0.17, spr > 0.6 ? '#ff7a3a' : EM.fire, 1.1);
+    }
+    // Wasserfall
+    var wf = spillPt;
+    for(var w2=0; w2<11; w2++){
+      var fp = ((t*0.5 + w2/11) % 1);
+      var fz = WATER_Z - 0.5 - fp*9.4;
+      var sway = Math.sin(fp*5 + t)*0.3;
+      D(wf[0] + sway, wf[1] + sway*0.6, fz-0.6, fz, 1.05 - fp*0.35, 0.95 - fp*0.3,
+        (w2 % 3 === 0) ? PAL.mist : (fp < 0.45 ? PAL.waterLt : PAL.water), PAL.waterLt, 0.7);
+      if(w2 % 2 === 0) De(wf[0] + sway*1.6 + 0.5, wf[1] + sway - 0.4, fz-0.25, fz-0.05, 0.22,0.2, '#eaf9ff', 0.9);
+    }
+    for(var ms=0; ms<6; ms++){
+      var mp = ((t*0.4 + ms/6) % 1);
+      D(wf[0] + Math.sin(mp*6+ms)*1.3, wf[1] + Math.cos(mp*6+ms)*1.1,
+        WATER_Z-9.6-mp*1.8, WATER_Z-9.1-mp*1.8, 1.3-mp*0.45, 1.2-mp*0.45, PAL.mist, PAL.mist, 0.6);
+    }
+    // Enten & Boot
+    for(var dk=0; dk<3; dk++){
+      var da = t*0.28 + dk*2.1;
+      var dxp = LAKE_X + Math.cos(da)*(1.4 + dk*0.7);
+      var dyp = LAKE_Y + Math.sin(da)*(1.2 + dk*0.6);
+      var bob = Math.sin(t*2.4 + dk)*0.06;
+      D(dxp, dyp, WATER_Z-0.1+bob, WATER_Z+0.34+bob, 0.5,0.42, PAL.duck, '#ddd6c6', 0.8);
+      D(dxp + Math.cos(da+1.6)*0.24, dyp + Math.sin(da+1.6)*0.24,
+        WATER_Z+0.34+bob, WATER_Z+0.62+bob, 0.26,0.24, PAL.duck, '#ddd6c6', 0.9);
+      De(dxp + Math.cos(da+1.6)*0.36, dyp + Math.sin(da+1.6)*0.36,
+        WATER_Z+0.42+bob, WATER_Z+0.5+bob, 0.1,0.1, '#ffb038', 1.0);
+    }
+    var bb = Math.sin(t*1.3)*0.05;
+    D(LAKE_X+1.9, LAKE_Y+0.6, WATER_Z-0.25+bb, WATER_Z+0.3+bb, 1.5,0.7, PAL.wood, PAL.woodDk, 0.8);
+    D(LAKE_X+2.0, LAKE_Y+0.6, WATER_Z+0.3+bb, WATER_Z+1.6+bb, 0.14,0.14, PAL.woodDk, PAL.woodDk, 0.9);
+    D(LAKE_X+2.0, LAKE_Y+0.6, WATER_Z+0.9+bb, WATER_Z+1.55+bb, 0.1,0.62, PAL.wall, PAL.wallDk, 1.0);
+    // Schafe
+    for(var sh=0; sh<3; sh++){
+      var sa = t*0.12 + sh*2.4;
+      var sx2 = VIL_X - 3.0 + Math.cos(sa)*1.4 + sh*0.6;
+      var sy2 = VIL_Y + 2.4 + Math.sin(sa)*1.1;
+      var sg = hAt(sx2, sy2), hop = Math.max(0, Math.sin(t*2.2 + sh*2))*0.12;
+      D(sx2, sy2, sg-0.2+hop, sg+0.62+hop, 0.85,0.62, PAL.fleece, '#ded6c4', 0.7);
+      D(sx2 + Math.cos(sa)*0.42, sy2 + Math.sin(sa)*0.42, sg+0.2+hop, sg+0.6+hop, 0.3,0.28, PAL.ink, PAL.ink, 0.8);
+    }
+    // Katze
+    var c = catAt(t), step = Math.sin(t*7)*0.06;
+    var cwx = c.x+CX, cwy = c.y+CY;
+    D(cwx, cwy, c.z+0.05+step, c.z+0.52+step, 0.78,0.5, PAL.cat, PAL.catDk, 1.4);
+    D(cwx+c.dx*0.42, cwy+c.dy*0.42, c.z+0.4+step, c.z+0.88+step, 0.44,0.42, PAL.cat, PAL.catDk, 1.5);
+    D(cwx+c.dx*0.5+c.dy*0.13, cwy+c.dy*0.5-c.dx*0.13, c.z+0.88+step, c.z+1.06+step, 0.15,0.14, PAL.cat, PAL.catDk, 1.6);
+    D(cwx+c.dx*0.5-c.dy*0.13, cwy+c.dy*0.5+c.dx*0.13, c.z+0.88+step, c.z+1.06+step, 0.15,0.14, PAL.cat, PAL.catDk, 1.6);
+    D(cwx+c.dx*0.56+c.dy*0.1, cwy+c.dy*0.56-c.dx*0.1, c.z+0.62+step, c.z+0.7+step, 0.07,0.07, PAL.ink, PAL.ink, 1.7);
+    D(cwx+c.dx*0.56-c.dy*0.1, cwy+c.dy*0.56+c.dx*0.1, c.z+0.62+step, c.z+0.7+step, 0.07,0.07, PAL.ink, PAL.ink, 1.7);
+    D(cwx-c.dx*0.46, cwy-c.dy*0.46, c.z+0.45+step+Math.sin(t*6)*0.12, c.z+0.74+step, 0.16,0.16, PAL.catDk, PAL.catDk, 1.4);
+    // Licht bei Nacht
+    if(night > 0.22){
+      for(var hw=0; hw<HOUSES.length; hw++){
+        var hh = HOUSES[hw], wz = hh.g + 0.55;
+        De(hh.x + hh.w/2 + 0.04, hh.y - 0.3, wz, wz+0.55, 0.06, 0.5, EM.win, 1.0);
+        De(hh.x - hh.w/2 - 0.04, hh.y + 0.3, wz, wz+0.55, 0.06, 0.5, EM.win, 1.0);
+        De(hh.x + 0.3, hh.y + hh.d/2 + 0.04, wz, wz+0.55, 0.5, 0.06, EM.win, 1.0);
+        De(hh.x - 0.3, hh.y - hh.d/2 - 0.04, wz, wz+0.55, 0.5, 0.06, EM.win, 1.0);
+      }
+      for(var lp=0; lp<LAMPS.length; lp++){
+        De(LAMPS[lp].x, LAMPS[lp].y, LAMPS[lp].z, LAMPS[lp].z+0.36, 0.36,0.36, EM.lamp, 1.0);
+      }
+      for(var ff=0; ff<26; ff++){
+        var fa = t*0.5 + ff*1.7, fr = 3 + (ff % 8)*1.3;
+        var fx2 = CX + Math.cos(fa)*fr, fy2 = CY + Math.sin(fa*0.8+ff)*fr;
+        var fi = Math.round(fx2), fj = Math.round(fy2);
+        if(kindAt(fi,fj) !== K_LAND) continue;
+        var pulse = 0.4 + 0.6*Math.sin(t*2.6 + ff*2.1);
+        if(pulse < 0.25) continue;
+        var fz2 = heights[idx(fi,fj)] + 0.9 + Math.sin(t*1.3+ff)*0.6;
+        De(fx2, fy2, fz2, fz2+0.16, 0.16,0.16, EM.fly, 1.3);
+      }
+    }
+    // Wolken rundum und tief darunter
+    for(var cl=0; cl<11; cl++){
+      var ca = t*0.045 + cl*0.57;
+      var cr = 17 + (cl % 5)*4.5;
+      var cz = -8 - (cl % 4)*3.2;
+      var cc = night > 0.5 ? '#8b93c6' : '#f4f7ff';
+      var cd = night > 0.5 ? '#6f77aa' : '#d9e2f4';
+      dyn.push({x:Math.cos(ca)*cr, y:Math.sin(ca)*cr*0.92, z0:cz, z1:cz+0.9,
+                sx:3.6, sy:2.8, top:cc, side:cd, em:true, bias:-2});
+      dyn.push({x:Math.cos(ca)*cr+1.5, y:Math.sin(ca)*cr*0.92-0.7, z0:cz+0.5, z1:cz+1.5,
+                sx:2.1, sy:1.7, top:cc, side:cd, em:true, bias:-2});
+    }
+    for(var cs=0; cs<8; cs++){
+      var sa2 = cs*0.9 + 0.4, sr2 = 6 + (cs % 4)*11;
+      var cc2 = night > 0.5 ? '#7e86ba' : '#eef3ff';
+      dyn.push({x:Math.cos(sa2)*sr2, y:Math.sin(sa2)*sr2, z0:-30-(cs%3)*3, z1:-28.4-(cs%3)*3,
+                sx:13,sy:11, top:cc2, side:cc2, em:true, bias:-4});
+    }
+    // Voegel
+    if(night < 0.6){
+      for(var bd=0; bd<5; bd++){
+        var ba = t*0.34 + bd*1.5, br = 8 + (bd%3)*3;
+        var bz2 = 11 + Math.sin(t*0.8+bd)*1.6;
+        var flap = Math.sin(t*8+bd) > 0 ? 0.55 : 0.18;
+        dyn.push({x:Math.cos(ba)*br, y:Math.sin(ba)*br*0.9, z0:bz2, z1:bz2+0.15,
+                  sx:0.66, sy:flap, top:PAL.ink, side:PAL.ink, bias:1.2});
+      }
+    }
+  }
+
+  /* =========================================================
+     Drohnenfahrt: 8 Einstellungen
+     ========================================================= */
+  function ease(k){ return k*k*(3-2*k); }
+  function lp(a,b,k){ return [a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k]; }
+  var MX = WINDMILL[0]-CX, MY = WINDMILL[1]-CY, MB;
+  var VX = VIL_X-CX, VY = VIL_Y-CY;
+  var LX = LAKE_X-CX, LY = LAKE_Y-CY;
+  var SPX = spillPt[0]-CX, SPY = spillPt[1]-CY;
+  MB = WINDMILL[2];
+
+  var SHOTS = [
+    { d:10, name:'Anflug', hint:'Die ganze Insel',
+      go:function(k){ return [lp([28,-25,19],[16,-15,11.5],k), [0,0,4.5]]; } },
+    { d:10, name:'Über dem Dorf', hint:'Rauch, Dächer, Zaun',
+      go:function(k){ return [lp([16,-15,12],[10,-0.5,10.5],k), lp([VX,VY,5],[MX,MY,MB+2.2],k)]; } },
+    { d:8, name:'Mühlenflügel', hint:'Rotor im Anschnitt',
+      go:function(k){ var a = -2.5 + k*1.9;
+        return [[MX + Math.cos(a)*7.2, MY + Math.sin(a)*7.2 - 1.2, MB+4.2], [MX, MY-1.1, MB+2.7]]; } },
+    { d:10, name:'Katzenspur', hint:'Auf Pfotenhöhe',
+      go:function(k,t){ var c = catAt(t);
+        return [[c.x - c.dx*4.2 - c.dy*0.7, c.y - c.dy*4.2 + c.dx*0.7, c.z + 2.4],
+                [c.x + c.dx*1.5, c.y + c.dy*1.5, c.z + 0.55]]; } },
+    { d:10, name:'Waldkante', hint:'Über die Wipfel',
+      go:function(k){ return [lp([9.5,0.5,13],[0.5,8.5,9.5],k), lp([3.5,5.5,3.5],[LX,LY,2.6],k)]; } },
+    { d:10, name:'Über dem See', hint:'Boot, Enten, Steg',
+      go:function(k){ return [lp([1,8.5,7],[-2.5,9.5,5.5],k), lp([LX,LY,2.6],[SPX,SPY,1.5],k)]; } },
+    { d:12, name:'Wasserfall', hint:'Unter die Insel',
+      go:function(k){
+        var pos = [-15.8 + k*1.6, 8.1 - k*1.3, 5.0 - k*13.5];
+        var lookLow = [SPX, SPY, WATER_Z - 0.5 - k*9];
+        var lookUp  = [-2.5, 3.2, -3.2];
+        var m = Math.max(0, Math.min(1, (k-0.68)/0.32));
+        return [pos, lp(lookLow, lookUp, ease(m))]; } },
+    { d:8, name:'Nachtflug', hint:'Alle Lichter an',
+      go:function(k){ return [lp([-14.2,6.8,-8.5],[-24,20,14],k), lp([-4,4,-2],[0,0,3.5],k)]; } }
+  ];
+  var CUT = [];
+  (function(){ var acc0 = 0; for(var i=0;i<SHOTS.length;i++){ CUT.push(acc0); acc0 += SHOTS[i].d; } })();
+  var TOTAL = CUT[CUT.length-1] + SHOTS[SHOTS.length-1].d;
+
+  function shotAt(t){
+    for(var i=SHOTS.length-1; i>=0; i--) if(t >= CUT[i]) return i;
+    return 0;
+  }
+
+  /* =========================================================
+     Frame
+     ========================================================= */
+  var order = [];
+  function renderScene(t){
+    var tc = ((t % TOTAL) + TOTAL) % TOTAL;
+    var si = shotAt(tc);
+    var sh = SHOTS[si];
+    var lt = tc - CUT[si];
+    var k = ease(Math.max(0, Math.min(1, lt / sh.d)));
+
+    // Kamera setzen
+    if(freeMode){
+      var cr = freeR;
+      var cp = [Math.cos(freeYaw)*Math.cos(freePitch)*cr,
+                Math.sin(freeYaw)*Math.cos(freePitch)*cr,
+                4 + Math.sin(freePitch)*cr];
+      setCamera(cp, [0,0,4]);
+    } else {
+      var res = sh.go(k, t);
+      var pos = res[0].slice();
+      // Drohnen-Wackler
+      pos[0] += Math.sin(t*1.7)*0.07; pos[1] += Math.cos(t*1.31)*0.07; pos[2] += Math.sin(t*2.13)*0.05;
+      var g = gh(pos[0], pos[1]);
+      if(g !== null && pos[2] < g + 1.15) pos[2] = g + 1.15;   // nicht durch den Boden
+      setCamera(pos, res[1]);
+    }
+
+    // Tageszeit
+    var p = 0.09 + (tc/TOTAL)*0.47;
+    var ang = p*Math.PI*2;
+    var sun = [Math.cos(ang), 0.34, Math.sin(ang)];
+    var sl = Math.hypot(sun[0],sun[1],sun[2]);
+    sun[0]/=sl; sun[1]/=sl; sun[2]/=sl;
+    var night = 1 - Math.max(0, Math.min(1, (sun[2]+0.06)/0.26));
+    var warm = Math.max(0, 1 - Math.abs(sun[2])/0.30);
+
+    var hor = drawSky(p, night, t);
+    computeLight(sun, night, warm, hor);
+    drawSunMoon(sun, night);
+
+    buildDynamic(t, night);
+
+    order.length = 0;
+    var i, b, dx, dy, dz, d2, maxr, vz;
+    var lists = [terrain, props, dyn];
+    for(var L=0; L<3; L++){
+      var arr = lists[L];
+      for(i=0;i<arr.length;i++){
+        b = arr[i];
+        dx = b.x-cam[0]; dy = b.y-cam[1];
+        dz = (L === 0 ? b.z1-0.3 : (b.z0+b.z1)/2) - cam[2];
+        vz = dx*Fx + dy*Fy + dz*Fz;
+        maxr = Math.max(b.sx, b.sy, b.z1-b.z0)*0.9 + 0.6;
+        if(vz < -maxr) continue;
+        d2 = dx*dx + dy*dy + dz*dz;
+        if(vz > 0.6){
+          var s = FL/vz, sx = OX + (dx*Rx+dy*Ry+dz*Rz)*s, sy = OY - (dx*Ux+dy*Uy+dz*Uz)*s;
+          var rad = maxr*s + 6;
+          if(sx < -rad || sx > W+rad || sy < -rad || sy > H+rad) continue;
+        }
+        b.key = d2 - (b.bias || 0)*1.4;
+        order.push(b);
+      }
+    }
+    order.sort(function(a,c){ return c.key - a.key; });
+    for(i=0;i<order.length;i++){
+      b = order[i];
+      var dist = Math.sqrt(Math.max(0, b.key));
+      var fg = Math.min(FOG_STEPS, Math.round((1 - Math.exp(-dist*FOG_K)) * FOG_STEPS));
+      drawBox(b, fg);
+    }
+
+    // Feuer- und Laternenschein
+    if(night > 0.25){
+      var a2 = (night-0.25)/0.75;
+      var cg2 = hAt(CAMPFIRE[0], CAMPFIRE[1]);
+      var qf = projPoint(CAMPFIRE[0]-CX, CAMPFIRE[1]-CY, cg2+1.2);
+      if(qf){
+        var dd = Math.hypot(CAMPFIRE[0]-CX-cam[0], CAMPFIRE[1]-CY-cam[1], cg2-cam[2]);
+        var rr = Math.max(4, 300/Math.max(3,dd)) * (1 + Math.sin(t*8)*0.07);
+        ctx.globalAlpha = 0.13*a2; disc(qf[0], qf[1], rr, '#ff9a3c');
+        ctx.globalAlpha = 0.11*a2; disc(qf[0], qf[1], rr*0.5, '#ffd27a');
+        ctx.globalAlpha = 1;
+      }
+      for(var lp2=0; lp2<LAMPS.length; lp2++){
+        var la = LAMPS[lp2];
+        var ql = projPoint(la.x-CX, la.y-CY, la.z+0.2);
+        if(!ql) continue;
+        var dl2 = Math.hypot(la.x-CX-cam[0], la.y-CY-cam[1], la.z-cam[2]);
+        ctx.globalAlpha = 0.12*a2;
+        disc(ql[0], ql[1], Math.max(3, 140/Math.max(3,dl2)), '#ffdf9a');
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // Schnitt-Blende
+    if(!freeMode){
+      var fade = 0;
+      if(lt < 0.4) fade = 1 - lt/0.4;
+      var rem = sh.d - lt;
+      if(rem < 0.4) fade = Math.max(fade, 1 - rem/0.4);
+      if(fade > 0.01){
+        ctx.globalAlpha = Math.min(1, fade);
+        ctx.fillStyle = '#0b0814';
+        ctx.fillRect(0,0,W,H);
+        ctx.globalAlpha = 1;
+      }
+    }
+    return {si:si, tc:tc, p:p, night:night};
+  }
+
+  /* =========================================================
+     Steuerung
+     ========================================================= */
+  var elShot = document.getElementById('shotName');
+  var elTc = document.getElementById('tc');
+  var elClock = document.getElementById('clock');
+  var elRail = document.getElementById('rail');
+  var elPlay = document.getElementById('play');
+  var elSpeed = document.getElementById('speed');
+  var elMode = document.getElementById('mode');
+  var elCrtB = document.getElementById('crtBtn');
+  var elCrt = document.getElementById('crt');
+  var elLed = document.getElementById('led');
+
+  var clock = 0, playing = true, rate = 1, last = null, acc = 0;
+  var freeMode = false, freeYaw = -2.2, freePitch = 0.55, freeR = 26;
+  var dragging = false, lastPt = null;
+
+  var segs = SHOTS.map(function(sh, i){
+    var btn = document.createElement('button');
+    btn.className = 'seg'; btn.type = 'button';
+    btn.innerHTML = '<span>' + (i+1) + ' · ' + sh.name + '</span>' +
+                    '<span style="opacity:.7">' + sh.hint + '</span>' +
+                    '<span class="bar"><i></i></span>';
+    btn.addEventListener('click', function(){
+      clock = CUT[i] + 0.05; setFree(false); draw(0, true);
+    });
+    elRail.appendChild(btn);
+    return btn;
+  });
+
+  function setPlaying(v){
+    playing = v;
+    elPlay.textContent = v ? 'Pause' : 'Play';
+    elLed.classList.toggle('off', !v);
+  }
+  function setFree(v){
+    freeMode = v;
+    elMode.textContent = v ? 'Filmflug' : 'Freiflug';
+  }
+  elPlay.addEventListener('click', function(){ setPlaying(!playing); });
+  elSpeed.addEventListener('click', function(){
+    rate = rate === 1 ? 2 : (rate === 2 ? 0.5 : 1);
+    elSpeed.textContent = 'Tempo ' + (rate === 0.5 ? '0,5' : rate) + '×';
+  });
+  elMode.addEventListener('click', function(){ setFree(!freeMode); draw(0, true); });
+  elCrtB.addEventListener('click', function(){
+    var on = elCrt.hasAttribute('hidden');
+    if(on) elCrt.removeAttribute('hidden'); else elCrt.setAttribute('hidden','');
+    elCrtB.textContent = on ? 'Scanlines an' : 'Scanlines aus';
+  });
+  window.addEventListener('keydown', function(e){
+    if(e.code === 'Space'){ e.preventDefault(); setPlaying(!playing); }
+  });
+
+  cv.addEventListener('pointerdown', function(e){
+    dragging = true; lastPt = [e.clientX, e.clientY];
+    cv.classList.add('dragging'); cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', function(e){
+    if(!dragging) return;
+    if(!freeMode) setFree(true);
+    var rect = cv.getBoundingClientRect(), s = 256/rect.width;
+    freeYaw   -= (e.clientX - lastPt[0]) * s * 0.010;
+    freePitch += (e.clientY - lastPt[1]) * s * 0.006;
+    freePitch = Math.max(-0.5, Math.min(1.25, freePitch));
+    lastPt = [e.clientX, e.clientY];
+    if(!playing) draw(0, true);
+  });
+  function endDrag(e){
+    dragging = false; cv.classList.remove('dragging');
+    if(e && e.pointerId !== undefined && cv.hasPointerCapture && cv.hasPointerCapture(e.pointerId)) cv.releasePointerCapture(e.pointerId);
+  }
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('wheel', function(e){
+    if(!freeMode) return;
+    e.preventDefault();
+    freeR = Math.max(7, Math.min(48, freeR + (e.deltaY > 0 ? 1.6 : -1.6)));
+  }, {passive:false});
+  cv.addEventListener('dblclick', function(){ setFree(false); });
+
+  function mmss(s){
+    return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(Math.floor(s%60)).padStart(2,'0');
+  }
+  function updateUI(info){
+    elShot.textContent = freeMode ? 'Freiflug' : SHOTS[info.si].name;
+    elTc.textContent = mmss(info.tc) + ' / ' + mmss(TOTAL);
+    var hrs = (6 + info.p*24) % 24;
+    elClock.textContent = String(Math.floor(hrs)).padStart(2,'0') + ':' + String(Math.floor((hrs%1)*60)).padStart(2,'0');
+    for(var i=0;i<segs.length;i++){
+      var f = info.tc < CUT[i] ? 0 : (info.tc >= CUT[i]+SHOTS[i].d ? 1 : (info.tc-CUT[i])/SHOTS[i].d);
+      segs[i].querySelector('i').style.width = (f*100).toFixed(1) + '%';
+      segs[i].setAttribute('aria-current', (!freeMode && i === info.si) ? 'true' : 'false');
+    }
+  }
+  function draw(dt, force){
+    if(playing || force) clock += dt;
+    updateUI(renderScene(clock));
+  }
+  function loop(now){
+    if(last === null) last = now;
+    var dt = Math.min(0.06, (now-last)/1000);
+    last = now; acc += dt;
+    if(acc >= 1/30){ draw(playing ? acc*rate : 0, false); acc = 0; }
+    requestAnimationFrame(loop);
+  }
+
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    playing = false; clock = 6;
+  }
+  setPlaying(playing);
+  setFree(false);
+  draw(0, true);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
