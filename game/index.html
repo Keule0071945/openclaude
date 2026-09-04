@@ -1065,6 +1065,20 @@ ICON_GRID['magnet'] = [
     '..BB....BB..',
     '............'
   ];
+ICON_GRID['hunter'] = [
+    '.....AA.....',
+    '............',
+    '...AAAAAA...',
+    '..A.BBBB.A..',
+    '.A.BBCCBB.A.',
+    'AA.BBCCBB.AA',
+    'AA.BBCCBB.AA',
+    '.A.BBCCBB.A.',
+    '..A.BBBB.A..',
+    '...AAAAAA...',
+    '............',
+    '.....AA.....'
+  ];
 ICON_GRID['aura'] = [
     '............',
     '....AAAA....',
@@ -1362,7 +1376,7 @@ const UPGRADES = [
   { id:'pierce', max:3, name:'SPLITTERSPITZE', desc:['+1 Durchschlag','pro Projektil'],     col:'#c9a3ff' },
   { id:'orbit',  max:4, name:'ORBITKRISTALL',  desc:['+1 kreisender','Kristall'],           col:'#4ad4f0' },
   { id:'chain',  max:3, name:'KETTENBLITZ',    desc:['Treffer springen','auf +1 Ziel'],     col:'#7ec8ff' },
-  { id:'magnet', max:3, name:'SEELENMAGNET',   desc:['+60% Sammelradius'],                  col:'#f5a3ff' },
+  { id:'hunter', max:3, name:'JAEGERBLICK',    desc:['+30% Schaden auf','erschoepfte Bosse'], col:'#f5a3ff' },
   { id:'aura',   max:4, name:'FLAMMENRING',    desc:['Dauerschaden','rund um dich'],        col:'#ffa63c' },
   { id:'crit',   max:4, name:'GLUECKSTREFFER', desc:['+12% Krit-Chance','Krit = x2.2'],     col:'#ffe680' },
   { id:'regen',  max:4, name:'REGENERATION',   desc:['+0.8 Leben','pro Sekunde'],           col:'#7ef29a' },
@@ -1379,14 +1393,16 @@ let beams = [], meteors = [], waves = [];
 let stageIdx = 0, boss = null;
 let pools = [], chests = [], banners = [], summons = [];
 let runTime = 0, kills = 0;
+let stageTime = 0, stageTimes = [];   // Dauer je Bosskampf dieser Runde
 let shake = 0, flash = 0, hitStop = 0, aberr = 0, timeScale = 1;
-let combo = 0, comboT = 0, comboPop = 0, loopN = 0;
+let loopN = 0;
+let tiredCount = 0, tiredPop = 0;   // genutzte Erschoepfungsfenster im Kampf
 let choices = [], introT = 0, endT = 0, orbitAngle = 0, orbitTick = 0, auraTick = 0;
 /* Kamera fuer Inszenierung: Zoom und Blickpunkt werden weich angefahren. */
 const view = { zoom:1, tz:1, cx:CW/2, cy:CH/2, tx:CW/2, ty:CH/2, lock:0, punch:0, tilt:0 };
 
 const STAGES = [
-  { name:'GORGOK',    epithet:'DER STEINWAECHTER', bg:'ruins',  hp:8200,  minion:'bat',
+  { name:'GORGOK',    epithet:'DER STEINWAECHTER', bg:'ruins',  hp:6500,  minion:'bat',
     tint:'#8a8f9c',
     roster:[['bat',5],['motte',3],['waechter',2]] },
   { name:'SERAPHINE', epithet:'DIE ERZENGELIN',    bg:'heaven', hp:12500, minion:'imp',
@@ -1417,18 +1433,26 @@ const PERKS = [
   { id:'mStart', max:3, cost:140, name:'ERBSTUECK',    desc:['Start mit einer','Verstaerkung'], col:'#c9a3ff' },
   { id:'mSave',  max:1, cost:300, name:'ZWEITES LEBEN',desc:['Einmal pro Runde','wieder aufstehen'], col:'#63f0c8' },
 ];
-const DEFAULT_META = { gold:0, perks:{}, heroes:{}, loops:0, tutDone:false };
+const DEFAULT_META = { gold:0, perks:{}, heroes:{}, bosse:{}, loops:0, tutDone:false };
 let meta = (() => {
   try {
     const m = JSON.parse(localStorage.getItem('terrabruch.meta') || 'null');
     return m ? Object.assign({}, DEFAULT_META, m,
-                             { perks: m.perks || {}, heroes: m.heroes || {} })
+                             { perks: m.perks || {}, heroes: m.heroes || {},
+                               bosse: m.bosse || {} })
              : JSON.parse(JSON.stringify(DEFAULT_META));
   } catch (_) { return JSON.parse(JSON.stringify(DEFAULT_META)); }
 })();
 function saveMeta(){
   try { localStorage.setItem('terrabruch.meta', JSON.stringify(meta)); } catch (_) {}
 }
+/* mm:ss aus Sekunden — fuer Bestzeiten und Rundenbilanz. */
+function mmss(sek){
+  sek = Math.max(0, Math.round(sek));
+  return Math.floor(sek/60) + ':' + String(sek % 60).padStart(2, '0');
+}
+const bossBest = i => meta.bosse[STAGES[i].name] || null;
+
 const perkLv   = id => meta.perks[id] || 0;
 const perkCost = pk => Math.round(pk.cost * Math.pow(1.6, perkLv(pk.id)));
 const heroLocked = c => !!c.cost && !meta.heroes[c.id];
@@ -1501,6 +1525,16 @@ function checkEvolution(){
   burst(p.x, p.y, 40, ev.col, 150, 0.9);
   sfx.win();
 }
+/* Traegt dieses Upgrade zur Evolution des Helden bei? Liefert die Evolution
+   und wie viele Stufen insgesamt noch fehlen — die Levelkarte zeigt es an.  */
+function evoHint(id){
+  if (p.evo) return null;
+  const ev = EVOLUTIONS.find(e => e.hero === p.base.id);
+  if (!ev || !(id in ev.need) || p.up[id] >= ev.need[id]) return null;
+  let rest = 0;
+  for (const k in ev.need) rest += Math.max(0, ev.need[k] - p.up[k]);
+  return { ev, rest, letzte: rest === 1 };
+}
 
 /* ------------------------------ Spielerdaten ---------------------------- */
 function newPlayer(chr){
@@ -1510,7 +1544,7 @@ function newPlayer(chr){
     iframe:0, dashT:0, dashCd:0, fireT:0, walk:0, alive:true,
     gold:0, evo:null, saved:false, pendingLv:perkLv('mStart'),
     up:{ multi:0, rapid:0, power:0, swift:0, vital:0, pierce:0,
-         orbit:0, chain:0, magnet:0, aura:0, crit:0, regen:0 },
+         orbit:0, chain:0, hunter:0, aura:0, crit:0, regen:0 },
   };
   pl.hp = chr.hp + 12*perkLv('mHp');
   return pl;
@@ -1526,7 +1560,8 @@ function stats(){
     proj:    u.multi,
     pierce:  u.pierce,
     crit:    0.12*u.crit,
-    pickup:  20 * (1 + 0.6*u.magnet),
+    pickup:  26,
+    tiredMul: 1.7 + 0.3*u.hunter,
     regen:   0.8*u.regen,
     dashCd:  Math.max(1.1, 2.4 - 0.15*u.swift),
     gold:    1 + 0.2*perkLv('mGold'),
@@ -1654,7 +1689,7 @@ function hurtEnemy(e, dmg, opt = {}){
     }
   }
   if (!opt.noCrit && Math.random() < s.crit){ d *= 2.2; crit = true; }
-  if (e.boss && e.tired > 0) d *= 1.7;      // erschoepfter Boss nimmt mehr
+  if (e.boss && e.tired > 0) d *= s.tiredMul;   // erschoepfter Boss nimmt mehr
   e.hp -= d;
   e.flash = 0.08;
   if (e.boss && Math.random() < 0.06)        // Druck machen wird belohnt
@@ -1693,7 +1728,6 @@ function killEnemy(e){
   e.dead = true;
   if (e.art === 'teiler') splitEnemy(e);
   kills++;
-  combo++; comboT = 2.6; comboPop = 1;
   addDecal(e.x, e.y, e.elite ? 14 : 7, 'splat', e.gore || '#ff5a5a');
   burst(e.x, e.y, e.elite ? 22 : 10, e.gore || '#ff5a5a', e.elite ? 130 : 80, 0.45);
   const gemN = e.elite ? 5 : 1;
@@ -1889,6 +1923,7 @@ function drawSummons(){
 function exhaust(b, dauer){
   b.tired = dauer;
   b.tiredMax = dauer;
+  if (b.boss){ tiredCount++; tiredPop = 1; }
   for (let i = 0; i < 5; i++)                    // das offene Fenster lohnt sich
     gems.push({ x:b.x + rnd(-12,12), y:b.y + rnd(-8,8), vx:rnd(-46,46), vy:rnd(-56,-16),
                 val:6, life:16, t:0 });
@@ -1933,7 +1968,7 @@ function makeGorgok(hp){
   return {
     boss:true, name:'GORGOK', x:CW/2, y:64, vx:0, vy:0, hp, maxHp:hp, r:16,
     spr:SPR.gorgok, dmg:10, flash:0, phase:1, t:0, frame:0, fps:2.2, tired:0,
-    tSpread:2.4, tCharge:6.0, tSummon:12.0, tRegen:14.0, tWelle:20.0,
+    tSpread:2.2, tCharge:4.5, tSummon:13.0, tRegen:14.0, tWelle:20.0,
     chargeState:0, chargeAng:0, chargeT:0, chargeLeft:0,
     ai(dt){
       this.t += dt;
@@ -1968,7 +2003,7 @@ function makeGorgok(hp){
             this.chargeState = 1; this.chargeT = 0.45;
           } else {
             this.chargeState = 0;
-            this.tCharge = ph === 3 ? 8.0 : ph === 2 ? 7.0 : 9.0;
+            this.tCharge = ph === 3 ? 7.0 : ph === 2 ? 6.0 : 7.0;
             exhaust(this, 2.2);                    // nach dem Ansturm offen
           }
         }
@@ -1980,7 +2015,7 @@ function makeGorgok(hp){
         const off = rnd(0, TAU);
         for (let i = 0; i < n; i++)
           eshoot(this.x, this.y, off + i*TAU/n, 56, 6, 3, '#e0c088');
-        this.tSpread = 3.4 - ph*0.3;
+        this.tSpread = 3.05 - ph*0.3;
         camPunch(0.035); sfx.boom();
       }
 
@@ -3209,7 +3244,7 @@ function drawArenaFront(){
 /* ============================== Stage-Fluss ============================== */
 function startRun(charIdx, keepPlayer){
   if (!keepPlayer){ p = newPlayer(CHARS[charIdx]); loopN = 0; }
-  stageIdx = 0; runTime = 0; kills = 0; combo = 0;
+  stageIdx = 0; runTime = 0; kills = 0; stageTimes = [];
   tutStep = 0; tutMove = 0; tutDash = false; tutHazard = false; tutHold = 0;
   startStage();
 }
@@ -3229,6 +3264,7 @@ function startStage(){
   pools = []; chests = []; banners = []; hazards = []; summons = [];
   const st = STAGES[stageIdx];
   loadArena(st.bg);
+  tiredCount = 0; tiredPop = 0; stageTime = 0;
   bossGhost = 1; hpGhost = 1;
   boss = BOSS_FACTORY[stageIdx](stageHp());
   enemies.push(boss);
@@ -3300,8 +3336,19 @@ function offerUpgrades(n = 3){
   const pool = UPGRADES.filter(u => p.up[u.id] < upCap(u));
   choices = [];
   const bag = pool.slice();
-  for (let i = 0; i < n && bag.length; i++)
+  // Fehlt nur noch eine einzige Stufe zur Evolution, liegt genau diese Karte
+  // garantiert im Angebot — sonst kann der Zufall den Aufbau totlaufen lassen.
+  const letzte = bag.filter(u => { const h = evoHint(u.id); return h && h.letzte; });
+  if (letzte.length){
+    const u = letzte[Math.floor(Math.random()*letzte.length)];
+    choices.push(bag.splice(bag.indexOf(u), 1)[0]);
+  }
+  while (choices.length < n && bag.length)
     choices.push(bag.splice(Math.floor(Math.random()*bag.length), 1)[0]);
+  for (let i = choices.length-1; i > 0; i--){            // Platz nicht verraten
+    const j = Math.floor(Math.random()*(i+1));
+    const t = choices[i]; choices[i] = choices[j]; choices[j] = t;
+  }
   if (!choices.length) return false;
   state = 'levelup';
   clearPressed();
@@ -3320,6 +3367,7 @@ function applyUpgrade(u){
 /* ================================ Update ================================= */
 function update(dt){
   runTime += dt;
+  if (state === 'play') stageTime += dt;
   const s = stats();
   updateArena(dt);
   updateHazards(dt);
@@ -3608,8 +3656,7 @@ function update(dt){
   shake = Math.max(0, shake - dt*14);
   flash = Math.max(0, flash - dt*3);
   aberr = Math.max(0, aberr - dt*4);
-  comboPop = Math.max(0, comboPop - dt*4);
-  if (combo > 0){ comboT -= dt; if (comboT <= 0) combo = 0; }
+  tiredPop = Math.max(0, tiredPop - dt*2);
 
   checkEvolution();
 
@@ -3639,6 +3686,15 @@ function update(dt){
     ebullets = []; beams = []; meteors = []; waves = [];
     enemies = enemies.filter(e => e.boss);      // Diener raeumen, Boss bleibt sichtbar
     p.gold += 120 * s.gold;
+    stageTimes.push({ name:boss.name, zeit:stageTime });
+    if (!loopN){                                   // Bestzeit nur im Grunddurchlauf
+      const alt = meta.bosse[boss.name];
+      if (!alt || stageTime < alt.zeit){
+        meta.bosse[boss.name] = { zeit:stageTime, held:p.base.name, stufe:p.level };
+        saveMeta();
+        floatText(boss.x, boss.y - 22, 'NEUE BESTZEIT', '#ffd23f');
+      }
+    }
     p.pendingLv = (p.pendingLv || 0) + 1;          // Boss-Belohnung
     p.hp = s.maxHp;                                // volle Erholung
     startBossDeath();
@@ -3654,7 +3710,6 @@ function damagePlayer(dmg){
   if (p.iframe > 0 || !p.alive) return;
   p.hp -= dmg;
   p.iframe = 0.95;
-  combo = 0;
   shake = Math.max(shake, 3.5);
   flash = Math.max(flash, 0.25);
   aberr = Math.max(aberr, 0.9);
@@ -3764,7 +3819,7 @@ function render(){
   }
   bloom();
   if (aberr > 0.12) chromatic(aberr);
-  drawHud();
+  if (state !== 'dead' && state !== 'victory') drawHud();
 
   if (state === 'intro')   drawIntro();
   if (state === 'levelup') drawLevelUp();
@@ -4086,7 +4141,10 @@ function makePortrait(spr, size = 20){
 
 /* --------------------------------- HUD ---------------------------------- */
 const UPG_ICON = {};
-function initIcons(){ for (const u of UPGRADES) UPG_ICON[u.id] = iconFor(u.id, u.col); }
+function initIcons(){
+  for (const u of UPGRADES) UPG_ICON[u.id] = iconFor(u.id, u.col);
+  UPG_ICON.magnet = iconFor('magnet', '#f5a3ff');   // nur noch Schmiede-Symbol
+}
 
 function drawHud(){
   if (!p) return;
@@ -4169,20 +4227,23 @@ function drawHud(){
   const mm = String(Math.floor(runTime/60)).padStart(2,'0');
   const ss = String(Math.floor(runTime%60)).padStart(2,'0');
   txtO(mm + ':' + ss, CW-4, CH-20, '#c8cede', 'right', 8);
-  txtO(kills + ' KILLS', CW-4, CH-11, '#7f8798', 'right', 7);
+  txtO(tiredCount + ' x ERSCHOEPFT', CW-4, CH-11, tiredCount ? '#7ff5d4' : '#7f8798', 'right', 7);
   if (muted) txtO('STUMM', CW-4, 34, '#5a6070', 'right', 6);
 
-  /* Kettenzaehler — waechst kurz auf, wenn er hochzaehlt */
-  if (combo >= 3){
-    const k = 1 + comboPop*0.5;
-    const col = combo >= 20 ? '#ff5a3c' : combo >= 10 ? '#ffd23f' : '#63f0c8';
+  /* Erschoepfungsfenster — das Zeitfenster, in dem der Kampf entschieden wird */
+  if (boss && boss.tired > 0){
+    const k = 1 + tiredPop*0.45;
+    const rest = clamp(boss.tired/(boss.tiredMax || 1), 0, 1);
+    const col = rest > 0.35 ? '#7ff5d4' : '#ffd23f';
     ctx.save();
     ctx.translate(CW-30, 46); ctx.scale(k, k);
-    txtO('x' + combo, 0, 0, col, 'center', 11);
+    const mul = 'x' + stats().tiredMul.toFixed(1);
+    txtO(mul, 0, 0, col, 'center', 11);
+    txtGlow(mul, 0, 0, col, 'center', 11, 0.4);
     ctx.restore();
-    txtO('KETTE', CW-30, 58, tone(col, -0.25), 'center', 6);
+    txtO('ERSCHOEPFT', CW-30, 58, tone(col, -0.2), 'center', 6);
     ctx.fillStyle = '#23343a'; ctx.fillRect(CW-48, 64, 36, 2);
-    ctx.fillStyle = col; ctx.fillRect(CW-48, 64, Math.round(36*clamp(comboT/2.6,0,1)), 2);
+    ctx.fillStyle = col; ctx.fillRect(CW-48, 64, Math.round(36*rest), 2);
   }
 }
 
@@ -4347,6 +4408,12 @@ function drawIntro(){
   txtO(st.name, CW/2 - slide, 88, st.tint, 'center', 20);
   txtGlow(st.name, CW/2 - slide, 88, st.tint, 'center', 20, 0.5);
   txtO(st.epithet, CW/2 + slide, 110, '#ffffff', 'center', 9);
+  const bb = meta.bosse[st.name];
+  if (bb)
+    txtO('DEINE BESTZEIT  ' + mmss(bb.zeit) + '   ·   ' + bb.held,
+         CW/2, 130, '#ffd23f', 'center', 7, false);
+  else
+    txtO('NOCH NIE BESIEGT', CW/2, 130, '#6f7688', 'center', 7, false);
   ctx.globalAlpha = 1;
 }
 
@@ -4357,9 +4424,17 @@ function drawLevelUp(){
   txtO('waehle eine Verstaerkung', CW/2, 50, '#8d94ad', 'center', 8, false);
   const n = choices.length, w = 114, gap = 9;
   const total = n*w + (n-1)*gap;
+  const puls = 0.5 + 0.5*Math.sin(performance.now()/220);
   for (let i = 0; i < n; i++){
     const u = choices[i];
-    const x = (CW-total)/2 + i*(w+gap), y = 66, h = 112;
+    const x = (CW-total)/2 + i*(w+gap), y = 64, h = 118;
+    const hint = evoHint(u.id);
+    if (hint){                                          // Evolutionspfad
+      glowDot(x + w/2, y + h/2, w*0.75, hint.ev.col, 0.10 + 0.10*puls);
+      ctx.fillStyle = rgba(hint.ev.col, 0.30 + 0.35*puls);
+      ctx.fillRect(x-3, y-3, w+6, 1); ctx.fillRect(x-3, y+h+2, w+6, 1);
+      ctx.fillRect(x-3, y-3, 1, h+6); ctx.fillRect(x+w+2, y-3, 1, h+6);
+    }
     frameBox(x, y, w, h, u.col, 'rgba(14,12,24,0.95)', 0.16);
     ctx.fillStyle = rgba(u.col, 0.06); ctx.fillRect(x+1, y+1, w-2, h-2);
     const ic = UPG_ICON[u.id];
@@ -4374,7 +4449,15 @@ function drawLevelUp(){
       ctx.fillStyle = k < lvl ? u.col : k === lvl ? tone(u.col, -0.2) : '#2a2c3e';
       ctx.fillRect(x + w/2 - (u.max*5)/2 + k*5, y+78, 4, 4);
     }
-    txtO('[ ' + (i+1) + ' ]', x+w/2, y+90, '#ffffff', 'center', 9);
+    txtO('[ ' + (i+1) + ' ]', x+w/2, y+88, '#ffffff', 'center', 9);
+    if (hint){
+      const ec = hint.ev.col;
+      ctx.fillStyle = rgba(ec, 0.22 + 0.18*puls); ctx.fillRect(x+1, y+99, w-2, 18);
+      ctx.fillStyle = rgba(ec, 0.55); ctx.fillRect(x+1, y+99, w-2, 1);
+      txtO('>> ' + hint.ev.name, x+w/2, y+101, ec, 'center', 7);
+      txtO(hint.letzte ? 'LETZTE STUFE' : 'noch ' + hint.rest + ' Stufen',
+           x+w/2, y+109, hint.letzte ? '#ffffff' : tone(ec, 0.35), 'center', 7, hint.letzte);
+    }
   }
   txtO('Taste  1 - 3', CW/2, 188, '#8d94ad', 'center', 8, false);
 }
@@ -4393,19 +4476,82 @@ function drawCleared(){
          CW/2, 132, '#ffffff', 'center', 9);
 }
 
+/* Rundenbilanz: der Aufbau links, der Kampfverlauf rechts. Der Spieler soll
+   nach dem Tod sehen, was er gebaut hat und wie nah er dran war.            */
 function drawDead(){
-  dim(0.78);
-  txtO('GEFALLEN', CW/2, 48, '#e8433a', 'center', 22);
-  txtGlow('GEFALLEN', CW/2, 48, '#e8433a', 'center', 22, 0.45);
-  frameBox(CW/2-96, 82, 192, 40, '#4a3550', 'rgba(10,8,16,0.9)');
-  txtO('ARENA ' + (stageIdx+1) + '   ·   STUFE ' + p.level + '   ·   ' + kills + ' KILLS',
-       CW/2, 90, '#c4cadd', 'center', 8, false);
-  if (boss)
-    txtO(boss.name + ' hatte noch ' + Math.max(0, Math.ceil(boss.hp)) + ' Leben',
-         CW/2, 104, '#8d94ad', 'center', 7, false);
-  txtO('GOLD GESICHERT:  ' + Math.round(meta.gold), CW/2, 124, '#ffd23f', 'center', 8);
+  dim(0.86);
+  txtO('GEFALLEN', CW/2, 10, '#e8433a', 'center', 20);
+  txtGlow('GEFALLEN', CW/2, 10, '#e8433a', 'center', 20, 0.45);
+
+  /* ---- links: dein Aufbau ---- */
+  const lx = 16, ly = 38, lw = 176, lh = 128;
+  frameBox(lx, ly, lw, lh, '#4a3550', 'rgba(10,8,16,0.92)');
+  txtO('DEIN AUFBAU', lx + lw/2, ly + 6, '#8d94ad', 'center', 7, false);
+  drawSpr(pickFrame(p.spr, performance.now()/160), lx + 24, ly + 34, false, 0, 1);
+  txtO(p.base.name, lx + 46, ly + 22, p.base.color, 'left', 9);
+  txtO('STUFE ' + p.level, lx + 46, ly + 34, '#c4cadd', 'left', 7, false);
+  ctx.fillStyle = 'rgba(120,130,170,0.25)'; ctx.fillRect(lx+8, ly+50, lw-16, 1);
+
+  let ix = lx + 10, iy = ly + 56, spalte = 0;
+  for (const u of UPGRADES){
+    const n = p.up[u.id];
+    if (!n) continue;
+    ctx.fillStyle = 'rgba(9,8,16,0.7)'; ctx.fillRect(ix, iy, 14, 14);
+    ctx.drawImage(UPG_ICON[u.id].c, ix+1, iy+1);
+    txtO(String(n), ix+13, iy+7, tone(u.col, 0.4), 'center', 6);
+    if (++spalte % 10 === 0){ ix = lx + 10; iy += 17; } else ix += 16;
+  }
+  if (!spalte) txtO('keine Verstaerkung genommen', lx + lw/2, iy + 3, '#5d6479', 'center', 7, false);
+
+  /* Wie nah war die Evolution? */
+  const ev = EVOLUTIONS.find(e => e.hero === p.base.id);
+  if (ev){
+    let rest = 0;
+    for (const k in ev.need) rest += Math.max(0, ev.need[k] - p.up[k]);
+    const fertig = p.evo || rest === 0;
+    ctx.fillStyle = rgba(ev.col, fertig ? 0.22 : 0.10);
+    ctx.fillRect(lx+6, ly+lh-26, lw-12, 20);
+    txtO(ev.name, lx + lw/2, ly + lh - 23, ev.col, 'center', 8);
+    txtO(fertig ? 'ENTWICKELT' : 'noch ' + rest + (rest === 1 ? ' Stufe gefehlt' : ' Stufen gefehlt'),
+         lx + lw/2, ly + lh - 13, fertig ? '#ffffff' : '#8d94ad', 'center', 7, false);
+  }
+
+  /* ---- rechts: Kampfverlauf ---- */
+  const rx = 208, ry = 38, rw = 176, rh = 128;
+  frameBox(rx, ry, rw, rh, '#4a3550', 'rgba(10,8,16,0.92)');
+  txtO('KAMPFVERLAUF', rx + rw/2, ry + 6, '#8d94ad', 'center', 7, false);
+  let ry2 = ry + 20;
+  for (let i = 0; i < STAGES.length; i++){
+    const st = STAGES[i];
+    const geschafft = stageTimes[i];
+    const bb = meta.bosse[st.name];
+    const col = geschafft ? st.tint : i === stageIdx ? '#e8433a' : '#3a3d4e';
+    txtO(st.name, rx + 10, ry2, col, 'left', 8);
+    if (geschafft){
+      txtO(mmss(geschafft.zeit), rx + rw - 10, ry2, '#c4cadd', 'right', 8);
+      if (bb && Math.abs(bb.zeit - geschafft.zeit) < 0.05)
+        txtO('BEST', rx + rw - 46, ry2 + 1, '#ffd23f', 'right', 6);
+    } else if (i === stageIdx && boss){
+      const frac = clamp(boss.hp / boss.maxHp, 0, 1);
+      txtO(Math.round(frac*100) + '% uebrig', rx + rw - 10, ry2, '#e8433a', 'right', 7, false);
+      ctx.fillStyle = '#23202e'; ctx.fillRect(rx + 10, ry2 + 11, rw - 20, 2);
+      ctx.fillStyle = '#e8433a'; ctx.fillRect(rx + 10, ry2 + 11, Math.round((rw-20)*frac), 2);
+    } else {
+      txtO('—', rx + rw - 10, ry2, '#3a3d4e', 'right', 8);
+    }
+    ry2 += 18;
+  }
+  ctx.fillStyle = 'rgba(120,130,170,0.25)'; ctx.fillRect(rx+8, ry+80, rw-16, 1);
+  txtO('GESAMTZEIT', rx + 10, ry + 88, '#8d94ad', 'left', 7, false);
+  txtO(mmss(runTime),  rx + rw - 10, ry + 88, '#c4cadd', 'right', 7, false);
+  txtO('ERSCHOEPFT GENUTZT', rx + 10, ry + 99, '#8d94ad', 'left', 7, false);
+  txtO(String(tiredCount), rx + rw - 10, ry + 99, '#7ff5d4', 'right', 7, false);
+  txtO('BESIEGTE GEGNER', rx + 10, ry + 110, '#8d94ad', 'left', 7, false);
+  txtO(String(kills), rx + rw - 10, ry + 110, '#c4cadd', 'right', 7, false);
+
+  txtO('GOLD GESICHERT:  ' + Math.round(meta.gold), CW/2, 176, '#ffd23f', 'center', 8);
   if (Math.floor(endT*2) % 2)
-    txtO('[ ENTER ]  neuer Versuch     [ ESC ]  Titel', CW/2, 142, '#ffffff', 'center', 9);
+    txtO('[ ENTER ]  neuer Versuch     [ ESC ]  Titel', CW/2, 194, '#ffffff', 'center', 9);
 }
 
 function drawVictory(){
@@ -4421,12 +4567,13 @@ function drawVictory(){
   txtGlow('DIE APOKALYPSE IST TOT', CW/2, 44, '#ffb03a', 'center', 16, 0.5);
   drawSpr(pickFrame(p.spr, performance.now()/140), CW/2, 100, false, 0, 1);
   txtO(p.base.name + ' steht ueber den Goettern.', CW/2, 118, '#ffffff', 'center', 9);
-  txtO('STUFE ' + p.level + '   ·   ' + kills + ' KILLS   ·   ' +
-       Math.floor(runTime/60) + 'm ' + Math.floor(runTime%60) + 's',
-       CW/2, 136, '#c4cadd', 'center', 8, false);
-  txtO('+' + Math.round(meta.gold) + ' GOLD GESICHERT', CW/2, 152, '#ffd23f', 'center', 8);
+  txtO('STUFE ' + p.level + '   ·   ' + kills + ' KILLS   ·   GESAMT ' + mmss(runTime),
+       CW/2, 134, '#c4cadd', 'center', 8, false);
+  const teil = stageTimes.map((t, i) => STAGES[i].name + ' ' + mmss(t.zeit)).join('   ·   ');
+  if (teil) txtO(teil, CW/2, 146, '#8d94ad', 'center', 7, false);
+  txtO('+' + Math.round(meta.gold) + ' GOLD GESICHERT', CW/2, 158, '#ffd23f', 'center', 8);
   if (Math.floor(endT*2) % 2)
-    txtO('[ ENTER ]  weiter', CW/2, 168, '#ffffff', 'center', 9);
+    txtO('[ ENTER ]  weiter', CW/2, 172, '#ffffff', 'center', 9);
 }
 
 let forgeIdx = 0, helpBack = 'title';

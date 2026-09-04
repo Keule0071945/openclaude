@@ -117,7 +117,8 @@ zwei bis drei Minuten, in dem nur der Boss den Takt vorgibt:
 - **Erschöpfung.** Nach schweren Angriffen — Sturmangriff, Steinregen,
   Strahlenkranz, Meteorhagel, Untergang — sackt der Boss zusammen. Er greift
   nicht an, nimmt **70 % mehr Schaden** und wirft Seelensplitter ab. Das ist das
-  Zeitfenster, in dem der Kampf entschieden wird.
+  Zeitfenster, in dem der Kampf entschieden wird — `Jägerblick` hebt den
+  Multiplikator auf bis zu 2,6.
 - **Erfahrung kommt vom Boss.** An Lebensschwellen bricht er auf, jeder Treffer
   kann einen Splitter absprengen. Wer Druck macht, steigt schneller auf.
 - **Beschwörung.** Alle 20–25 Sekunden ruft der Boss eine kleine Gruppe. Kreise
@@ -149,8 +150,20 @@ Die gerufenen Diener kommen in fünf Sorten, je Arena anders gemischt:
 - **Eliten.** Alle 15–22 Sekunden erscheint ein deutlich größerer Gegner mit
   Goldring und siebenfachem Leben. Er lässt eine **Schatztruhe** fallen: eine
   Verstärkung, 40 % Heilung oder ein Goldfund.
-- **Kette.** Kills kurz hintereinander bauen einen Zähler auf, der bei einem
-  Treffer sofort reißt.
+- **Erschöpfungsfenster.** Nach einem schweren Angriff sackt der Boss zusammen:
+  Er greift nicht an und nimmt mehr Schaden. Rechts oben zeigt die Anzeige den
+  aktuellen Multiplikator und wie lange das Fenster noch offen ist; unten rechts
+  steht, wie viele Fenster du in diesem Kampf genutzt hast. Das ist der Takt,
+  auf den der ganze Kampf gebaut ist — `Jägerblick` verstärkt genau ihn.
+
+## Bestzeiten und Bilanz
+
+Jeder Bosskampf wird einzeln gestoppt. Die schnellste Zeit pro Boss bleibt
+dauerhaft gespeichert (nur im Grunddurchlauf, nicht in New Game+) und steht beim
+nächsten Mal im Boss-Intro. Der Tod zeigt keine drei Zahlen mehr, sondern eine
+Bilanz: links der gebaute Held mit allen Verstärkungen und wie nah die Evolution
+war, rechts der Kampfverlauf mit Zeit je Boss, dem Restleben des Bosses, an dem
+du gescheitert bist, und den genutzten Erschöpfungsfenstern.
 
 ## Der Einstieg
 
@@ -204,11 +217,16 @@ Upgrades steigt um eins. Level und Verstärkungen bleiben erhalten.
 ## Die zwölf Upgrades
 
 `Mehrfachschuss` · `Schnellfeuer` · `Schadenskern` · `Windschuhe` · `Herzstein` ·
-`Splitterspitze` · `Orbitkristall` · `Kettenblitz` · `Seelenmagnet` · `Flammenring` ·
+`Splitterspitze` · `Orbitkristall` · `Kettenblitz` · `Jägerblick` · `Flammenring` ·
 `Glückstreffer` · `Regeneration`
 
 Jedes lässt sich mehrfach stapeln (3–5 Stufen). Beim Level-Up stehen drei zufällige
 noch nicht ausgereizte Upgrades zur Wahl.
+
+**Karten, die zur Evolution führen, sind markiert:** Rahmen und Fußzeile in der
+Farbe der Evolution nennen ihren Namen und wie viele Stufen noch fehlen. Fehlt
+nur noch eine einzige Stufe, liegt genau diese Karte garantiert im Angebot —
+der Zufall soll einen Aufbau nicht kurz vor dem Ziel totlaufen lassen.
 
 ## Grafik
 
