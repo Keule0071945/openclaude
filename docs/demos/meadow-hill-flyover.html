@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Durchgehender Drohnenflug ueber eine grosse schwebende Voxelinsel: Dorf, Gehoeft, Wachturm, See und Wasserfall, mit Schattenwurf, Wind und Bloom in WebGL.">
+<meta name="description" content="FPV-Drohnenflug durch eine Voxelwelt: eng durch die Gasse eines Handwerkerdorfs, ueber den Markt, um einen Riesenbaum mit Haengebruecken und ueber den Wasserfall.">
 <title>Meadow Hill Flyover</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -111,7 +111,7 @@
   var G = 52, CX = 25.5, CY = 25.5, RAD = 23.0;
   var SLAB = -5.5, WATER_Z = 4.0;
   var LAKE_X = 15.5, LAKE_Y = 34.0, LAKE_R = 7.5;
-  var VIL_X = 36.0, VIL_Y = 19.0;
+  var VIL_X = 37.0, VIL_Y = 20.0;
   var FARM_X = 34.0, FARM_Y = 36.5;
   var heights = new Float32Array(G*G);
   var kinds = new Uint8Array(G*G);
@@ -131,12 +131,31 @@
     return kinds[idx(i,j)];
   }
 
+
+  /* --------- Stadt: Gasse, Torbögen, Marktplatz --------- */
+  var ST = [[46,20],[30,20],[24,26]];        // Hauptgasse und Knick
+  var MARKT = [28.5, 20.5];
+  function segDist(px,py, ax,ay, bx,by){
+    var vx=bx-ax, vy=by-ay, l2=vx*vx+vy*vy;
+    var t = l2 > 0 ? Math.max(0, Math.min(1, ((px-ax)*vx + (py-ay)*vy)/l2)) : 0;
+    var dx = px-(ax+vx*t), dy = py-(ay+vy*t);
+    return { d: Math.hypot(dx,dy), t: t };
+  }
+  function streetDist(i,j){
+    var best = 999;
+    for(var k=0;k<ST.length-1;k++){
+      var r = segDist(i,j, ST[k][0],ST[k][1], ST[k+1][0],ST[k+1][1]);
+      if(r.d < best) best = r.d;
+    }
+    return best;
+  }
+
   var PATH_PTS = [
-    [36,19],[33,22],[30,25],[26,28],[22,31],[18.5,33],
+    [28,22],[27,26],[26,31],[24,34],[20,35],[17.5,34],
     null,
-    [30,25],[31,31],[32,35],[33.5,36.5],
+    [30,23],[32,29],[33.5,35.5],
     null,
-    [26,28],[27,33],[28,37.5]
+    [26,27],[27,33],[28,37.5]
   ];
   function onPath(i,j){
     for(var k=0;k<PATH_PTS.length-1;k++){
@@ -164,9 +183,11 @@
         // Waldhügel im Nordwesten
         var dh = Math.hypot(i-16.5, j-17.0);
         if(dh < 9.5){ var wh = Math.cos(dh/9.5*Math.PI/2); h += 3.6*wh*wh; }
-        // Dorfplateau
-        var dv = Math.hypot(i-VIL_X, j-VIL_Y);
-        if(dv < 6.2){ var w = Math.min(1,(6.2-dv)/2.4); h = h*(1-w) + 6.8*w; }
+        // Stadtkorridor entlang der Gasse, dazu der Marktplatz
+        var sdv = streetDist(i,j);
+        if(sdv < 9.0){ var w = Math.min(1,(9.0-sdv)/3.4); h = h*(1-w) + 7.0*w; }
+        var dmk = Math.hypot(i-MARKT[0], j-MARKT[1]);
+        if(dmk < 5.4){ var wm = Math.min(1,(5.4-dmk)/2.0); h = h*(1-wm) + 7.0*wm; }
         // Gehöft
         var df = Math.hypot(i-FARM_X, j-FARM_Y);
         if(df < 4.6){ var w2 = Math.min(1,(4.6-df)/2.0); h = h*(1-w2) + 6.0*w2; }
@@ -187,7 +208,7 @@
         heights[idx(i,j)] = h;
         var isW = (h < WATER_Z - 0.2) && (dk < LAKE_R + 1.6 || (proj > dl-1.5 && perp < 2.0));
         kinds[idx(i,j)] = isW ? K_WATER : K_LAND;
-        if(!isW && onPath(i,j)) paved[idx(i,j)] = 1;
+        if(!isW && (onPath(i,j) || sdv < 1.95 || dmk < 4.3)) paved[idx(i,j)] = 1;
       }
     }
     spillPt = [CX + spillDir[0]*(RAD-0.8), CY + spillDir[1]*(RAD-0.8)];
@@ -236,6 +257,9 @@
   function P(x,y,z0,z1,sx,sy,top,side,bias){
     props.push({x:x-CX, y:y-CY, z0:z0, z1:z1, sx:sx, sy:sy, top:top, side:side||top, bias:bias||0});
   }
+  function Pe(x,y,z0,z1,sx,sy,col,bias){
+    props.push({x:x-CX, y:y-CY, z0:z0, z1:z1, sx:sx, sy:sy, top:col, side:col, em:true, bias:bias||0});
+  }
   function tree(x,y,s){
     var g = hAt(x,y);
     P(x,y,g-0.5,g+1.3*s, 0.4,0.4, PAL.woodDk, PAL.woodDk);
@@ -280,7 +304,7 @@
     P(x + w/2 + 0.14, y - 0.35, wz-0.38, wz-0.06, 0.24, 0.8, PAL.woodDk, PAL.woodDk, 1.0);
     P(x + w/2 + 0.14, y - 0.5, wz-0.06, wz+0.09, 0.22, 0.22, '#ff8fb1', '#ff8fb1', 1.1);
     P(x + w/2 + 0.14, y - 0.2, wz-0.06, wz+0.09, 0.22, 0.22, '#ffd166', '#ffd166', 1.1);
-    HOUSES.push({x:x, y:y, g:g, w:w, d:d, h:hgt2});
+    HOUSES.push({x:x, y:y, g:g, w:w, d:d, h:hgt2, chx:x+w*0.32, chy:y-d*0.28, chz:g+hgt2+1.7, face:-1, dz:y-d/2-0.05, town:false});
   }
   function lampAt(x,y){
     var g = hAt(x,y);
@@ -300,24 +324,194 @@
   }
   var CAMPFIRE = [28.0, 39.0], WINDMILL = [41.0, 15.5, 0], TOWER = [12.5, 26.0, 0];
 
+  var ROOFS = ['#d4645c','#5f8fc4','#d99a4f','#a8563f','#6f8f5a','#c07a4a'];
+  var DOORS = ['#7a4a2c','#3f5f8a','#8a4a5a','#4a6a4a','#8a6a2a','#9a4a3a'];
+  var SHUT  = ['#4d6fb3','#b3564d','#6a8f4a','#8a5aa8','#c98a3a','#3f8a8a'];
+  var GREATTREE = [25.5,25.5,0];
+
+  function townHouse(x, y, face, seed){
+    var g = hAt(x,y);
+    var w = 2.3 + (seed % 3)*0.4, d = 2.5, hh = 2.3 + (seed % 4)*0.4;
+    var roof = ROOFS[seed % ROOFS.length];
+    P(x,y,g-0.9,g+hh, w,d, PAL.wall, PAL.wallDk);
+    // Fachwerk
+    P(x,y,g+hh*0.52-0.09,g+hh*0.52+0.09, w+0.05,d+0.05, PAL.woodDk, PAL.woodDk, 0.5);
+    P(x-w/2+0.13,y,g-0.9,g+hh, 0.18,d+0.05, PAL.woodDk, PAL.woodDk, 0.5);
+    P(x+w/2-0.13,y,g-0.9,g+hh, 0.18,d+0.05, PAL.woodDk, PAL.woodDk, 0.5);
+    // überhängendes Obergeschoss zur Gasse
+    var over = (seed % 2 === 0) ? 0.75 : 0.0;
+    var oy = y + face*over*0.5, od = d + over;
+    if(over > 0){
+      P(x, oy, g+hh, g+hh+1.6, w+0.16, od, PAL.wall, PAL.wallDk);
+      P(x, oy, g+hh+0.8-0.08, g+hh+0.8+0.08, w+0.22, od+0.05, PAL.woodDk, PAL.woodDk, 0.5);
+      P(x, y + face*(d/2+0.1), g+hh-0.35, g+hh, 0.5, 0.6, PAL.woodDk, PAL.woodDk, 0.6);
+    }
+    var top = g + hh + (over>0 ? 1.6 : 0);
+    P(x,oy, top, top+0.6, w+0.55, od+0.55, roof, roof);
+    P(x,oy, top+0.6, top+1.2, w*0.66, od*0.66, roof, roof);
+    P(x,oy, top+1.2, top+1.6, w*0.3, od*0.3, roof, roof);
+    var chx = x + w*0.3, chy = y - face*d*0.3;
+    P(chx, chy, top, top+1.7, 0.42,0.42, PAL.stone, PAL.rockDk);
+    // Tür und Fenster zur Gasse
+    var dz = y + face*(d/2 + 0.07);
+    P(x, dz, g-0.9, g+1.4, 0.76, 0.13, PAL.woodDk, PAL.woodDk, 0.9);
+    P(x, dz + face*0.03, g-0.9, g+1.25, 0.58, 0.13, DOORS[seed % DOORS.length], DOORS[seed % DOORS.length], 1.0);
+    P(x+0.21, dz + face*0.08, g+0.62, g+0.73, 0.09,0.09, EM.lamp, EM.lamp, 1.1);
+    P(x, dz + face*0.30, g-0.85, g-0.5, 1.1, 0.55, PAL.stone, PAL.rockDk, 0.6);
+    for(var q=-1;q<=1;q+=2){
+      var wx = x + q*0.66;
+      P(wx, dz, g+0.82, g+1.62, 0.66, 0.11, PAL.woodDk, PAL.woodDk, 0.9);
+      P(wx, dz + face*0.03, g+0.9, g+1.54, 0.52, 0.11, PAL.win, PAL.win, 1.0);
+      P(wx-0.42, dz + face*0.07, g+0.88, g+1.56, 0.26, 0.09, SHUT[seed%SHUT.length], SHUT[seed%SHUT.length], 1.1);
+      P(wx+0.42, dz + face*0.07, g+0.88, g+1.56, 0.26, 0.09, SHUT[seed%SHUT.length], SHUT[seed%SHUT.length], 1.1);
+    }
+    P(x, dz + face*0.20, g+0.72, g+0.9, 1.0, 0.24, PAL.woodDk, PAL.woodDk, 1.1);
+    P(x-0.25, dz + face*0.20, g+0.9, g+1.04, 0.22,0.22, '#ff8fb1','#ff8fb1', 1.2);
+    P(x+0.25, dz + face*0.20, g+0.9, g+1.04, 0.22,0.22, '#ffd166','#ffd166', 1.2);
+    if(seed % 3 === 0){
+      P(x+w/2-0.1, dz + face*0.45, g+2.05, g+2.16, 1.0, 0.11, PAL.woodDk, PAL.woodDk, 1.0);
+      P(x+w/2+0.32, dz + face*0.45, g+1.5, g+2.05, 0.55, 0.13,
+        ['#c98a3a','#6a8f4a','#b3564d'][seed%3], '#5a4630', 1.1);
+    }
+    HOUSES.push({x:x,y:y,g:g,w:w,d:d,h:(over>0? hh+1.6 : hh),
+                 chx:chx, chy:chy, chz:top+1.7, face:face, dz:dz, town:true});
+  }
+
+  function stall(x,y,c1,c2){
+    var g = hAt(x,y);
+    P(x,y,g-0.3,g+1.05, 2.0,1.6, PAL.wood, PAL.woodDk);
+    for(var p=0;p<4;p++)
+      P(x+(p<2?-0.9:0.9), y+(p%2?-0.7:0.7), g-0.3, g+2.3, 0.15,0.15, PAL.woodDk, PAL.woodDk);
+    for(var s2=0;s2<5;s2++)
+      P(x-0.84+s2*0.42, y, g+2.3, g+2.58, 0.42, 2.0, (s2%2? c1:c2), (s2%2? c1:c2), 0.7);
+    P(x-0.45,y,g+1.05,g+1.35, 0.55,0.55, '#c0512f','#a04527', 0.9);
+    P(x+0.45,y,g+1.05,g+1.4, 0.5,0.5, '#d8a13a','#b8862f', 0.9);
+    P(x,y-0.45,g+1.05,g+1.28, 0.6,0.4, '#7aa84a','#5e8a36', 0.9);
+  }
+
   (function populate(){
-    // ---- Dorf
-    house(34.5,17.5, PAL.roofA, 2.6, 2.2, 2.2);
-    house(37.6,19.6, PAL.roofB, 3.0, 2.6, 2.6);
-    house(35.2,21.8, PAL.roofC, 2.4, 2.1, 2.0);
-    house(38.6,16.6, PAL.roofA, 2.3, 2.0, 2.0);
-    lampAt(36.2,18.4); lampAt(36.0,21.6); lampAt(33.0,22.6);
-    fenceRun(32.6,23.4, 1, 0, 6);
-    // ---- Windmühle
-    (function(){
-      var g = hAt(WINDMILL[0], WINDMILL[1]);
-      P(WINDMILL[0], WINDMILL[1], g-0.8, g+2.2, 2.6,2.6, PAL.wall, PAL.wallDk);
-      P(WINDMILL[0], WINDMILL[1], g+2.2, g+4.0, 2.15,2.15, PAL.wall, PAL.wallDk);
-      P(WINDMILL[0], WINDMILL[1], g+4.0, g+4.8, 2.5,2.5, PAL.roofA, '#a8443f');
-      P(WINDMILL[0], WINDMILL[1], g+4.8, g+5.3, 1.3,1.3, PAL.roofA, '#a8443f');
-      WINDMILL[2] = g;
+    // ================= Gasse mit Häusern =================
+    var yS = 18.4 - 1.35, yN = 21.6 + 1.35;
+    var xs = [32.0, 35.0, 41.0, 44.2];
+    for(var k=0;k<xs.length;k++) townHouse(xs[k], yS, +1, k);
+    var xn = [33.4, 36.6, 39.8, 45.2];
+    for(var k2=0;k2<xn.length;k2++) townHouse(xn[k2], yN, -1, k2+3);
+    // Torbögen über der Gasse
+    [34.6, 42.4].forEach(function(ax){
+      var g = hAt(ax, 20);
+      P(ax, 20, g+3.5, g+4.2, 1.15, 3.9, PAL.wood, PAL.woodDk, 0.8);
+      P(ax, 18.35, g+2.7, g+3.5, 0.95, 0.55, PAL.woodDk, PAL.woodDk, 0.8);
+      P(ax, 21.65, g+2.7, g+3.5, 0.95, 0.55, PAL.woodDk, PAL.woodDk, 0.8);
+    });
+    // Laternenketten und Wimpel quer über die Gasse
+    for(var lc=31.5; lc<=45.5; lc+=2.4){
+      var g2 = hAt(lc,20);
+      P(lc, 20, g2+3.12, g2+3.2, 0.07, 3.5, '#4a3a2c','#4a3a2c', 0.9);
+      for(var q3=-1;q3<=1;q3++)
+        Pe(lc, 20+q3*1.05, g2+2.86, g2+3.12, 0.19,0.19, EM.lamp, 1.25);
+    }
+    var WIM = ['#d4645c','#5f8fc4','#d99a4f','#6f8f5a','#c58bff'];
+    for(var wq=0; wq<12; wq++){
+      var wxp = 31.8 + wq*1.2, g3 = hAt(wxp,20);
+      P(wxp, 20, g3+3.75, g3+3.82, 0.1, 3.4, '#4a3a2c','#4a3a2c', 0.85);
+      P(wxp, 19.2, g3+3.45, g3+3.75, 0.36, 0.1, WIM[wq%5], WIM[wq%5], 0.95);
+      P(wxp, 20.8, g3+3.45, g3+3.75, 0.36, 0.1, WIM[(wq+2)%5], WIM[(wq+2)%5], 0.95);
+    }
+    // Seitengasse mit Treppe
+    for(var st2=0; st2<4; st2++)
+      P(38.0, 16.4 - st2*0.9, hAt(38,16.4)-0.6, hAt(38,16.4)+0.2+st2*0.35, 2.2, 0.85, PAL.stone, PAL.rockDk, 0.5);
+    // ================= Marktplatz =================
+    stall(MARKT[0]-2.2, MARKT[1]-1.6, '#d4645c', '#f4e6cf');
+    stall(MARKT[0]+1.9, MARKT[1]-1.9, '#4d6fb3', '#f4e6cf');
+    stall(MARKT[0]-2.6, MARKT[1]+2.1, '#6f8f5a', '#f4e6cf');
+    stall(MARKT[0]+2.3, MARKT[1]+1.8, '#d99a4f', '#f4e6cf');
+    (function brunnen(){
+      var g = hAt(MARKT[0], MARKT[1]), bx = MARKT[0], by = MARKT[1];
+      for(var r5=0;r5<8;r5++){
+        var ra=r5/8*Math.PI*2;
+        P(bx+Math.cos(ra)*1.1, by+Math.sin(ra)*1.1, g-0.4, g+0.75, 0.65,0.65, PAL.stone, PAL.rockDk);
+      }
+      P(bx,by,g-0.4,g+0.35, 1.5,1.5, PAL.water, PAL.waterDk, 0.4);
+      P(bx-1.0,by,g+0.75,g+2.5, 0.2,0.2, PAL.woodDk, PAL.woodDk);
+      P(bx+1.0,by,g+0.75,g+2.5, 0.2,0.2, PAL.woodDk, PAL.woodDk);
+      P(bx,by,g+2.5,g+2.9, 2.6,2.0, PAL.roofC, PAL.roofC);
     })();
-    // ---- Gehöft mit Scheune und Koppel
+    lampAt(MARKT[0]-3.6, MARKT[1]-3.2);
+    lampAt(MARKT[0]+3.4, MARKT[1]+3.0);
+    lampAt(43.5, 17.2);
+    // Schmiede an der Gasse
+    (function schmiede(){
+      var sx=30.0, sy=23.6, g=hAt(sx,sy);
+      P(sx,sy,g-0.9,g+2.3, 3.0,2.6, '#6b6470', '#54505c');
+      P(sx,sy,g+2.3,g+2.9, 3.6,3.2, '#4a4550', '#3a3640');
+      P(sx+1.0,sy-1.2,g+2.9,g+4.3, 0.7,0.7, PAL.stone, PAL.rockDk);
+      P(sx-0.8,sy-1.45,g-0.9,g+1.1, 1.2,0.2, PAL.woodDk, PAL.woodDk, 0.9);
+      Pe(sx-0.8,sy-1.5,g-0.5,g+0.5, 1.0,0.15, '#ff7a33', 1.1);
+      P(sx+1.2,sy-1.6,g-0.6,g+0.5, 0.9,0.9, PAL.woodDk, PAL.woodDk, 0.8);
+    })();
+    // ================= Riesenbaum =================
+    (function greatTree(){
+      var tx=25.5, ty=25.5, g=hAt(tx,ty);
+      GREATTREE = [tx,ty,g];
+      P(tx,ty,g-1.5,g+11.5, 3.4,3.4, PAL.woodDk, '#5a3f28');
+      for(var r4=0;r4<7;r4++){
+        var ra=r4/7*Math.PI*2;
+        P(tx+Math.cos(ra)*2.3, ty+Math.sin(ra)*2.3, g-1.2, g+1.4, 1.35,1.35, PAL.woodDk, '#5a3f28');
+      }
+      P(tx,ty,g+5.0,g+5.4, 6.4,6.4, PAL.wood, PAL.woodDk, 0.5);
+      P(tx,ty,g+8.4,g+8.75, 4.6,4.6, PAL.wood, PAL.woodDk, 0.5);
+      for(var rl=0; rl<8; rl++){
+        var rla = rl/8*Math.PI*2;
+        P(tx+Math.cos(rla)*3.0, ty+Math.sin(rla)*3.0, g+5.4, g+6.1, 0.16,0.16, PAL.woodDk, PAL.woodDk, 0.6);
+      }
+      P(tx+2.2,ty+0.5,g+5.4,g+7.4, 2.4,2.2, PAL.wall, PAL.wallDk);
+      P(tx+2.2,ty+0.5,g+7.4,g+8.0, 2.9,2.7, PAL.roofC, PAL.roofC);
+      Pe(tx+3.35, ty+0.5, g+6.1, g+6.8, 0.09, 0.65, EM.win, 1.15);
+      P(tx,ty,g+9.6,g+13.6, 13.0,13.0, PAL.leaf, PAL.leafDk);
+      P(tx,ty,g+13.6,g+16.2, 9.6,9.6, PAL.leafLt, PAL.leaf);
+      P(tx,ty,g+16.2,g+18.0, 5.6,5.6, PAL.leafLt, PAL.leaf);
+      P(tx-3.2,ty+2.4,g+12.4,g+14.6, 5.2,5.2, PAL.leaf, PAL.leafDk);
+      P(tx+3.6,ty-2.4,g+11.4,g+13.6, 5.2,5.2, PAL.leaf, PAL.leafDk);
+      // Wendeltreppe um den Stamm
+      for(var w5=0; w5<22; w5++){
+        var wa = w5*0.62, wr = 2.4;
+        P(tx+Math.cos(wa)*wr, ty+Math.sin(wa)*wr, g-0.6+w5*0.26, g-0.3+w5*0.26, 1.1,1.1, PAL.wood, PAL.woodDk, 0.55);
+      }
+    })();
+    // Felszähne mit Hängebrücken
+    function spire(x,y){
+      var g=hAt(x,y);
+      for(var s3=0;s3<5;s3++)
+        P(x,y,g-1+s3*1.55, g+0.65+s3*1.55, 3.2-s3*0.38, 3.2-s3*0.38, PAL.rock, PAL.rockDk);
+      P(x,y,g+7.2,g+7.55, 3.4,3.4, PAL.wood, PAL.woodDk, 0.5);
+      return g+7.4;
+    }
+    function ropeBridge(ax,ay,az,bx,by,bz){
+      var n=16;
+      for(var i2=0;i2<=n;i2++){
+        var u3=i2/n, sag=Math.sin(u3*Math.PI)*1.0;
+        var px2=ax+(bx-ax)*u3, py2=ay+(by-ay)*u3, pz=az+(bz-az)*u3-sag;
+        P(px2,py2,pz,pz+0.16, 1.4,1.4, PAL.wood, PAL.woodDk, 0.6);
+        if(i2%2===0){
+          P(px2,py2+0.66,pz+0.16,pz+0.95, 0.1,0.1, PAL.woodDk, PAL.woodDk, 0.6);
+          P(px2,py2-0.66,pz+0.16,pz+0.95, 0.1,0.1, PAL.woodDk, PAL.woodDk, 0.6);
+        }
+      }
+    }
+    var gt = GREATTREE;
+    var sp1 = spire(32.8, 30.8), sp2 = spire(19.2, 30.4);
+    ropeBridge(gt[0]+2.6, gt[1]+2.6, gt[2]+5.4, 32.8, 30.8, sp1);
+    ropeBridge(gt[0]-2.6, gt[1]+2.6, gt[2]+5.4, 19.2, 30.4, sp2);
+    // Terrassenfelder am Südhang
+    for(var tr=0; tr<5; tr++){
+      var ty3 = 31.5 + tr*1.5;
+      for(var w4=0; w4<7; w4++){
+        var fx2 = 27.0 + w4*1.15, gh3 = hAt(fx2, ty3);
+        P(fx2, ty3, gh3+0.05, gh3+0.4, 1.05, 1.35,
+          tr%2 ? '#8fae4a' : '#a8b95a', '#6e8a3a', 0.5);
+      }
+    }
+    // ================= Gehöft =================
     (function(){
       var g = hAt(FARM_X, FARM_Y);
       P(FARM_X, FARM_Y, g-0.8, g+2.6, 4.2, 3.0, '#b4564d', '#94443d');
@@ -329,7 +523,7 @@
       fenceRun(FARM_X-2.0, FARM_Y+3.4, 0, -1, 4);
       fenceRun(FARM_X+4.0, FARM_Y+3.4, 0, -1, 4);
     })();
-    // ---- Wachturm am Westrand
+    // ================= Wachturm =================
     (function(){
       var g = hAt(TOWER[0], TOWER[1]);
       for(var t2=0;t2<5;t2++)
@@ -337,38 +531,40 @@
       P(TOWER[0], TOWER[1], g+6.4, g+7.0, 3.0, 3.0, PAL.rockDk, PAL.rockDk);
       P(TOWER[0], TOWER[1], g+7.0, g+8.0, 2.0, 2.0, PAL.roofB, '#3f6a99');
       P(TOWER[0], TOWER[1], g+8.0, g+8.6, 0.9, 0.9, PAL.roofB, '#3f6a99');
-      P(TOWER[0], TOWER[1], g+5.6, g+6.3, 2.6, 0.12, EM.lamp, EM.lamp, 1.0);
       TOWER[2] = g;
     })();
-    // ---- Steg, Boot liegt dynamisch
+    // ================= See =================
     for(var dk=0; dk<4; dk++)
       P(LAKE_X+3.4+dk*1.0, LAKE_Y-2.2+dk*0.35, WATER_Z-1.2, WATER_Z+0.4, 1.1,1.1, PAL.wood, PAL.woodDk);
     lampAt(LAKE_X+3.2, LAKE_Y-3.4);
-    // ---- Wälder
-    var pine = [], leafy = [];
-    for(var a=0; a<160; a++){
-      var ang = a*2.39996, rr = 2.5 + Math.sqrt(a/160)*20.0;
-      var tx = CX + Math.cos(ang)*rr, ty = CY + Math.sin(ang)*rr;
-      var ti = Math.round(tx), tj = Math.round(ty);
+    // ================= Wälder =================
+    var pineL = [], leafy = [];
+    for(var a=0; a<170; a++){
+      var ang = a*2.39996, rr = 3.0 + Math.sqrt(a/170)*19.5;
+      var tx4 = CX + Math.cos(ang)*rr, ty4 = CY + Math.sin(ang)*rr;
+      var ti = Math.round(tx4), tj = Math.round(ty4);
       if(kindAt(ti,tj) !== K_LAND) continue;
       var gg = heights[idx(ti,tj)];
       if(gg < 4.6 || paved[idx(ti,tj)]) continue;
-      if(Math.hypot(tx-VIL_X, ty-VIL_Y) < 7.5) continue;
-      if(Math.hypot(tx-FARM_X, ty-FARM_Y) < 6.5) continue;
-      if(Math.hypot(tx-LAKE_X, ty-LAKE_Y) < LAKE_R+2.0) continue;
-      if(Math.hypot(tx-CAMPFIRE[0], ty-CAMPFIRE[1]) < 4.0) continue;
-      if(Math.hypot(tx-TOWER[0], ty-TOWER[1]) < 4.0) continue;
-      if(Math.hypot(tx-16.5, ty-17.0) < 10.5) pine.push([tx,ty]); else leafy.push([tx,ty]);
+      if(streetDist(tx4,ty4) < 8.0) continue;
+      if(Math.hypot(tx4-CX, ty4-CY) < 8.5) continue;
+      if(Math.hypot(tx4-FARM_X, ty4-FARM_Y) < 6.5) continue;
+      if(Math.hypot(tx4-LAKE_X, ty4-LAKE_Y) < LAKE_R+2.0) continue;
+      if(Math.hypot(tx4-CAMPFIRE[0], ty4-CAMPFIRE[1]) < 4.0) continue;
+      if(Math.hypot(tx4-TOWER[0], ty4-TOWER[1]) < 4.0) continue;
+      if(Math.hypot(tx4-32.8, ty4-30.8) < 4.0 || Math.hypot(tx4-19.2, ty4-30.4) < 4.0) continue;
+      if(tx4 > 26 && tx4 < 35 && ty4 > 30 && ty4 < 40) continue;
+      if(Math.hypot(tx4-16.5, ty4-17.0) < 10.5) pineL.push([tx4,ty4]); else leafy.push([tx4,ty4]);
     }
-    for(var q1=0;q1<pine.length;q1++) pineTree(pine[q1][0], pine[q1][1], 0.85 + ((q1*7)%5)*0.08);
+    for(var q1=0;q1<pineL.length;q1++) pineTree(pineL[q1][0], pineL[q1][1], 0.85 + ((q1*7)%5)*0.08);
     for(var q2=0;q2<leafy.length;q2++) tree(leafy[q2][0], leafy[q2][1], 0.85 + ((q2*5)%5)*0.09);
-    // ---- Büsche, Steine, Blumen
-    for(var b2=0; b2<40; b2++){
-      var ba = b2*1.618*Math.PI, br = 3 + (b2 % 12)*1.7;
+    // Büsche, Steine, Blumen
+    for(var b2=0; b2<44; b2++){
+      var ba = b2*1.618*Math.PI, br = 4 + (b2 % 12)*1.6;
       var bx = CX + Math.cos(ba)*br, by = CY + Math.sin(ba)*br;
       var bi = Math.round(bx), bj = Math.round(by);
       if(kindAt(bi,bj) !== K_LAND || paved[idx(bi,bj)]) continue;
-      if(heights[idx(bi,bj)] < 4.6) continue;
+      if(heights[idx(bi,bj)] < 4.6 || streetDist(bx,by) < 6.0) continue;
       if(b2 % 3 === 0){
         var rg = heights[idx(bi,bj)];
         P(bx,by,rg-0.5,rg+0.7, 1.2,1.1, PAL.rock, PAL.rockDk);
@@ -376,8 +572,8 @@
       } else bushAt(bx,by);
     }
     var fcol = ['#ff8fb1','#ffd166','#c58bff','#fff2d8','#ff9f6b'];
-    for(var f2=0; f2<130; f2++){
-      var fa = f2*2.39996, fr = 2 + Math.sqrt(f2/130)*20.5;
+    for(var f2=0; f2<140; f2++){
+      var fa = f2*2.39996, fr = 3 + Math.sqrt(f2/140)*19.5;
       var fx = CX + Math.cos(fa)*fr, fy = CY + Math.sin(fa)*fr;
       var fi = Math.round(fx), fj = Math.round(fy);
       if(kindAt(fi,fj) !== K_LAND) continue;
@@ -385,7 +581,7 @@
       if(fg < 4.6 || fg > 11.4 || paved[idx(fi,fj)]) continue;
       P(fx, fy, fg, fg+0.34, 0.22,0.22, fcol[f2 % fcol.length], fcol[f2 % fcol.length], 0.6);
     }
-    // ---- Lagerplatz
+    // ================= Lagerplatz =================
     var cg = hAt(CAMPFIRE[0], CAMPFIRE[1]);
     for(var r3=0; r3<7; r3++){
       var aa = r3/7*Math.PI*2;
@@ -395,7 +591,7 @@
     P(tx2,ty2,tg-0.5,tg+1.1, 2.5,2.1, PAL.canvasT, '#a8443f');
     P(tx2,ty2,tg+1.1,tg+1.85, 1.7,1.4, PAL.canvasT, '#a8443f');
     P(tx2,ty2,tg+1.85,tg+2.35, 0.75,0.6, PAL.canvasT, '#a8443f');
-    // ---- Hängender Fels
+    // ================= Hängender Fels =================
     for(var hr=0; hr<12; hr++){
       var ha = hr*2.39996 + 0.6, hrr = 1.5 + (hr % 5)*3.6;
       var hx = CX + Math.cos(ha)*hrr, hy = CY + Math.sin(ha)*hrr;
@@ -406,11 +602,31 @@
     }
   })();
 
+  // Höhe aller Aufbauten je Rasterzelle, damit die Kamera nichts durchschneidet
+  var canopy = new Float32Array(G*G);
+  (function(){
+    for(var k=0;k<props.length;k++){
+      var b = props[k];
+      var ax = Math.floor(b.x+CX-b.sx/2), bx2 = Math.ceil(b.x+CX+b.sx/2);
+      var ay = Math.floor(b.y+CY-b.sy/2), by2 = Math.ceil(b.y+CY+b.sy/2);
+      for(var j=ay;j<=by2;j++) for(var i=ax;i<=bx2;i++){
+        if(i<0||j<0||i>=G||j>=G) continue;
+        if(b.z1 > canopy[idx(i,j)]) canopy[idx(i,j)] = b.z1;
+      }
+    }
+  })();
+  function topAtWorld(x,y){          // zentrierte Koordinaten
+    var i = Math.round(x+CX), j = Math.round(y+CY);
+    if(i<0||j<0||i>=G||j>=G) return null;
+    if(kinds[idx(i,j)] === K_VOID) return null;
+    return Math.max(heights[idx(i,j)], canopy[idx(i,j)]);
+  }
+
   /* --------- Katzenweg --------- */
   function pathPoint(u){
     var a = u*Math.PI*2;
-    var r = 7.5 + 2.2*Math.sin(a*3 + 0.6);
-    return [30.0 + Math.cos(a)*r, 27.0 + Math.sin(a)*r*0.9];
+    var r = 6.0 + 1.8*Math.sin(a*3 + 0.6);
+    return [34.0 + Math.cos(a)*r, 31.0 + Math.sin(a)*r*0.9];
   }
   var FILM = 80;
   function catAt(t){
@@ -437,23 +653,24 @@
   }
 
   // Mensch: Beine, Schuhe, Rumpf, Arme, Hände, Kopf, Haar
-  function figure(x, y, g, dx, dy, ph, coat, pants, skin, hair){
+  function figure(x, y, g, dx, dy, ph, coat, pants, skin, hair, sc){
+    sc = sc || 1;
     var lx = -dy, ly = dx;
-    var sw = Math.sin(ph)*0.17;
-    var z = g - 0.12 + Math.abs(Math.cos(ph))*0.05;
-    D(x + dx*sw + lx*0.11, y + dy*sw + ly*0.11, z, z+0.42, 0.15,0.15, pants, pants, 1.30);
-    D(x - dx*sw - lx*0.11, y - dy*sw - ly*0.11, z, z+0.42, 0.15,0.15, pants, pants, 1.30);
-    D(x + dx*(sw+0.05) + lx*0.11, y + dy*(sw+0.05) + ly*0.11, z-0.02, z+0.10, 0.20,0.18, '#3a2f2a','#3a2f2a', 1.32);
-    D(x - dx*(sw+0.05) - lx*0.11, y - dy*(sw+0.05) - ly*0.11, z-0.02, z+0.10, 0.20,0.18, '#3a2f2a','#3a2f2a', 1.32);
-    D(x, y, z+0.40, z+0.84, 0.34,0.25, coat, coat, 1.34);
-    D(x - dx*sw*0.85 + lx*0.24, y - dy*sw*0.85 + ly*0.24, z+0.44, z+0.82, 0.12,0.12, coat, coat, 1.36);
-    D(x + dx*sw*0.85 - lx*0.24, y + dy*sw*0.85 - ly*0.24, z+0.44, z+0.82, 0.12,0.12, coat, coat, 1.36);
-    D(x - dx*sw*0.95 + lx*0.24, y - dy*sw*0.95 + ly*0.24, z+0.38, z+0.47, 0.13,0.13, skin, skin, 1.38);
-    D(x + dx*sw*0.95 - lx*0.24, y + dy*sw*0.95 - ly*0.24, z+0.38, z+0.47, 0.13,0.13, skin, skin, 1.38);
-    D(x, y, z+0.84, z+1.12, 0.27,0.25, skin, skin, 1.40);
-    D(x, y, z+1.07, z+1.20, 0.33,0.31, hair, hair, 1.42);
-    D(x + dx*0.14 + lx*0.06, y + dy*0.14 + ly*0.06, z+0.96, z+1.02, 0.05,0.05, '#2b2038','#2b2038', 1.46);
-    D(x + dx*0.14 - lx*0.06, y + dy*0.14 - ly*0.06, z+0.96, z+1.02, 0.05,0.05, '#2b2038','#2b2038', 1.46);
+    var sw = Math.sin(ph)*0.17*sc;
+    var z = g - 0.12 + Math.abs(Math.cos(ph))*0.05*sc;
+    D(x + dx*sw + lx*0.11*sc, y + dy*sw + ly*0.11*sc, z, z+0.42*sc, 0.15*sc,0.15*sc, pants, pants, 1.30);
+    D(x - dx*sw - lx*0.11*sc, y - dy*sw - ly*0.11*sc, z, z+0.42*sc, 0.15*sc,0.15*sc, pants, pants, 1.30);
+    D(x + dx*(sw+0.05) + lx*0.11, y + dy*(sw+0.05) + ly*0.11, z-0.02, z+0.10*sc, 0.20*sc,0.18*sc, '#3a2f2a','#3a2f2a', 1.32);
+    D(x - dx*(sw+0.05) - lx*0.11, y - dy*(sw+0.05) - ly*0.11, z-0.02, z+0.10*sc, 0.20*sc,0.18*sc, '#3a2f2a','#3a2f2a', 1.32);
+    D(x, y, z+0.40*sc, z+0.84*sc, 0.34*sc,0.25*sc, coat, coat, 1.34);
+    D(x - dx*sw*0.85 + lx*0.24*sc, y - dy*sw*0.85 + ly*0.24*sc, z+0.44*sc, z+0.82*sc, 0.12*sc,0.12*sc, coat, coat, 1.36);
+    D(x + dx*sw*0.85 - lx*0.24*sc, y + dy*sw*0.85 - ly*0.24*sc, z+0.44*sc, z+0.82*sc, 0.12*sc,0.12*sc, coat, coat, 1.36);
+    D(x - dx*sw*0.95 + lx*0.24*sc, y - dy*sw*0.95 + ly*0.24*sc, z+0.38*sc, z+0.47*sc, 0.13*sc,0.13*sc, skin, skin, 1.38);
+    D(x + dx*sw*0.95 - lx*0.24*sc, y + dy*sw*0.95 - ly*0.24*sc, z+0.38*sc, z+0.47*sc, 0.13*sc,0.13*sc, skin, skin, 1.38);
+    D(x, y, z+0.84*sc, z+1.12*sc, 0.27*sc,0.25*sc, skin, skin, 1.40);
+    D(x, y, z+1.07*sc, z+1.20*sc, 0.33*sc,0.31*sc, hair, hair, 1.42);
+    D(x + dx*0.14*sc + lx*0.06*sc, y + dy*0.14*sc + ly*0.06*sc, z+0.96*sc, z+1.02*sc, 0.05*sc,0.05*sc, '#2b2038','#2b2038', 1.46);
+    D(x + dx*0.14*sc - lx*0.06*sc, y + dy*0.14*sc - ly*0.06*sc, z+0.96*sc, z+1.02*sc, 0.05*sc,0.05*sc, '#2b2038','#2b2038', 1.46);
   }
 
   // Katze: vier Beine, Kopf mit Ohren, wippender Schwanz
@@ -515,6 +732,27 @@
     D(x + dx*0.30*s, y + dy*0.30*s, z+0.38*s, z+0.45*s, 0.10*s,0.08*s, '#ffb038','#ffb038', 1.35);
   }
 
+  function dogFig(x,y,g,dx,dy,ph){
+    var lx=-dy, ly=dx, z=g-0.1;
+    var a=Math.sin(ph)*0.09, b=Math.sin(ph+Math.PI)*0.09;
+    var legs=[[0.17,a,0.09],[0.17,b,-0.09],[-0.17,b,0.09],[-0.17,a,-0.09]];
+    for(var i=0;i<4;i++)
+      D(x+dx*(legs[i][0]+legs[i][1])+lx*legs[i][2], y+dy*(legs[i][0]+legs[i][1])+ly*legs[i][2],
+        z, z+0.21, 0.085,0.085, '#6b4a32','#6b4a32', 1.4);
+    D(x,y,z+0.19,z+0.44, 0.55,0.27, '#8a6242','#6b4a32', 1.42);
+    D(x+dx*0.34,y+dy*0.34,z+0.36,z+0.62, 0.27,0.25, '#8a6242','#6b4a32', 1.44);
+    D(x+dx*0.36+lx*0.11,y+dy*0.36+ly*0.11,z+0.60,z+0.73, 0.1,0.09, '#6b4a32','#6b4a32', 1.46);
+    D(x+dx*0.36-lx*0.11,y+dy*0.36-ly*0.11,z+0.60,z+0.73, 0.1,0.09, '#6b4a32','#6b4a32', 1.46);
+    D(x-dx*0.32,y-dy*0.32,z+0.40+Math.sin(ph*2)*0.09,z+0.52+Math.sin(ph*2)*0.09, 0.1,0.1, '#8a6242','#8a6242', 1.44);
+  }
+  function cartFig(x,y,g,dx,dy){
+    var lx=-dy, ly=dx;
+    D(x,y,g+0.38,g+1.0, 1.6,1.05, PAL.wood, PAL.woodDk, 1.2);
+    D(x,y,g+1.0,g+1.22, 1.3,0.85, '#c0512f','#a04527', 1.25);
+    for(var s=-1;s<=1;s+=2)
+      D(x-dx*0.5+lx*s*0.58, y-dy*0.5+ly*s*0.58, g-0.05, g+0.6, 0.6,0.15, PAL.woodDk, PAL.woodDk, 1.3);
+    D(x+dx*0.95, y+dy*0.95, g+0.55, g+0.68, 1.05,0.11, PAL.woodDk, PAL.woodDk, 1.2);
+  }
   function buildDynamic(t, night){
     dyn.length = 0;
 
@@ -539,8 +777,8 @@
       for(var k=0;k<5;k++){
         var pr = ((t*0.20 + k/5 + hI*0.31) % 1);
         var sz = 0.26 + pr*0.5;
-        D(ho.x + ho.w*0.32 + Math.sin(pr*4+hI)*0.7, ho.y - ho.d*0.28 + Math.cos(pr*3)*0.4,
-          ho.g + ho.h + 1.7 + pr*3.8, ho.g + ho.h + 1.7 + pr*3.8 + sz*0.7, sz, sz,
+        D(ho.chx + Math.sin(pr*4+hI)*0.7, ho.chy + Math.cos(pr*3)*0.4,
+          ho.chz + pr*3.8, ho.chz + pr*3.8 + sz*0.7, sz, sz,
           '#cfd2e0', '#b3b7c9', 1.2);
       }
     }
@@ -595,30 +833,60 @@
     D(LAKE_X+2.3, LAKE_Y+0.8, WATER_Z+0.35+bb, WATER_Z+2.0+bb, 0.16,0.16, PAL.woodDk, PAL.woodDk, 0.9);
     D(LAKE_X+2.3, LAKE_Y+0.8, WATER_Z+1.0+bb, WATER_Z+1.95+bb, 0.12,0.85, PAL.wall, PAL.wallDk, 1.0);
 
-    // ---- Dorfbewohner
+    // ---- Leben in der Gasse und auf dem Markt
     var COATS = ['#4d6fb3','#b3564d','#6a8f4a','#8a5aa8','#c98a3a'];
     var PANTS = ['#3b4266','#4a3a44','#3f4a38','#43385a','#5a4630'];
-    var SKIN = ['#f0c9a0','#e0b183','#d9a877','#f2d2ad','#c98f63'];
-    var HAIR = ['#4a3524','#2f2b30','#7a5a3a','#a06a3a','#33303a'];
-    for(var vi=0; vi<5; vi++){
-      var va = t*(0.26 + vi*0.035) + vi*1.9;
-      var vr = 2.2 + (vi % 3)*1.5;
-      var vx = VIL_X - 0.8 + Math.cos(va)*vr + (vi-2)*1.0;
-      var vy = VIL_Y + 1.6 + Math.sin(va)*vr*0.8;
-      var vdx = -Math.sin(va), vdy = Math.cos(va)*0.8;
-      var vl = Math.hypot(vdx,vdy) || 1;
-      figure(vx, vy, hAt(vx,vy), vdx/vl, vdy/vl, t*3.4 + vi*2,
-             COATS[vi], PANTS[vi], SKIN[vi], HAIR[vi]);
+    var SKIN  = ['#f0c9a0','#e0b183','#d9a877','#f2d2ad','#c98f63'];
+    var HAIR  = ['#4a3524','#2f2b30','#7a5a3a','#a06a3a','#33303a'];
+    for(var vi=0; vi<6; vi++){
+      var ph2 = ((t*0.085 + vi*0.17) % 1 + 1) % 1;
+      var tri = ph2 < 0.5 ? ph2*2 : (1-ph2)*2;
+      var vx = 31.5 + tri*13.5;
+      var vy = 20 + ((vi%2) ? 0.9 : -0.9);
+      var vdir = ph2 < 0.5 ? 1 : -1;
+      figure(vx, vy, hAt(vx,vy), vdir, 0, t*3.6 + vi*2,
+             COATS[vi%5], PANTS[vi%5], SKIN[vi%5], HAIR[vi%5], 1.0);
     }
+    var STALLS = [[MARKT[0]-2.2, MARKT[1]-1.6],[MARKT[0]+1.9, MARKT[1]-1.9],
+                  [MARKT[0]-2.6, MARKT[1]+2.1],[MARKT[0]+2.3, MARKT[1]+1.8]];
+    for(var si=0; si<4; si++){
+      var sxp = STALLS[si][0], syp = STALLS[si][1];
+      var ddx = MARKT[0]-sxp, ddy = MARKT[1]-syp, dl2 = Math.hypot(ddx,ddy)||1;
+      figure(sxp - ddx/dl2*1.15, syp - ddy/dl2*1.15, hAt(sxp,syp), ddx/dl2, ddy/dl2,
+             Math.sin(t*1.2+si)*0.32, COATS[(si+1)%5], PANTS[(si+2)%5], SKIN[si%5], HAIR[(si+3)%5], 1.0);
+    }
+    for(var ki=0; ki<3; ki++){
+      var ka2 = t*0.8 + ki*2.1;
+      var kx = MARKT[0] + Math.cos(ka2)*2.8, ky = MARKT[1] + Math.sin(ka2)*2.3;
+      figure(kx, ky, hAt(kx,ky), -Math.sin(ka2), Math.cos(ka2), t*6.5 + ki*2,
+             ['#d4645c','#5f8fc4','#6f8f5a'][ki], '#4a3a44', SKIN[ki], HAIR[ki], 0.66);
+    }
+    var cph = ((t*0.05) % 1 + 1) % 1;
+    var ctri = cph < 0.5 ? cph*2 : (1-cph)*2;
+    var cxp2 = 32.0 + ctri*12.5, cdir = cph < 0.5 ? 1 : -1;
+    cartFig(cxp2, 20.5, hAt(cxp2,20.5), cdir, 0);
+    figure(cxp2 + cdir*1.7, 20.5, hAt(cxp2+cdir*1.7,20.5), cdir, 0, t*3.2,
+           '#8a5aa8','#43385a', SKIN[2], HAIR[1], 1.0);
+    for(var dg=0; dg<2; dg++){
+      var da2 = t*0.9 + dg*3.0;
+      var dxp2 = MARKT[0] + Math.cos(da2)*3.4, dyp2 = MARKT[1] + Math.sin(da2)*2.8;
+      dogFig(dxp2, dyp2, hAt(dxp2,dyp2), -Math.sin(da2), Math.cos(da2), t*7 + dg*2);
+    }
+    // Katzen auf den Dächern
+    for(var rc=0; rc<2; rc++){
+      var rh = HOUSES[rc*2];
+      if(rh && rh.town)
+        catFig(rh.x - 0.4 + rc*0.8, rh.y, rh.g + rh.h + 0.65, rc? -1:1, 0, Math.sin(t*0.7+rc)*0.5);
+    }
+    // Bewohner am Gehöft
     for(var wi=0; wi<2; wi++){
       var wa = t*0.22 + wi*2.6;
       var wx2 = FARM_X - 1.5 + Math.cos(wa)*2.0;
       var wy2 = FARM_Y + 2.4 + Math.sin(wa)*1.6;
       var wdx = -Math.sin(wa), wdy = Math.cos(wa)*0.8, wl = Math.hypot(wdx,wdy)||1;
       figure(wx2, wy2, hAt(wx2,wy2), wdx/wl, wdy/wl, t*3.2 + wi*3,
-             COATS[(wi+2)%5], PANTS[(wi+1)%5], SKIN[(wi+3)%5], HAIR[(wi+4)%5]);
+             COATS[(wi+2)%5], PANTS[(wi+1)%5], SKIN[(wi+3)%5], HAIR[(wi+4)%5], 1.0);
     }
-
     // ---- Schafe auf der Koppel
     for(var sh=0; sh<5; sh++){
       var sa = t*0.10 + sh*1.4;
@@ -662,11 +930,17 @@
     // ---- Fenster und Laternen
     if(LIGHTS){
       for(var hw=0; hw<HOUSES.length; hw++){
-        var hh = HOUSES[hw], wz = hh.g + 0.7;
-        De(hh.x + hh.w/2 + 0.05, hh.y - 0.35, wz, wz+0.62, 0.07, 0.62, EM.win, 1.2);
-        De(hh.x - hh.w/2 - 0.05, hh.y + 0.35, wz, wz+0.62, 0.07, 0.62, EM.win, 1.2);
-        De(hh.x + 0.35, hh.y + hh.d/2 + 0.05, wz, wz+0.62, 0.62, 0.07, EM.win, 1.2);
-        De(hh.x - 0.35, hh.y - hh.d/2 - 0.05, wz, wz+0.62, 0.62, 0.07, EM.win, 1.2);
+        var hh = HOUSES[hw];
+        if(hh.town){
+          for(var qq=-1; qq<=1; qq+=2)
+            De(hh.x + qq*0.66, hh.dz + hh.face*0.02, hh.g+0.9, hh.g+1.54, 0.54, 0.09, EM.win, 1.25);
+        } else {
+          var wz = hh.g + 0.7;
+          De(hh.x + hh.w/2 + 0.05, hh.y - 0.35, wz, wz+0.62, 0.07, 0.62, EM.win, 1.2);
+          De(hh.x - hh.w/2 - 0.05, hh.y + 0.35, wz, wz+0.62, 0.07, 0.62, EM.win, 1.2);
+          De(hh.x + 0.35, hh.y + hh.d/2 + 0.05, wz, wz+0.62, 0.62, 0.07, EM.win, 1.2);
+          De(hh.x - 0.35, hh.y - hh.d/2 - 0.05, wz, wz+0.62, 0.62, 0.07, EM.win, 1.2);
+        }
       }
       for(var lp=0; lp<LAMPS.length; lp++){
         De(LAMPS[lp].x, LAMPS[lp].y, LAMPS[lp].z, LAMPS[lp].z+0.42, 0.42,0.42, EM.lamp, 1.0);
@@ -1071,10 +1345,12 @@
      ========================================================= */
   // 'r' = Höhe über Grund, 'a' = absolute Höhe
   var CAM_SPEC = [
-    [46,-40,30,'a'], [30,-25,20,'a'], [19.0,-17.0,11.0,'r'], [12.0,-12.0,9.0,'r'],
-    [6.0,-6.0,8.5,'r'], [2.0,1.0,8.0,'r'], [4.0,8.0,7.5,'r'], [0.0,13.0,7.0,'r'],
-    [-2.0,14.0,8.0,'r'], [-8.0,18.0,8.0,'r'], [-15.0,16.0,7.0,'r'], [-34.0,26.0,2.0,'a'],
-    [-46.0,4.0,-5.0,'a'], [-32.0,-30.0,0.0,'a'], [2.0,-46.0,7.0,'a'], [28.0,-42.0,17.0,'a']
+    [42,-30,26,'a'], [28,-16,15,'a'], [23.0,-7.0,6.0,'r'],
+    [20.0,-5.5,1.75,'r'], [16.5,-5.5,1.65,'r'], [13.0,-5.5,1.65,'r'],
+    [9.5,-5.5,1.65,'r'], [6.0,-5.5,1.75,'r'], [3.0,-5.0,2.6,'r'],
+    [7.5,-6.5,7.0,'r'], [16.0,-3.0,13.0,'r'], [11.0,14.0,13.0,'r'],
+    [-8.0,13.0,8.0,'r'], [-14.0,15.0,7.0,'r'], [-24.0,20.0,2.0,'a'],
+    [-42.0,8.0,-4.0,'a'], [-34.0,-22.0,0.0,'a'], [-6.0,-42.0,8.0,'a'], [24.0,-40.0,18.0,'a']
   ];
   var CAM_PTS = CAM_SPEC.map(function(q){
     if(q[3] === 'r'){ var g = gh(q[0], q[1]); return [q[0], q[1], (g === null ? 0 : g) + q[2]]; }
@@ -1082,10 +1358,12 @@
   });
   // Blickziele liegen voraus über der Insel, nicht senkrecht unter der Kamera
   var LOOK_PTS = [
-    [6,-6,7],[10,-7,7],[12,-8,7],[8,-4,7],
-    [2,2,7],[-2,6,6],[0,11,6],[-4,12,5],
-    [-8,11,4],[-13,13,4],[-18,15,1],[-15,12,1],
-    [-6,2,3],[-4,-6,4],[0,-8,5],[4,-10,7]
+    [8,-6,11],[12,-6,9],[16,-5.5,7.9],
+    [14,-5.5,7.9],[10.5,-5.5,7.9],[7.0,-5.5,7.9],
+    [3.5,-5.4,7.9],[1.0,-5.2,8.2],[-1.0,-3.0,10.5],
+    [3,-2,13],[0,0,16],[0,2,15],
+    [-16,15,3.5],[-21,17,2],[-16,12,0],
+    [-6,2,4],[-2,-8,5],[2,-10,7],[6,-10,10]
   ];
   function crv(a,b,c,d,t){
     var t2=t*t, t3=t2*t;
@@ -1101,8 +1379,9 @@
   // Tempoprofil: über der Insel langsam, im Außenbogen zügig
   function sstep(a,b,x){ x = Math.max(0, Math.min(1, (x-a)/(b-a))); return x*x*(3-2*x); }
   function speedAt(u){
-    var over = sstep(0.055,0.125,u) * (1 - sstep(0.60,0.70,u));
-    return 1.75 - 1.15*over;
+    var lane = sstep(0.13,0.17,u) * (1 - sstep(0.40,0.45,u));   // Gasse
+    var calm = sstep(0.45,0.50,u) * (1 - sstep(0.68,0.74,u));   // Baum und See
+    return 1.8 + 1.5*lane - 0.95*calm;
   }
   var ARC = (function(){
     var N = 1200, tbl = new Float32Array(N+1), prev = splineAt(CAM_PTS, 0), sum = 0;
@@ -1172,7 +1451,7 @@
   var FOG_COL = [0.30, 0.20, 0.17];
   var ZEN = [0.09, 0.15, 0.34], HOR = [0.68, 0.39, 0.24], HAZE = [0.24, 0.15, 0.14];
   var FAR = 210, FOVY = 40*Math.PI/180;
-  var T_LOOP = 80;
+  var T_LOOP = 58;
 
   var lightVP = (function(){
     var eye = [SUN[0]*90, SUN[1]*90, SUN[2]*90];
@@ -1212,24 +1491,36 @@
   }
 
   var camPos = [0,0,0], camAt = [0,0,0], camRoll = 0, camU = 0;
-  function clearAt(x,y){                 // höchster Boden in der Nachbarschaft
+  function clearAt(x,y,withProps){       // höchstes Hindernis in der Nachbarschaft
     var m = -99;
     for(var a=0;a<9;a++){
-      var g = gh(x + ((a%3)-1)*1.7, y + (Math.floor(a/3)-1)*1.7);
+      var px2 = x + ((a%3)-1)*1.7, py2 = y + (Math.floor(a/3)-1)*1.7;
+      var g = withProps ? topAtWorld(px2,py2) : gh(px2,py2);
       if(g !== null && g > m) m = g;
     }
     return m;
   }
   function updateCamera(t){
     var tt = ((t/T_LOOP) % 1 + 1) % 1;
-    var K = 3, A = 0.16;                     // leichtes Atmen zusätzlich zum Profil
+    var K = 3, A = 0.12;                     // leichtes Atmen zusätzlich zum Profil
     var d = ARC.len * (tt + (A/(2*Math.PI*K))*Math.sin(2*Math.PI*K*tt));
     var u = uAtDist(d);
     camU = u;
     var eye = splineAt(CAM_PTS, u), at = splineAt(LOOK_PTS, u);
     eye[0] += Math.sin(t*1.35)*0.075; eye[1] += Math.cos(t*1.12)*0.075; eye[2] += Math.sin(t*1.9)*0.055;
-    var c = clearAt(eye[0], eye[1]);
-    if(c > -50 && eye[2] > SLAB + 0.5 && eye[2] < c + 3.4) eye[2] = c + 3.4;
+    // Sperrzone um die Krone des großen Baums
+    var gtz = gh(0,0);
+    if(gtz !== null){
+      var td = Math.hypot(eye[0], eye[1]);
+      if(td < 8.8 && eye[2] > gtz + 7.0){
+        var fz = 8.8 / (td || 0.001);
+        eye[0] *= fz; eye[1] *= fz;
+      }
+    }
+    var inLane = segDist(eye[0]+CX, eye[1]+CY, ST[0][0],ST[0][1], ST[1][0],ST[1][1]).d < 3.2;
+    var c = clearAt(eye[0], eye[1], false);
+    var minAbove = inLane ? 1.25 : 3.4;
+    if(c > -50 && eye[2] > SLAB + 0.5 && eye[2] < c + minAbove) eye[2] = c + minAbove;
     var rad = Math.hypot(eye[0], eye[1]);
     if(eye[2] < SLAB + 0.5 && rad < RAD + 2.0 && eye[2] > -13.5) eye[2] = -13.5;
     // Neigung in Kurven
@@ -1367,8 +1658,8 @@
      Wiedergabe
      ========================================================= */
   var REGIONS = [
-    [0.000,'Anflug'],[0.125,'Windmühle'],[0.250,'Über dem Dorf'],[0.375,'Das Gehöft'],
-    [0.470,'Lagerfeuer'],[0.560,'Der See'],[0.660,'Wasserfall'],[0.780,'Um die Insel']
+    [0.000,'Anflug'],[0.140,'Durch die Gasse'],[0.400,'Marktplatz'],[0.480,'Der große Baum'],
+    [0.600,'Der See'],[0.700,'Wasserfall'],[0.780,'Um die Insel']
   ];
   var elCap = document.getElementById('caption');
   var elTitle = document.getElementById('titlecard');
