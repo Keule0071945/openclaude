@@ -1408,7 +1408,7 @@ const STAGES = [
   { name:'SERAPHINE', epithet:'DIE ERZENGELIN',    bg:'heaven', hp:12500, minion:'imp',
     tint:'#f2c14e',
     roster:[['imp',4],['auge',3],['knolle',2],['motte',2]] },
-  { name:'ABADDON',   epithet:'DIE APOKALYPSE',    bg:'hell',   hp:26000, minion:'skull',
+  { name:'ABADDON',   epithet:'DIE APOKALYPSE',    bg:'hell',   hp:34000, minion:'skull',
     tint:'#c8342f',
     roster:[['skull',4],['auge',3],['waechter',2],['knolle',2]] },
 ];
@@ -1612,7 +1612,7 @@ function shoot(x, y, ang, opt){
     vx: Math.cos(ang)*opt.spd, vy: Math.sin(ang)*opt.spd,
     r: opt.r, dmg: opt.dmg, pierce: opt.pierce, life: opt.life,
     col: opt.col, kind: opt.kind, hitList: [], ang, trail: opt.trail || 0,
-    ignite: opt.ignite || false, boomerang: opt.boomerang || false,
+    ignite: opt.ignite || false, boomerang: opt.boomerang || false, gewendet: false,
     fork: opt.fork || 0, reap: opt.reap || false, born: 0, spin: rnd(0, TAU),
   });
 }
@@ -1635,18 +1635,24 @@ function fireWeapon(){
     }
     p.fireT = 0.70 * s.cd;
   } else if (p.base.weapon === 'blades'){
-    const n = 4 + s.proj;
-    for (let i = 0; i < n; i++){
-      shoot(p.x, p.y, aim + i*TAU/n, {
-        spd:135, r:3, dmg:(evo ? 15 : 12)*s.dmg,
-        pierce: evo ? 99 : 2 + s.pierce, life: evo ? 2.4 : 1.5,
-        col:'#c3ccdd', kind:'blade', boomerang:evo });
-    }
+    // Die Salve rundum bleibt vier Klingen gross und haelt die Diener weg.
+    // Mehrfachschuss legt aber gezielte Klingen obendrauf, statt den Kreis
+    // feiner zu teilen — sonst traefe von acht Klingen weiter nur eine den
+    // Boss, und genau daran ist der Ritter im Bossrush verhungert.
+    const klinge = a => shoot(p.x, p.y, a, {
+      spd:135, r:3, dmg:(evo ? 17 : 14)*s.dmg,
+      pierce: evo ? 99 : 2 + s.pierce, life: evo ? 2.4 : 1.5,
+      col:'#c3ccdd', kind:'blade', boomerang:evo });
+    for (let i = 0; i < 4; i++) klinge(aim + i*TAU/4);
+    for (let i = 0; i < s.proj; i++) klinge(aim + (i - (s.proj-1)/2)*0.22);
     p.fireT = 0.68 * s.cd;
   } else if (p.base.weapon === 'scythe'){
     const n = 1 + s.proj;
     for (let i = 0; i < n; i++){
-      shoot(p.x, p.y, aim + (i - (n-1)/2)*0.42, {
+      // Enger Faecher: die Sicheln sind acht Pixel breit und ueberlappen sich
+      // dadurch zu einer Wand. Bei 0.42 fuhren alle ausser der mittleren am
+      // Boss vorbei — Mehrfachschuss war fuer den Revenant wertlos.
+      shoot(p.x, p.y, aim + (i - (n-1)/2)*0.17, {
         spd:118, r:8, dmg:(evo ? 24 : 19)*s.dmg,
         pierce: 99, life: evo ? 2.6 : 1.5,
         col:'#66f5c8', kind:'scythe', boomerang:evo, reap:evo });
@@ -3503,7 +3509,10 @@ function update(dt){
         b.vy = lerp(b.vy, Math.sin(a)*sp, 3.5*dt);
         if (dist2(b.x, b.y, p.x, p.y) < 36) b.life = 0;
       } else { b.vx *= (1 - 1.1*dt); b.vy *= (1 - 1.1*dt); }
-      b.hitList.length = 0;                  // darf auf dem Rueckweg erneut treffen
+      // Genau einmal, beim Wenden: der Rueckweg darf dieselben Ziele treffen.
+      // Jeden Frame zu leeren hiess, ein Geschoss im Boss trifft 60-mal je
+      // Sekunde — die beiden Bumerang-Evolutionen waren dadurch absurd stark.
+      if (back && !b.gewendet){ b.gewendet = true; b.hitList.length = 0; }
     }
     b.x += b.vx*dt; b.y += b.vy*dt; b.life -= dt;
     if (b.trail && Math.random() < 0.6)

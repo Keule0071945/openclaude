@@ -34,10 +34,16 @@ Die Waffen zielen und feuern automatisch auf den nächstgelegenen Gegner.
 
 | Held | Leben | Tempo | Waffe | Evolution |
 |---|---|---|---|---|
-| **Gockel** — das magische Huhn | 100 | mittel | Feuerstab: explodierende Kugeln | **Infernostab** — Treffer entzünden brennenden Boden |
-| **Ritter** — vergessene Wache | 145 | langsam | Kreuzklingen: Salve rundum | **Klingensturm** — Klingen kehren zurück, unbegrenzter Durchschlag |
-| **Magierin** — Sturmruferin | 78 | schnell | Blitzlanze: schnelle Bolzen | **Sturmlanze** — Bolzen gabeln sich bei jedem Treffer |
-| **Revenant** — der Wiederkehrer *(400 Gold)* | 112 | schnell | Sensenwelle: breite Sichel, durchschlägt Reihen | **Seelenernte** — Sicheln kehren zurück und ernten Extra-Splitter |
+| **Gockel** — das magische Huhn | 132 | mittel | Feuerstab: explodierende Kugeln | **Infernostab** — Treffer entzünden brennenden Boden |
+| **Ritter** — vergessene Wache | 184 | langsam | Kreuzklingen: Salve rundum plus gezielte Klingen | **Klingensturm** — Klingen kehren zurück, unbegrenzter Durchschlag |
+| **Magierin** — Sturmruferin | 104 | schnell | Blitzlanze: schnelle Bolzen | **Sturmlanze** — Bolzen gabeln sich bei jedem Treffer |
+| **Revenant** — der Wiederkehrer *(400 Gold)* | 128 | schnell | Sensenwelle: breite Sichel, durchschlägt Reihen | **Seelenernte** — Sicheln kehren zurück und ernten Extra-Splitter |
+
+Die Waffen unterscheiden sich vor allem in der **Entfernung**. Der Gockel trifft
+auf kurze Distanz am härtesten und fällt auf weite Sicht deutlich ab — er muss
+ran. Die Magierin trägt auf jede Entfernung gleich weit, bezahlt das aber mit
+dem dünnsten Lebensbalken. Ritter und Revenant liegen dazwischen und halten
+mehr aus.
 
 Eine Evolution zündet, sobald das passende Upgrade-Paar beisammen ist — etwa
 Mehrfachschuss auf Maximum plus Schadenskern Stufe 3 beim Gockel. Sie kostet
