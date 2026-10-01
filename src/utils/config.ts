@@ -551,6 +551,11 @@ export type GlobalConfig = {
   // Fullscreen in-app text selection behavior
   copyOnSelect?: boolean // Auto-copy to clipboard on mouse-up (undefined → true; lets cmd+c "work" via no-op)
 
+  // One-row status notch at the top of the fullscreen layout, showing
+  // whether the session is working, waiting on you, or idle (default: true).
+  // Only painted in fullscreen mode — see statusNotchShouldDisplay.
+  statusNotchEnabled?: boolean
+
   // Flicker-free fullscreen mode (equivalent to CLAUDE_CODE_NO_FLICKER=1 env var).
   // When true, enables alt-screen + virtualized scroll for all users.
   // Env var still takes precedence: =0 always off, =1 always on.
@@ -745,6 +750,7 @@ function createDefaultGlobalConfig(): GlobalConfig {
     fileCheckpointingEnabled: true,
     terminalProgressBarEnabled: true,
     defaultStatusLineEnabled: true,
+    statusNotchEnabled: true,
     cachedStatsigGates: {},
     cachedDynamicConfigs: {},
     cachedGrowthBookFeatures: {},
@@ -805,6 +811,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'copyFullResponse',
   'copyOnSelect',
   'flickerFreeMode',
+  'statusNotchEnabled',
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',
   'defaultStatusLineEnabled',
