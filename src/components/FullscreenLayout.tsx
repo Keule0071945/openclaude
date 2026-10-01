@@ -447,7 +447,7 @@ export function FullscreenLayout(t0) {
   }
   let t8;
   if ($[42] !== bottom || $[43] !== modal || $[44] !== overlay || $[45] !== scrollable) {
-    t8 = <>{scrollable}{bottom}{overlay}{modal}</>;
+    t8 = <><StatusNotch />{scrollable}{bottom}{overlay}{modal}</>;
     $[42] = bottom;
     $[43] = modal;
     $[44] = overlay;

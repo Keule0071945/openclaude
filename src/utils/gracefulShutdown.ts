@@ -49,6 +49,7 @@ import {
 import { isEnvTruthy } from './envUtils.js'
 import { getCurrentSessionTitle, sessionIdExists } from './sessionStorage.js'
 import { sleep } from './sleep.js'
+import { releaseTopRowSync } from './topRow.js'
 import { profileReport } from './startupProfiler.js'
 
 /**
@@ -74,6 +75,9 @@ function cleanupTerminalModes(skipUnmount: boolean = false): void {
     // events; doing it now (not after unmount) gives that time while
     // we're busy unmounting. Otherwise events arrive during cooked-mode
     // cleanup and either echo to the screen or leak to the shell.
+    // Hand back the status notch's reserved top row first — a leaked
+    // DECSTBM region would confine the user's shell after we exit.
+    releaseTopRowSync()
     writeSync(1, DISABLE_MOUSE_TRACKING)
     // Exit alt screen FIRST so printResumeHint() (and all sequences below)
     // land on the main buffer.

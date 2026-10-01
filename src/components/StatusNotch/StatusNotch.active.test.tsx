@@ -1,21 +1,19 @@
 import { PassThrough } from 'node:stream'
 import { afterEach, beforeEach, expect, test } from 'bun:test'
 import { createRoot } from '../../ink.js'
-import { DEFAULT_GLOBAL_CONFIG } from '../../utils/config.js'
 import {
   getSessionStatus,
   resetSessionStatus,
   setSessionStatus,
 } from '../../state/sessionStatusStore.js'
+import { DEFAULT_GLOBAL_CONFIG } from '../../utils/config.js'
+import { isTopRowReserved, markTopRowReserved } from '../../utils/topRow.js'
 import { StatusNotch, statusNotchShouldDisplay } from './index.js'
 import { notchIntervalMs } from './notchFrame.js'
 
 const originalNoFlicker = process.env.CLAUDE_CODE_NO_FLICKER
 
 beforeEach(() => {
-  // The notch is fullscreen-only; force the mode on rather than depending
-  // on whatever the ambient config says.
-  process.env.CLAUDE_CODE_NO_FLICKER = '1'
   resetSessionStatus()
 })
 
@@ -23,11 +21,20 @@ afterEach(() => {
   if (originalNoFlicker === undefined) delete process.env.CLAUDE_CODE_NO_FLICKER
   else process.env.CLAUDE_CODE_NO_FLICKER = originalNoFlicker
   resetSessionStatus()
+  markTopRowReserved(false)
 })
 
-async function paint(columns = 80): Promise<string> {
+/**
+ * Mount the notch against a fake terminal. `isTTY` is set on the stream
+ * because Ink and the display gate both look at it, and bun's own stdout
+ * is not a TTY under test.
+ */
+async function paint(
+  { fullscreen = true, columns = 80, rows = 40 } = {},
+): Promise<string> {
+  process.env.CLAUDE_CODE_NO_FLICKER = fullscreen ? '1' : '0'
   const stdout = new PassThrough()
-  ;(stdout as unknown as { columns: number }).columns = columns
+  Object.assign(stdout, { columns, rows, isTTY: true })
   let output = ''
   stdout.on('data', chunk => {
     output += String(chunk)
@@ -37,30 +44,62 @@ async function paint(columns = 80): Promise<string> {
     patchConsole: false,
   })
   root.render(<StatusNotch />)
-  await Bun.sleep(40)
+  await Bun.sleep(60)
   root.unmount()
+  await Bun.sleep(10)
   return output
 }
 
-test('paints the working state with its elapsed timer', async () => {
+/**
+ * Ink emits runs of spaces as cursor-forward (CSI n C) rather than literal
+ * blanks, so put them back before asserting on what the user would read.
+ */
+function visible(output: string): string {
+  return output.replace(/\x1b\[(\d+)C/g, (_, n) => ' '.repeat(Number(n)))
+}
+
+test('fullscreen: paints the working state with its elapsed timer', async () => {
   setSessionStatus('busy', undefined, Date.now() - 64_000)
-  const output = await paint()
-  expect(output).toContain('WORKING')
-  expect(output).toContain('1:04')
+  const output = visible(await paint())
+  expect(output).toContain('WORKING  1:04')
 })
 
-test('paints what it is waiting for', async () => {
+test('fullscreen: paints what it is waiting for', async () => {
   setSessionStatus('waiting', 'approve Bash', Date.now())
-  const output = await paint()
+  const output = visible(await paint())
   expect(output).toContain('NEEDS YOU')
   expect(output).toContain('approve Bash')
 })
 
-test('paints the settled ready state', async () => {
-  setSessionStatus('busy', undefined, Date.now() - 10_000)
+test('fullscreen: paints the settled ready state', async () => {
   setSessionStatus('idle', undefined, Date.now() - 10_000)
   const output = await paint()
   expect(output).toContain('READY')
+})
+
+test('inline: reserves the top row and paints into it', async () => {
+  setSessionStatus('busy', undefined, Date.now() - 5_000)
+  const output = await paint({ fullscreen: false, rows: 40 })
+  // Scrolling region shrunk to rows 2..40, leaving row 1 frozen.
+  expect(output).toContain('\x1b[2;40r')
+  // Painted at row 1, between a cursor save and restore.
+  expect(output).toContain('\x1b[1;1H')
+  expect(output).toContain('WORKING')
+})
+
+test('inline: hands the row back on unmount', async () => {
+  setSessionStatus('busy', undefined, Date.now())
+  const output = await paint({ fullscreen: false })
+  // CSI r — full-screen scrolling region restored.
+  expect(output).toContain('\x1b[r')
+  expect(isTopRowReserved()).toBe(false)
+})
+
+test('inline: a terminal too short to spare a row is left alone', async () => {
+  setSessionStatus('busy', undefined, Date.now())
+  const output = await paint({ fullscreen: false, rows: 3 })
+  expect(output).not.toContain('\x1b[2;3r')
+  expect(isTopRowReserved()).toBe(false)
 })
 
 test('a settled idle session asks for no animation frames', () => {
@@ -70,14 +109,6 @@ test('a settled idle session asks for no animation frames', () => {
   setSessionStatus('idle', undefined, Date.now() - 10_000)
   const { kind, since } = getSessionStatus()
   expect(notchIntervalMs(kind, Date.now() - since)).toBeNull()
-})
-
-test('paints nothing outside fullscreen mode', async () => {
-  process.env.CLAUDE_CODE_NO_FLICKER = '0'
-  expect(statusNotchShouldDisplay()).toBe(false)
-  setSessionStatus('busy', undefined, Date.now())
-  const output = await paint()
-  expect(output).not.toContain('WORKING')
 })
 
 test('respects the config toggle', () => {

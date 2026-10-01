@@ -6,6 +6,7 @@ import React, { type ReactNode } from 'react';
 import type { FiberRoot } from 'react-reconciler';
 import { LegacyRoot } from 'react-reconciler/constants.js';
 import { onExit } from 'signal-exit';
+import { releaseTopRowSync } from '../utils/topRow.js';
 import { flushInteractionTime } from 'src/bootstrap/state.js';
 import { getYogaCounters } from 'src/native-ts/yoga-layout/index.js';
 import { logForDebugging } from 'src/utils/debug.js';
@@ -1510,6 +1511,10 @@ export default class Ink {
         // Exit alt screen FIRST so other cleanup sequences go to the main screen.
         writeSync(1, EXIT_ALT_SCREEN);
       }
+      // Hand back the status notch's reserved top row before anything else
+      // paints: a leaked DECSTBM region would confine the user's shell to
+      // part of the screen after we exit. No-op when nothing reserved it.
+      releaseTopRowSync();
       // Disable mouse tracking — unconditional because altScreenActive can be
       // stale if AlternateScreen's unmount (which flips the flag) raced a
       // blocked event loop + SIGINT. No-op if tracking was never enabled.

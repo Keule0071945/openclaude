@@ -205,6 +205,24 @@ function withShimmer(
   return runs
 }
 
+/** Resolve a frame's segments to an ANSI string for the inline top row. */
+export function segmentsToAnsi(
+  segments: NotchSegment[],
+  paint: (
+    c: keyof Theme | undefined,
+    type: 'foreground' | 'background',
+  ) => (text: string) => string,
+): string {
+  return segments
+    .map(segment => {
+      // Foreground inside, background outside — the same nesting order
+      // applyTextStyles uses, so chalk's resets line up with Ink's output.
+      const withFg = paint(segment.color, 'foreground')(segment.text)
+      return paint(segment.backgroundColor, 'background')(withFg)
+    })
+    .join('')
+}
+
 /**
  * Build the whole row: rail, pill, rail. Returns an empty frame when the
  * terminal is too narrow to carry one without eating the transcript.
