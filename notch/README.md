@@ -17,11 +17,27 @@ Wort zu entziffern.
 
 ## Installieren
 
-Du brauchst **nichts zu installieren** — WinForms und PowerShell sind auf
-jedem Windows 10/11 schon da.
+Du brauchst **nichts vorher zu installieren** — WinForms und PowerShell sind
+auf jedem Windows 10/11 schon da.
 
-1. Diesen Ordner auf deinen Windows-Rechner kopieren.
-2. `install.cmd` doppelklicken.
+**Eine Zeile in PowerShell:**
+
+```powershell
+irm https://raw.githubusercontent.com/Keule0071945/openclaude/claude/pixel-art-boss-game-ew4o9e/notch/bootstrap.ps1 | iex
+```
+
+Das lädt alle Teile direkt nach `%USERPROFILE%\.claude-notch`, trägt die
+Hooks ein, schaltet den Autostart an, startet das Overlay und lässt zum
+Schluss die Selbstprüfung laufen. Nichts landet im Downloads-Ordner, und
+nichts kommt mit der Windows-Sperre an — die Dateien werden geschrieben,
+nicht entpackt.
+
+> Die Zeile führt ein Skript aus dem Netz aus. Es ist dein eigenes Repo und
+> du kannst `bootstrap.ps1` vorher lesen — aber prüf das lieber einmal,
+> statt es mir zu glauben.
+
+**Oder von Hand:** Ordner auf den Windows-Rechner kopieren, `install.cmd`
+doppelklicken.
 
 Das war's. Der Installer
 
@@ -132,6 +148,7 @@ Einträge; `%USERPROFILE%` darin durch den echten Pfad ersetzen.
 | `report.cmd` | was die Hooks aufrufen |
 | `install-hooks.ps1` | der Eingriff in `settings.json` |
 | `install.cmd` | alles zusammen |
+| `bootstrap.ps1` | die Ein-Zeilen-Installation aus dem Netz |
 | `start-notch.vbs` / `stop-notch.cmd` | starten ohne Konsolenfenster, beenden |
 | `autostart.ps1` + die beiden `.cmd` | Verknüpfung im Autostart-Ordner an/aus |
 | `doctor.ps1` / `doctor.cmd` | die Selbstprüfung |
@@ -149,6 +166,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File frame.tests.ps1
 ## Grenzen, ehrlich
 
 - **Nur Windows.** macOS und Linux bräuchten je eine eigene Umsetzung.
+- **Ein ZIP von GitHub bringt LF-Zeilenenden mit.** Git selbst macht beim
+  Auschecken CRLF daraus (`.gitattributes`), ein ZIP-Download nicht — und
+  eine `.cmd` mit LF verwirrt `cmd.exe`, eine `.vbs` mit LF scheitert ganz.
+  `bootstrap.ps1` repariert das nach dem Laden; bei einem ZIP-Download musst
+  du es selbst wissen. Nimm die eine Zeile.
 - **Nur der Hauptbildschirm.** Bei mehreren Monitoren sitzt der Streifen oben
   auf dem primären.
 - **Vollbild-Apps** (Spiele, manche Videoplayer) liegen über allem, auch über
