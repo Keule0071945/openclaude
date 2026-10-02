@@ -11,6 +11,7 @@ import { Box, Text } from '../ink.js';
 import type { Message } from '../types/message.js';
 import { openBrowser, openPath } from '../utils/browser.js';
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js';
+import { StatusNotch } from './StatusNotch/index.js';
 import { plural } from '../utils/stringUtils.js';
 import { isNullRenderingAttachment } from './messages/nullRenderingAttachments.js';
 import PromptInputFooterSuggestions from './PromptInput/PromptInputFooterSuggestions.js';
@@ -434,7 +435,7 @@ export function FullscreenLayout(t0) {
     }
     let t19;
     if ($[38] !== t14 || $[39] !== t17 || $[40] !== t18) {
-      t19 = <PromptOverlayProvider>{t14}{t17}{t18}</PromptOverlayProvider>;
+      t19 = <PromptOverlayProvider><StatusNotch />{t14}{t17}{t18}</PromptOverlayProvider>;
       $[38] = t14;
       $[39] = t17;
       $[40] = t18;
@@ -446,7 +447,7 @@ export function FullscreenLayout(t0) {
   }
   let t8;
   if ($[42] !== bottom || $[43] !== modal || $[44] !== overlay || $[45] !== scrollable) {
-    t8 = <>{scrollable}{bottom}{overlay}{modal}</>;
+    t8 = <><StatusNotch />{scrollable}{bottom}{overlay}{modal}</>;
     $[42] = bottom;
     $[43] = modal;
     $[44] = overlay;
