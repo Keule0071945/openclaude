@@ -108,6 +108,17 @@ Write-Host 'Turning on autostart' -ForegroundColor Cyan
 
 if (-not $NoStart) {
   Write-Host ''
+  # Stop whatever is already up: re-running this must replace the old
+  # overlay, not leave two of them stacked on the same row of pixels.
+  $oldPid = Join-Path $Dest 'overlay.pid'
+  if (Test-Path $oldPid) {
+    try {
+      $was = (Get-Content $oldPid -Raw).Trim()
+      Stop-Process -Id $was -Force -ErrorAction SilentlyContinue
+      Remove-Item $oldPid -Force -ErrorAction SilentlyContinue
+      Write-Host "Stopped the previous overlay (pid $was)" -ForegroundColor DarkGray
+    } catch { }
+  }
   Write-Host 'Starting the overlay' -ForegroundColor Cyan
   & (Join-Path $env:WINDIR 'System32\wscript.exe') (Join-Path $Dest 'start-notch.vbs')
   Start-Sleep -Seconds 2
