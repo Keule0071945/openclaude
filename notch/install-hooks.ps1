@@ -1,4 +1,4 @@
-﻿<#
+<#
   Merges the Claude Notch hooks into %USERPROFILE%\.claude\settings.json.
 
   Three rules, because this edits a file the user owns and may have put
@@ -28,7 +28,7 @@ $Wanted = @(
 )
 
 # ConvertFrom-Json hands back PSCustomObjects, which cannot take new keys.
-# Walk them into hashtables, keeping every key — including ones this script
+# Walk them into hashtables, keeping every key -- including ones this script
 # knows nothing about, which must survive untouched.
 function ConvertTo-Hashtable {
   param($InputObject)

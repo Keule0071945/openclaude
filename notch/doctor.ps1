@@ -1,4 +1,4 @@
-﻿<#
+<#
   Why is there no notch on screen?
 
   Checks the things that actually go wrong, in the order they go wrong, and

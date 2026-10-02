@@ -1,4 +1,4 @@
-﻿<#
+<#
   Claude Notch -- a thin always-on-top strip at the top of the screen that
   says whether Claude is working or waiting for you, whatever app is in
   front.

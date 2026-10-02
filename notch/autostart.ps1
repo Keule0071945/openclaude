@@ -1,4 +1,4 @@
-﻿<#
+<#
   Adds or removes a Startup shortcut, so the notch comes up with Windows.
 
   A shortcut in shell:startup rather than a Run registry key or a scheduled

@@ -1,4 +1,4 @@
-﻿<#
+<#
   The notch's visual language, as pure functions of (status, clock).
 
   Kept apart from notch.ps1 on purpose: this file loads without WinForms,

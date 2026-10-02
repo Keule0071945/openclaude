@@ -1,4 +1,4 @@
-﻿<#
+<#
   Tests for the notch's visual language. Runs anywhere PowerShell runs,
   because frame.ps1 holds no window code.
 
@@ -73,6 +73,30 @@ foreach ($state in @('busy','waiting','idle')) {
 }
 
 Remove-Item -Recurse -Force $tmp
+
+Write-Host "Every script stays pipe-safe"
+# A BOM at the front of a script fetched with irm and piped to iex stops
+# the parser seeing the leading <# as a comment opener: the header is then
+# read as code, one apostrophe inside it opens a string that never closes,
+# and the error surfaces a hundred lines later. That shipped once. These
+# two checks are what stop it shipping again.
+foreach ($script in (Get-ChildItem -Path $PSScriptRoot -Filter '*.ps1')) {
+  $bytes = [System.IO.File]::ReadAllBytes($script.FullName)
+  $hasBom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+  Check "$($script.Name) has no BOM" (-not $hasBom)
+  $nonAscii = @($bytes | Where-Object { $_ -gt 127 }).Count
+  Check "$($script.Name) is plain ASCII" ($nonAscii -eq 0) "saw $nonAscii byte(s)"
+}
+
+# The real test of the install one-liner: parse the text the way iex will.
+$bootstrap = Join-Path $PSScriptRoot 'bootstrap.ps1'
+if (Test-Path $bootstrap) {
+  $errors = $null
+  [void][System.Management.Automation.Language.Parser]::ParseInput(
+    (Get-Content $bootstrap -Raw), [ref]$null, [ref]$errors)
+  Check 'bootstrap.ps1 parses the way iex parses it' ($errors.Count -eq 0) ($errors | Select-Object -First 1 | ForEach-Object { $_.Message })
+}
+
 Write-Host ""
 Write-Host "$script:Pass passed, $script:Fail failed"
 if ($script:Fail -gt 0) { exit 1 }

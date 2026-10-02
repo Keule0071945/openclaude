@@ -1,13 +1,13 @@
-﻿<#
+<#
   Claude Notch -- download and install, in one line.
 
       irm https://raw.githubusercontent.com/Keule0071945/openclaude/<ref>/notch/bootstrap.ps1 | iex
 
   Fetches every piece straight into %USERPROFILE%\.claude-notch, wires up
   the Claude Code hooks, turns on autostart and starts the overlay. Nothing
-  is left in your Downloads folder and nothing arrives carrying Windows'
-  "this came from the internet" mark, because each file is written by this
-  script rather than unpacked from a download.
+  is left in your Downloads folder, and nothing arrives carrying the mark
+  Windows puts on downloads, because each file is written by this script
+  rather than unpacked from an archive.
 
   -Ref     which branch or commit to take the files from
   -NoStart install everything but do not start the overlay
@@ -50,18 +50,20 @@ Write-Host ''
   misread its own lines and a .vbs with LF fails outright, so each file is
   put back the way Windows needs it after it lands.
 
-  The .ps1 files also want a BOM: without one, Windows PowerShell 5.1
-  reads them as ANSI and mangles the box-drawing characters.
+  No BOM is written: every script here is plain ASCII, so a BOM buys
+  nothing -- and it breaks `irm | iex`, because the parser then fails to
+  see the leading <# as a comment opener and reads the whole header as
+  code. That is what made the first version of this file unusable.
 #>
 function Repair-WindowsText {
-  param([string]$Path, [bool]$WantBom)
+  param([string]$Path)
   $bytes = [System.IO.File]::ReadAllBytes($Path)
   if ($bytes.Length -eq 0) { return }
   $text = [System.Text.Encoding]::UTF8.GetString($bytes)
   if ($text.Length -gt 0 -and $text[0] -eq [char]0xFEFF) { $text = $text.Substring(1) }
   $text = $text -replace "`r`n", "`n"
   $text = $text -replace "`n", "`r`n"
-  $encoding = New-Object System.Text.UTF8Encoding $WantBom
+  $encoding = New-Object System.Text.UTF8Encoding $false
   [System.IO.File]::WriteAllText($Path, $text, $encoding)
 }
 
@@ -77,7 +79,7 @@ foreach ($file in $Files) {
     # box-drawing characters) and the .cmd files need their CRLF endings.
     $target = Join-Path $Dest $file
     Invoke-WebRequest -Uri $url -UseBasicParsing -OutFile $target -ErrorAction Stop
-    Repair-WindowsText -Path $target -WantBom ($file -like '*.ps1')
+    Repair-WindowsText -Path $target
     Write-Host ("  got  {0}" -f $file) -ForegroundColor Green
   } catch {
     $failed += $file
