@@ -1,40 +1,42 @@
 # Claude Island für Windows
 
-Ein kleines **Blockmonster**, das oben mittig über allen Fenstern hängt und dir jederzeit zeigt,
-was **Claude Code** gerade macht und wie viel von deinem Nutzungslimit noch übrig ist.
-Fährst du mit der Maus darüber, geht das Maul auf: Dort kannst du eine PDF hineinwerfen und
-Claude Fragen stellen oder Befehle für deine Projekte geben.
+**Clawd**, das Claude-Code-Maskottchen, sitzt in einer tiefschwarzen Dynamic Island oben mittig
+über allen Fenstern und lässt die Beine heraushängen. Er spielt dir vor, was Claude Code gerade
+macht, und rechts siehst du jederzeit dein Nutzungslimit. Fährst du mit der Maus darüber, öffnet
+sich die Island: Dort kannst du eine PDF hineinziehen und Claude Fragen stellen oder Befehle für
+deine Projekte geben.
 
-## Das Monster in Ruhe
+## Clawd in Ruhe
 
-| Augen | Bedeutung |
+| Clawd | Bedeutung |
 | --- | --- |
-| grün, blinzeln, schauen sich um | **Bereit** – Claude wartet auf deinen nächsten Befehl |
-| orange, scannen hin und her, die Zähne kauen | **Arbeitet** (mit Laufzeit, Text schimmert) |
-| bernstein, groß, das Monster wackelt | **Braucht dich** – z. B. eine Freigabe für Bash |
-| ^ ^ und ein Hüpfer mit grünem Leuchten | **Fertig** |
-| X X, rotes Leuchten | **Fehler** (z. B. Rate-Limit) |
-| geschlossen | **Schläft** – keine Claude-Code-Sitzung offen |
+| blinzelt, schaut sich um | **Bereit** – Claude wartet auf deinen nächsten Befehl |
+| tippt mit den Ärmchen, trippelt, liest hin und her | **Arbeitet** (mit Laufzeit, Text schimmert) |
+| winkt und hüpft, die Island wackelt | **Braucht dich** – z. B. eine Freigabe für Bash |
+| Freudensprung mit ^ ^-Augen, grünes Leuchten | **Fertig** |
+| Augen zu, dunkler, rotes Leuchten | **Fehler** (z. B. Rate-Limit) |
+| schläft, kleine z steigen auf | keine Claude-Code-Sitzung offen |
 
-Links steht der Status in Worten, rechts dein **5-Stunden-Limit** als kleiner Balken
-(grün, ab 60 % gelb, ab 85 % rot).
+Links steht der Status in Worten mit leuchtendem Punkt, rechts dein **5-Stunden-Limit** als Ring
+(grün, ab 60 % gelb, ab 85 % rot). Clawd ist pixelgenau aus dem Logo nachgebaut, das Claude Code
+beim Start zeigt.
 
-## Maul auf (Maus drüber)
+## Island öffnen (Maus drüber)
 
 - **Nutzungslimit:** 5 Stunden und Woche, jeweils mit Reset-Zeit.
 - **Sitzungen:** Projekt, Modell, aktuelle Tätigkeit („Bearbeitet · App.tsx“), Laufzeit und
   Kontext-Füllstand.
-- **Datei reinwerfen:** PDF oder jede andere Datei ins Maul ziehen. Dann eine Frage tippen und
+- **Datei reinziehen:** PDF oder jede andere Datei auf die Island ziehen. Clawd hebt die Arme und fängt sie. Dann eine Frage tippen und
   **Enter** drücken (oder „Fragen“). Claude liest die Datei im gewählten Projektordner und
-  antwortet direkt im Maul.
+  antwortet direkt in der Island.
 - **Befehle:** „Ausführen“ (oder **Strg+Enter**) erlaubt Claude, Dateien im Projekt zu
   bearbeiten. „Im Terminal weiter“ öffnet genau diese Sitzung in Claude Code.
   „Terminal“ startet Claude Code im Projektordner.
-- **Esc** oder „Schließen“ klappt das Maul wieder zu.
+- **Esc** oder „Schließen“ schließt die Island wieder.
 
 Weitere Eigenschaften:
 
-- **Stört nicht:** Solange das Maul zu ist, gehen Klicks durch das Monster hindurch. Bei
+- **Stört nicht:** Solange die Island zu ist, gehen Klicks durch sie hindurch. Bei
   Vollbild (Video, Spiel) blendet es sich aus.
 - **Federphysik:** Größe und Form ändern sich mit einer echten gedämpften Feder.
 - **Mehrere Sitzungen:** Jedes Claude-Code-Fenster meldet sich.
@@ -49,7 +51,7 @@ Weitere Eigenschaften:
    irm https://raw.githubusercontent.com/Keule0071945/openclaude/claude/flat-notch-status-indicator-x3h3ds/tools/claude-island-windows/get.ps1 | iex
    ```
 
-3. Das Monster erscheint oben mittig und führt einmal alles vor, auch das offene Maul.
+3. Clawd erscheint oben mittig und spielt einmal alles vor, auch die geöffnete Island.
 4. Starte offene Claude-Code-Sitzungen einmal neu, damit Hooks und Statuszeile greifen.
 
 Alternativ kannst du den Ordner herunterladen (**Code → Download ZIP**) und `install.cmd`
