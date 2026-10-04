@@ -13,13 +13,13 @@ New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 
 Write-Host ''
 Write-Host '  Lade Claude Island herunter ...' -ForegroundColor White
-foreach ($f in 'ClaudeIsland.exe', 'ClaudeIsland.cs', 'install.ps1', 'uninstall.ps1', 'uninstall.cmd') {
+foreach ($f in 'ClaudeIsland.exe', 'Core.cs', 'Island.cs', 'Runner.cs', 'install.ps1', 'uninstall.ps1', 'uninstall.cmd') {
     Invoke-WebRequest -UseBasicParsing -Uri "$base/$f" -OutFile (Join-Path $tmp $f)
 }
 
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $tmp 'install.ps1')
 
 # Deinstaller fuer spaeter neben das Programm legen
-$target = Join-Path $env:LOCALAPPDATA 'ClaudeIsland'
+$target = Join-Path $env:USERPROFILE '.claude\claude-island'
 Copy-Item (Join-Path $tmp 'uninstall.ps1'), (Join-Path $tmp 'uninstall.cmd') $target -Force -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue

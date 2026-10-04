@@ -1,6 +1,6 @@
 ﻿# Claude Island - Installer
-# Baut die Island aus dem Quellcode (mit dem in Windows enthaltenen C#-Compiler),
-# traegt die Claude-Code-Hooks ein, legt einen Autostart-Eintrag an und startet sie.
+# Installiert die Island, traegt Hooks und Statuszeile in Claude Code ein (fuer
+# Status und Nutzungslimit), legt einen Autostart-Eintrag an und startet sie.
 #
 #   Rechtsklick > "Mit PowerShell ausfuehren"   oder   install.cmd doppelklicken
 
@@ -16,8 +16,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$target = Join-Path $env:LOCALAPPDATA 'ClaudeIsland'
+# Programm unter ~/.claude, damit die Statuszeile es als ~/.claude/... aufrufen
+# kann (funktioniert in Git Bash und PowerShell, auch mit Leerzeichen im Namen).
+$target = Join-Path $env:USERPROFILE '.claude\claude-island'
 $exe = Join-Path $target 'ClaudeIsland.exe'
+$statusCommand = '~/.claude/claude-island/ClaudeIsland.exe statusline'
+$dataDir = Join-Path $env:LOCALAPPDATA 'ClaudeIsland'
+$chainFile = Join-Path $dataDir 'statusline-previous.txt'
 
 function Step($text) { Write-Host "  > $text" -ForegroundColor Cyan }
 
@@ -28,6 +33,10 @@ Write-Host ''
 # 1) Laufende Instanz beenden, damit die EXE ersetzt werden kann
 Get-Process -Name 'ClaudeIsland' -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 300
+# Aeltere Version lag direkt in %LOCALAPPDATA%\ClaudeIsland
+$legacyExe = Join-Path $dataDir 'ClaudeIsland.exe'
+if (Test-Path $legacyExe) { Remove-Item $legacyExe -Force -ErrorAction SilentlyContinue }
+New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 
 # 2) Programm bereitstellen: fertige EXE aus dem Download verwenden, sonst
 #    mit dem in Windows enthaltenen C#-Compiler (.NET Framework 4.x) bauen.
@@ -44,8 +53,9 @@ if ((Test-Path $prebuilt) -and -not $Rebuild) {
     $csc = Join-Path $fw 'csc.exe'
     if (-not (Test-Path $csc)) { throw "C#-Compiler nicht gefunden ($csc). Ist .NET Framework 4.8 installiert?" }
 
-    $src = Join-Path $here 'ClaudeIsland.cs'
-    try { Unblock-File -Path $src } catch { }
+    $src = @(Get-ChildItem -Path $here -Filter '*.cs' | ForEach-Object { $_.FullName })
+    if ($src.Count -eq 0) { throw "Keine Quelldateien (*.cs) in $here gefunden." }
+    foreach ($f in $src) { try { Unblock-File -Path $f } catch { } }
     $refs = @(
         (Join-Path $fw 'System.Xaml.dll'),
         (Join-Path $fw 'WPF\WindowsBase.dll'),
@@ -58,7 +68,7 @@ if ((Test-Path $prebuilt) -and -not $Rebuild) {
 
     # Keine eingebetteten Anfuehrungszeichen: PowerShell setzt Argumente mit
     # Leerzeichen (z. B. "C:\Users\Max Mustermann") selbst korrekt in Quotes.
-    $cscArgs = @('/nologo', '/target:winexe', '/optimize+', '/codepage:65001', "/out:$exe") + $refs + @($src)
+    $cscArgs = @('/nologo', '/target:winexe', '/optimize+', '/codepage:65001', "/out:$exe") + $refs + $src
     $output = & $csc $cscArgs 2>&1
     if ($LASTEXITCODE -ne 0) {
         $output | ForEach-Object { Write-Host $_ -ForegroundColor Red }
@@ -116,6 +126,24 @@ foreach ($ev in $events) {
     else { $cfg.hooks | Add-Member -NotePropertyName $ev -NotePropertyValue $kept }
 }
 
+# Statuszeile: liefert das Nutzungslimit. Eine vorhandene Statuszeile wird
+# gemerkt und von der Island weiter ausgegeben, sie bleibt also sichtbar.
+Step 'Richte die Statuszeile fuer das Nutzungslimit ein'
+$previous = $null
+if ($cfg.PSObject.Properties['statusLine'] -and $cfg.statusLine -and $cfg.statusLine.PSObject.Properties['command']) {
+    $previous = "$($cfg.statusLine.command)"
+}
+if ($previous -and -not ($previous -like '*ClaudeIsland.exe*')) {
+    [IO.File]::WriteAllText($chainFile, $previous, (New-Object Text.UTF8Encoding $false))
+    Write-Host "    Deine bisherige Statuszeile bleibt erhalten." -ForegroundColor DarkGray
+}
+$statusLine = [pscustomobject]@{ type = 'command'; command = $statusCommand; padding = 0 }
+if ($cfg.PSObject.Properties['statusLine'] -and $cfg.statusLine -and $cfg.statusLine.PSObject.Properties['padding']) {
+    $statusLine.padding = $cfg.statusLine.padding
+}
+if ($cfg.PSObject.Properties['statusLine']) { $cfg.statusLine = $statusLine }
+else { $cfg | Add-Member -NotePropertyName 'statusLine' -NotePropertyValue $statusLine }
+
 $json = ConvertTo-Json -InputObject $cfg -Depth 64
 [IO.File]::WriteAllText($SettingsPath, $json, (New-Object Text.UTF8Encoding $false))
 
@@ -141,5 +169,6 @@ Start-Process -FilePath $exe -ArgumentList 'demo'
 Write-Host ''
 Write-Host '  Fertig! Die Island sitzt jetzt oben mittig auf deinem Hauptbildschirm.' -ForegroundColor Green
 Write-Host '  Sie fuehrt einmal alle Zustaende vor. Danach zeigt sie live, was Claude Code macht.' -ForegroundColor Green
-Write-Host '  Laufende Claude-Code-Sitzungen bitte einmal neu starten, damit die Hooks greifen.' -ForegroundColor Yellow
+Write-Host '  Ruhend ist sie ein kleines Blockmonster. Fahr mit der Maus drueber: Das Maul geht auf.' -ForegroundColor Green
+Write-Host '  Laufende Claude-Code-Sitzungen bitte einmal neu starten, damit Hooks und Statuszeile greifen.' -ForegroundColor Yellow
 Write-Host ''
