@@ -1,0 +1,135 @@
+﻿# Claude Island - Installer
+# Baut die Island aus dem Quellcode (mit dem in Windows enthaltenen C#-Compiler),
+# traegt die Claude-Code-Hooks ein, legt einen Autostart-Eintrag an und startet sie.
+#
+#   Rechtsklick > "Mit PowerShell ausfuehren"   oder   install.cmd doppelklicken
+
+[CmdletBinding()]
+param(
+    # Pfad zur settings.json von Claude Code (Standard: Benutzer-Einstellungen)
+    [string]$SettingsPath = (Join-Path $env:USERPROFILE '.claude\settings.json'),
+    # Ohne Autostart installieren
+    [switch]$NoAutostart
+)
+
+$ErrorActionPreference = 'Stop'
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+$target = Join-Path $env:LOCALAPPDATA 'ClaudeIsland'
+$exe = Join-Path $target 'ClaudeIsland.exe'
+
+function Step($text) { Write-Host "  > $text" -ForegroundColor Cyan }
+
+Write-Host ''
+Write-Host '  Claude Island wird installiert ...' -ForegroundColor White
+Write-Host ''
+
+# 1) Laufende Instanz beenden, damit die EXE ersetzt werden kann
+Get-Process -Name 'ClaudeIsland' -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Milliseconds 300
+
+# 2) Kompilieren (.NET Framework 4.x ist in Windows 10/11 immer vorhanden)
+Step 'Kompiliere ClaudeIsland.exe'
+New-Item -ItemType Directory -Force -Path $target | Out-Null
+$fw = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
+if (-not (Test-Path (Join-Path $fw 'csc.exe'))) { $fw = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319' }
+$csc = Join-Path $fw 'csc.exe'
+if (-not (Test-Path $csc)) { throw "C#-Compiler nicht gefunden ($csc). Ist .NET Framework 4.8 installiert?" }
+
+$src = Join-Path $here 'ClaudeIsland.cs'
+try { Unblock-File -Path $src } catch { }
+$refs = @(
+    (Join-Path $fw 'System.Xaml.dll'),
+    (Join-Path $fw 'WPF\WindowsBase.dll'),
+    (Join-Path $fw 'WPF\PresentationCore.dll'),
+    (Join-Path $fw 'WPF\PresentationFramework.dll'),
+    (Join-Path $fw 'System.Windows.Forms.dll'),
+    (Join-Path $fw 'System.Drawing.dll'),
+    (Join-Path $fw 'System.Core.dll')
+) | ForEach-Object { "/reference:$_" }
+
+# Keine eingebetteten Anfuehrungszeichen: PowerShell setzt Argumente mit
+# Leerzeichen (z. B. "C:\Users\Max Mustermann") selbst korrekt in Quotes.
+$cscArgs = @('/nologo', '/target:winexe', '/optimize+', '/codepage:65001', "/out:$exe") + $refs + @($src)
+$output = & $csc $cscArgs 2>&1
+if ($LASTEXITCODE -ne 0) {
+    $output | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+    throw 'Kompilieren fehlgeschlagen.'
+}
+
+# 3) Hooks in Claude Code eintragen (vorhandene Hooks bleiben erhalten)
+Step "Trage Hooks ein in $SettingsPath"
+$events = @(
+    'SessionStart', 'SessionEnd', 'UserPromptSubmit',
+    'PreToolUse', 'PostToolUse', 'PostToolUseFailure',
+    'PermissionRequest', 'PermissionDenied', 'Notification',
+    'Stop', 'StopFailure'
+)
+
+$settingsDir = Split-Path -Parent $SettingsPath
+New-Item -ItemType Directory -Force -Path $settingsDir | Out-Null
+if (Test-Path $SettingsPath) {
+    $raw = [IO.File]::ReadAllText($SettingsPath)
+    $backup = "$SettingsPath.bak-claude-island-" + (Get-Date -Format 'yyyyMMdd-HHmmss')
+    Copy-Item $SettingsPath $backup
+    Write-Host "    Sicherung: $backup" -ForegroundColor DarkGray
+} else {
+    $raw = ''
+}
+if ([string]::IsNullOrWhiteSpace($raw)) { $cfg = New-Object PSObject } else { $cfg = ConvertFrom-Json -InputObject $raw }
+
+if (-not $cfg.PSObject.Properties['hooks']) {
+    $cfg | Add-Member -NotePropertyName 'hooks' -NotePropertyValue (New-Object PSObject)
+}
+
+foreach ($ev in $events) {
+    $kept = @()
+    if ($cfg.hooks.PSObject.Properties[$ev]) {
+        foreach ($group in @($cfg.hooks.$ev)) {
+            $others = @(@($group.hooks) | Where-Object { -not ("$($_.command)" -like '*ClaudeIsland.exe*') })
+            if ($others.Count -gt 0) {
+                $group.hooks = $others
+                $kept += $group
+            }
+        }
+    }
+    $ours = [pscustomobject]@{
+        hooks = @([pscustomobject]@{
+            type    = 'command'
+            command = $exe
+            args    = @('hook')
+            async   = $true
+            timeout = 15
+        })
+    }
+    $kept += $ours
+    if ($cfg.hooks.PSObject.Properties[$ev]) { $cfg.hooks.$ev = $kept }
+    else { $cfg.hooks | Add-Member -NotePropertyName $ev -NotePropertyValue $kept }
+}
+
+$json = ConvertTo-Json -InputObject $cfg -Depth 64
+[IO.File]::WriteAllText($SettingsPath, $json, (New-Object Text.UTF8Encoding $false))
+
+# 4) Autostart
+$startup = [Environment]::GetFolderPath('Startup')
+$lnkPath = if ($startup) { Join-Path $startup 'Claude Island.lnk' } else { $null }
+if ($NoAutostart -or -not $lnkPath) {
+    if ($lnkPath -and (Test-Path $lnkPath)) { Remove-Item $lnkPath }
+} else {
+    Step 'Lege Autostart-Eintrag an'
+    $shell = New-Object -ComObject WScript.Shell
+    $lnk = $shell.CreateShortcut($lnkPath)
+    $lnk.TargetPath = $exe
+    $lnk.WorkingDirectory = $target
+    $lnk.Description = 'Claude Island - Statusanzeige fuer Claude Code'
+    $lnk.Save()
+}
+
+# 5) Starten und einmal vorfuehren
+Step 'Starte Claude Island'
+Start-Process -FilePath $exe -ArgumentList 'demo'
+
+Write-Host ''
+Write-Host '  Fertig! Die Island sitzt jetzt oben mittig auf deinem Hauptbildschirm.' -ForegroundColor Green
+Write-Host '  Sie fuehrt einmal alle Zustaende vor. Danach zeigt sie live, was Claude Code macht.' -ForegroundColor Green
+Write-Host '  Laufende Claude-Code-Sitzungen bitte einmal neu starten, damit die Hooks greifen.' -ForegroundColor Yellow
+Write-Host ''
