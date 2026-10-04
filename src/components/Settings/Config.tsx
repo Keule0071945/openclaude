@@ -780,6 +780,28 @@ export function Config({
       });
     }
   },
+  // The status notch is painted over the alt-screen's top row, so it only
+  // exists in fullscreen mode.
+  ...(isFullscreenEnvEnabled() ? [{
+    id: 'statusNotchEnabled',
+    label: 'Status notch',
+    value: globalConfig.statusNotchEnabled ?? true,
+    type: 'boolean' as const,
+    onChange(statusNotchEnabled: boolean) {
+      saveGlobalConfig(current => ({
+        ...current,
+        statusNotchEnabled
+      }));
+      setGlobalConfig({
+        ...getGlobalConfig(),
+        statusNotchEnabled
+      });
+      logEvent('tengu_config_changed', {
+        setting: 'statusNotchEnabled' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        value: String(statusNotchEnabled) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+      });
+    }
+  }] : []),
   // autoUpdates setting is hidden - use DISABLE_AUTOUPDATER env var to control
   autoUpdaterDisabledReason ? {
     id: 'autoUpdatesChannel',

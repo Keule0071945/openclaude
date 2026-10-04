@@ -41,6 +41,10 @@ type Props = {
    *  region (not the bottom slot) so the overflowY:hidden cap doesn't clip
    *  it. Fullscreen only — used for the companion speech bubble. */
   bottomFloat?: ReactNode;
+  /** Content anchored to the top edge of the screen, horizontally centered
+   *  and painted over the first transcript row. Fullscreen only — used for
+   *  the status notch. */
+  topFloat?: ReactNode;
   /** Slash-command dialog content. Rendered in an absolute-positioned
    *  bottom-anchored pane (▔ divider, paddingX=2) that paints over the
    *  ScrollBox AND bottom slot. Provides ModalContext so Pane/Dialog inside
@@ -268,12 +272,13 @@ export function computeUnseenDivider(messages: readonly Message[], dividerIndex:
  * so nothing can accidentally render outside it.
  */
 export function FullscreenLayout(t0) {
-  const $ = _c(47);
+  const $ = _c(50);
   const {
     scrollable,
     bottom,
     overlay,
     bottomFloat,
+    topFloat,
     modal,
     modalScrollRef,
     scrollRef,
@@ -387,9 +392,18 @@ export function FullscreenLayout(t0) {
     } else {
       t13 = $[23];
     }
+    let tTop;
+    if ($[47] !== topFloat) {
+      tTop = topFloat != null && <Box position="absolute" top={0} left={0} right={0} justifyContent="center">{topFloat}</Box>;
+      $[47] = topFloat;
+      $[48] = tTop;
+    } else {
+      tTop = $[48];
+    }
     let t14;
-    if ($[24] !== t11 || $[25] !== t12 || $[26] !== t13 || $[27] !== t8) {
-      t14 = <Box flexGrow={1} flexDirection="column" overflow="hidden">{t8}{t11}{t12}{t13}</Box>;
+    if ($[24] !== t11 || $[25] !== t12 || $[26] !== t13 || $[27] !== t8 || $[49] !== tTop) {
+      t14 = <Box flexGrow={1} flexDirection="column" overflow="hidden">{t8}{t11}{t12}{t13}{tTop}</Box>;
+      $[49] = tTop;
       $[24] = t11;
       $[25] = t12;
       $[26] = t13;

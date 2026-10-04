@@ -556,6 +556,11 @@ export type GlobalConfig = {
   // Env var still takes precedence: =0 always off, =1 always on.
   flickerFreeMode?: boolean
 
+  // Animated status notch pinned to the top edge in fullscreen mode
+  // (undefined → true). Shows whether a turn is running, finished, or
+  // waiting on the user.
+  statusNotchEnabled?: boolean
+
   // GitHub repo path mapping for teleport directory switching
   // Key: "owner/repo" (lowercase), Value: array of absolute paths where repo is cloned
   githubRepoPaths?: Record<string, string[]>
@@ -805,6 +810,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'copyFullResponse',
   'copyOnSelect',
   'flickerFreeMode',
+  'statusNotchEnabled',
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',
   'defaultStatusLineEnabled',
