@@ -9,7 +9,9 @@ param(
     # Pfad zur settings.json von Claude Code (Standard: Benutzer-Einstellungen)
     [string]$SettingsPath = (Join-Path $env:USERPROFILE '.claude\settings.json'),
     # Ohne Autostart installieren
-    [switch]$NoAutostart
+    [switch]$NoAutostart,
+    # Immer aus ClaudeIsland.cs neu kompilieren, auch wenn eine fertige EXE daneben liegt
+    [switch]$Rebuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,33 +29,41 @@ Write-Host ''
 Get-Process -Name 'ClaudeIsland' -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 300
 
-# 2) Kompilieren (.NET Framework 4.x ist in Windows 10/11 immer vorhanden)
-Step 'Kompiliere ClaudeIsland.exe'
+# 2) Programm bereitstellen: fertige EXE aus dem Download verwenden, sonst
+#    mit dem in Windows enthaltenen C#-Compiler (.NET Framework 4.x) bauen.
 New-Item -ItemType Directory -Force -Path $target | Out-Null
-$fw = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
-if (-not (Test-Path (Join-Path $fw 'csc.exe'))) { $fw = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319' }
-$csc = Join-Path $fw 'csc.exe'
-if (-not (Test-Path $csc)) { throw "C#-Compiler nicht gefunden ($csc). Ist .NET Framework 4.8 installiert?" }
+$prebuilt = Join-Path $here 'ClaudeIsland.exe'
+if ((Test-Path $prebuilt) -and -not $Rebuild) {
+    Step 'Kopiere ClaudeIsland.exe'
+    Copy-Item $prebuilt $exe -Force
+    try { Unblock-File -Path $exe } catch { }
+} else {
+    Step 'Kompiliere ClaudeIsland.exe'
+    $fw = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
+    if (-not (Test-Path (Join-Path $fw 'csc.exe'))) { $fw = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319' }
+    $csc = Join-Path $fw 'csc.exe'
+    if (-not (Test-Path $csc)) { throw "C#-Compiler nicht gefunden ($csc). Ist .NET Framework 4.8 installiert?" }
 
-$src = Join-Path $here 'ClaudeIsland.cs'
-try { Unblock-File -Path $src } catch { }
-$refs = @(
-    (Join-Path $fw 'System.Xaml.dll'),
-    (Join-Path $fw 'WPF\WindowsBase.dll'),
-    (Join-Path $fw 'WPF\PresentationCore.dll'),
-    (Join-Path $fw 'WPF\PresentationFramework.dll'),
-    (Join-Path $fw 'System.Windows.Forms.dll'),
-    (Join-Path $fw 'System.Drawing.dll'),
-    (Join-Path $fw 'System.Core.dll')
-) | ForEach-Object { "/reference:$_" }
+    $src = Join-Path $here 'ClaudeIsland.cs'
+    try { Unblock-File -Path $src } catch { }
+    $refs = @(
+        (Join-Path $fw 'System.Xaml.dll'),
+        (Join-Path $fw 'WPF\WindowsBase.dll'),
+        (Join-Path $fw 'WPF\PresentationCore.dll'),
+        (Join-Path $fw 'WPF\PresentationFramework.dll'),
+        (Join-Path $fw 'System.Windows.Forms.dll'),
+        (Join-Path $fw 'System.Drawing.dll'),
+        (Join-Path $fw 'System.Core.dll')
+    ) | ForEach-Object { "/reference:$_" }
 
-# Keine eingebetteten Anfuehrungszeichen: PowerShell setzt Argumente mit
-# Leerzeichen (z. B. "C:\Users\Max Mustermann") selbst korrekt in Quotes.
-$cscArgs = @('/nologo', '/target:winexe', '/optimize+', '/codepage:65001', "/out:$exe") + $refs + @($src)
-$output = & $csc $cscArgs 2>&1
-if ($LASTEXITCODE -ne 0) {
-    $output | ForEach-Object { Write-Host $_ -ForegroundColor Red }
-    throw 'Kompilieren fehlgeschlagen.'
+    # Keine eingebetteten Anfuehrungszeichen: PowerShell setzt Argumente mit
+    # Leerzeichen (z. B. "C:\Users\Max Mustermann") selbst korrekt in Quotes.
+    $cscArgs = @('/nologo', '/target:winexe', '/optimize+', '/codepage:65001', "/out:$exe") + $refs + @($src)
+    $output = & $csc $cscArgs 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $output | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+        throw 'Kompilieren fehlgeschlagen.'
+    }
 }
 
 # 3) Hooks in Claude Code eintragen (vorhandene Hooks bleiben erhalten)

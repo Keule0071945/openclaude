@@ -23,17 +23,26 @@ Weitere Eigenschaften:
   wichtigsten Zustand und die Anzahl.
 - **Esc-Abbruch wird erkannt**, obwohl Claude Code dafür keinen eigenen Hook auslöst.
 
-## Installation
+## Installation (ein Befehl)
 
-1. Lade den Ordner `tools/claude-island-windows` herunter (auf GitHub den Branch öffnen, dann
-   **Code → Download ZIP**) und entpacke ihn.
-2. Doppelklicke **`install.cmd`**.
-3. Starte offene Claude-Code-Sitzungen einmal neu, damit die Hooks greifen.
+1. Drücke **Windows-Taste**, tippe `powershell` und drücke Enter.
+2. Füge diese Zeile ein und drücke Enter:
+
+   ```powershell
+   irm https://raw.githubusercontent.com/Keule0071945/openclaude/claude/flat-notch-status-indicator-x3h3ds/tools/claude-island-windows/get.ps1 | iex
+   ```
+
+3. Die Island erscheint oben mittig und führt einmal alle Zustände vor.
+4. Starte offene Claude-Code-Sitzungen einmal neu, damit die Hooks greifen.
+
+Alternativ kannst du den Ordner herunterladen (**Code → Download ZIP**) und `install.cmd`
+doppelklicken.
 
 Der Installer macht Folgendes:
 
-- Er kompiliert `ClaudeIsland.exe` mit dem C#-Compiler, der in Windows schon enthalten ist
-  (.NET Framework 4.8). Du musst nichts zusätzlich installieren.
+- Er verwendet die fertige `ClaudeIsland.exe`. Mit `install.ps1 -Rebuild` baut er sie stattdessen
+  aus `ClaudeIsland.cs` mit dem C#-Compiler, der in Windows schon enthalten ist
+  (.NET Framework 4.8). Du musst dafür nichts zusätzlich installieren.
 - Er installiert nach `%LOCALAPPDATA%\ClaudeIsland`.
 - Er trägt die Hooks in `%USERPROFILE%\.claude\settings.json` ein. **Deine vorhandenen
   Einstellungen und Hooks bleiben erhalten**, und vorher wird eine Sicherungskopie

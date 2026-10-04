@@ -1,0 +1,25 @@
+﻿# Claude Island - Installation mit einem Befehl. In PowerShell einfuegen:
+#
+#   irm https://raw.githubusercontent.com/Keule0071945/openclaude/claude/flat-notch-status-indicator-x3h3ds/tools/claude-island-windows/get.ps1 | iex
+#
+# Laedt die fertige ClaudeIsland.exe und die Skripte in einen Temp-Ordner und
+# fuehrt dort install.ps1 aus.
+
+$ErrorActionPreference = 'Stop'
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+$base = 'https://raw.githubusercontent.com/Keule0071945/openclaude/claude/flat-notch-status-indicator-x3h3ds/tools/claude-island-windows'
+$tmp = Join-Path $env:TEMP ('claude-island-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+
+Write-Host ''
+Write-Host '  Lade Claude Island herunter ...' -ForegroundColor White
+foreach ($f in 'ClaudeIsland.exe', 'ClaudeIsland.cs', 'install.ps1', 'uninstall.ps1', 'uninstall.cmd') {
+    Invoke-WebRequest -UseBasicParsing -Uri "$base/$f" -OutFile (Join-Path $tmp $f)
+}
+
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $tmp 'install.ps1')
+
+# Deinstaller fuer spaeter neben das Programm legen
+$target = Join-Path $env:LOCALAPPDATA 'ClaudeIsland'
+Copy-Item (Join-Path $tmp 'uninstall.ps1'), (Join-Path $tmp 'uninstall.cmd') $target -Force -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
