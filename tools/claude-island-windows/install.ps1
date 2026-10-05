@@ -82,7 +82,7 @@ $events = @(
     'SessionStart', 'SessionEnd', 'UserPromptSubmit',
     'PreToolUse', 'PostToolUse', 'PostToolUseFailure',
     'PermissionRequest', 'PermissionDenied', 'Notification',
-    'Stop', 'StopFailure'
+    'Stop', 'StopFailure', 'SubagentStart', 'SubagentStop'
 )
 
 $settingsDir = Split-Path -Parent $SettingsPath
@@ -122,6 +122,18 @@ foreach ($ev in $events) {
         })
     }
     $kept += $ours
+    if ($ev -eq 'PermissionRequest') {
+        # Synchronous on purpose: this one waits for "Erlauben"/"Ablehnen" in the island.
+        # Without the island running it returns at once and the terminal asks as usual.
+        $kept += [pscustomobject]@{
+            hooks = @([pscustomobject]@{
+                type    = 'command'
+                command = $exe
+                args    = @('permission')
+                timeout = 130
+            })
+        }
+    }
     if ($cfg.hooks.PSObject.Properties[$ev]) { $cfg.hooks.$ev = $kept }
     else { $cfg.hooks | Add-Member -NotePropertyName $ev -NotePropertyValue $kept }
 }

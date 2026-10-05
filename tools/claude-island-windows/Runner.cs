@@ -49,7 +49,13 @@ namespace ClaudeIsland
             stderr.Clear();
 
             var args = new List<string> { "-p", "--output-format", "stream-json", "--verbose", "--allowedTools", ReadOnlyTools };
-            if (allowEdits) { args.Add("--permission-mode"); args.Add("acceptEdits"); }
+            if (allowEdits)
+            {
+                // "Ausführen": edit files and run shell commands (tests, git) in the project.
+                args[5] = ReadOnlyTools + ",Bash";
+                args.Add("--permission-mode");
+                args.Add("acceptEdits");
+            }
             foreach (var dir in extraDirs.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 args.Add("--add-dir");

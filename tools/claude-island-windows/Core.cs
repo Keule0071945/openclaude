@@ -6,6 +6,8 @@
 //                                  JSON from stdin and records the session state
 //   ClaudeIsland.exe statusline -> Claude Code's status line command; records
 //                                  usage limits and context, then prints a line
+//   ClaudeIsland.exe permission -> synchronous PermissionRequest hook; lets you
+//                                  allow or deny a tool right in the island
 //
 // Session state lives in %LOCALAPPDATA%\ClaudeIsland\sessions\<session>.json,
 // so the island survives restarts and any number of Claude Code windows can
@@ -48,6 +50,9 @@ namespace ClaudeIsland
         public static readonly string Settings = System.IO.Path.Combine(Root, "settings.ini");
         public static readonly string Log = System.IO.Path.Combine(Root, "island.log");
         public static readonly string Usage = System.IO.Path.Combine(Root, "usage.json");
+        public static readonly string Stats = System.IO.Path.Combine(Root, "stats");
+        public static readonly string Requests = System.IO.Path.Combine(Root, "requests");
+        public static readonly string Shots = System.IO.Path.Combine(Root, "shots");
         /// <summary>A status line command that was configured before the island took over.</summary>
         public static readonly string ChainedStatusLine = System.IO.Path.Combine(Root, "statusline-previous.txt");
 
@@ -311,6 +316,11 @@ namespace ClaudeIsland
             string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "";
             // Claude Code pipes the hook payload into stdin; treat a piped
             // launch without arguments as a hook call too.
+            if (mode == "permission")
+            {
+                try { return PermissionBroker.Run(); }
+                catch (Exception ex) { AppPaths.LogError("permission", ex); return 0; }
+            }
             if (mode == "statusline")
             {
                 try { return StatusLine.Run(); }
@@ -462,6 +472,17 @@ namespace ClaudeIsland
                 catch { s = null; }
             }
             if (s == null) s = new Dictionary<string, object>();
+
+            // Subagents only move the baby-Clawd counter; they never change the state.
+            if (ev == "SubagentStart" || ev == "SubagentStop")
+            {
+                int agents = (int)Json.Long(s, "agents") + (ev == "SubagentStart" ? 1 : -1);
+                s["agents"] = Math.Max(0, Math.Min(9, agents));
+                if (!s.ContainsKey("session")) s["session"] = Json.Str(hook, "session_id");
+                if (!s.ContainsKey("updated")) s["updated"] = now;
+                WriteAtomic(path, Json.Serialize(s));
+                return;
+            }
             if (Json.Long(s, "updated") > now) return; // a newer event already landed
 
             string state = Json.Str(s, "state");
@@ -472,12 +493,14 @@ namespace ClaudeIsland
             {
                 case "SessionStart":
                     if (state != "busy" && state != "waiting") state = "ready";
+                    s["agents"] = 0;
                     break;
                 case "UserPromptSubmit":
                     state = "busy";
                     s["turnStart"] = now;
                     s["tool"] = "";
                     s["detail"] = "";
+                    s["agents"] = 0;
                     break;
                 case "PreToolUse":
                 case "PostToolUse":
@@ -486,6 +509,12 @@ namespace ClaudeIsland
                     state = "busy";
                     if (Json.Long(s, "turnStart") == 0) s["turnStart"] = now;
                     if (toolName.Length > 0) { s["tool"] = toolName; s["detail"] = detail; }
+                    if (ev == "PostToolUse" && (toolName == "Edit" || toolName == "Write" || toolName == "MultiEdit" || toolName == "NotebookEdit"))
+                    {
+                        var input = Json.Obj(hook, "tool_input");
+                        string file = PathText.LastSegment(Json.Str(input, "file_path").Length > 0 ? Json.Str(input, "file_path") : Json.Str(input, "notebook_path"));
+                        if (file.Length > 0) Stats.RecordFile(file);
+                    }
                     break;
                 case "PermissionRequest":
                     state = "waiting";
@@ -505,12 +534,19 @@ namespace ClaudeIsland
                     break;
                 }
                 case "Stop":
+                {
                     state = "done";
                     s["doneAt"] = now;
                     long start = Json.Long(s, "turnStart");
-                    s["duration"] = start > 0 ? now - start : 0;
+                    long duration = start > 0 ? now - start : 0;
+                    s["duration"] = duration;
                     s["turnStart"] = 0;
+                    s["agents"] = 0;
+                    string summary = Summarize(Json.Str(hook, "last_assistant_message"));
+                    if (summary.Length > 0) s["summary"] = summary;
+                    if (duration > 0) Stats.RecordTask(duration);
                     break;
+                }
                 case "StopFailure":
                     state = "error";
                     s["doneAt"] = now;
@@ -528,8 +564,35 @@ namespace ClaudeIsland
             string transcript = Json.Str(hook, "transcript_path");
             if (transcript.Length > 0) s["transcript"] = transcript;
             s["updated"] = now;
+            // Remember the terminal window so a click in the island can bring it forward.
+            if (Json.Long(s, "hwnd") == 0 && (ev == "SessionStart" || ev == "UserPromptSubmit"))
+            {
+                long hwnd = TerminalWindow.FindForThisProcess();
+                if (hwnd != 0) s["hwnd"] = hwnd;
+            }
 
             WriteAtomic(path, Json.Serialize(s));
+        }
+
+        /// <summary>The last two sentences of an answer, plain text, at most 220 characters.</summary>
+        public static string Summarize(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "";
+            var sb = new StringBuilder();
+            bool inCode = false;
+            foreach (var raw in text.Replace("\r", "").Split('\n'))
+            {
+                string line = raw.Trim();
+                if (line.StartsWith("```")) { inCode = !inCode; continue; }
+                if (inCode || line.Length == 0) continue;
+                line = line.TrimStart('#', '>', '-', '*', ' ').Replace("**", "").Replace("`", "");
+                sb.Append(line).Append(' ');
+            }
+            string plain = System.Text.RegularExpressions.Regex.Replace(sb.ToString(), "\\s+", " ").Trim();
+            var sentences = System.Text.RegularExpressions.Regex.Split(plain, "(?<=[.!?])\\s+").Where(x => x.Length > 0).ToList();
+            string tail = string.Join(" ", sentences.Skip(Math.Max(0, sentences.Count - 2)));
+            if (tail.Length > 220) tail = tail.Substring(0, 219).TrimEnd() + "…";
+            return tail;
         }
 
         public static string SafeId(string id)
@@ -685,6 +748,9 @@ namespace ClaudeIsland
             if (ctx != null && ctx.TryGetValue("used_percentage", out pctObj) && pctObj != null)
                 ctxPct = (int)Math.Round(Convert.ToDouble(pctObj));
             string model = Json.Str(Json.Obj(d, "model"), "display_name");
+            var costObj = Json.Obj(d, "cost");
+            double cost = costObj != null && costObj.ContainsKey("total_cost_usd") && costObj["total_cost_usd"] != null
+                ? Convert.ToDouble(costObj["total_cost_usd"]) : -1;
             string sid = Json.Str(d, "session_id");
             string cwd = Json.Str(d, "cwd");
             if (sid.Length > 0)
@@ -693,6 +759,7 @@ namespace ClaudeIsland
                 {
                     if (ctxPct >= 0) s["context"] = ctxPct;
                     if (model.Length > 0) s["model"] = model;
+                    if (cost >= 0) s["cost"] = cost;
                     if (!s.ContainsKey("state")) s["state"] = "ready";
                     if (!s.ContainsKey("session")) s["session"] = sid;
                     if (cwd.Length > 0 && !s.ContainsKey("cwd")) s["cwd"] = cwd;
@@ -799,6 +866,302 @@ namespace ClaudeIsland
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // Daily statistics (tasks, time worked, most edited files)
+    // ─────────────────────────────────────────────────────────────────────
+
+    sealed class DayStats
+    {
+        public int Tasks;
+        public long BusyMs;
+        public List<KeyValuePair<string, int>> Files = new List<KeyValuePair<string, int>>();
+    }
+
+    static class Stats
+    {
+        static string PathFor(DateTime day)
+        {
+            return System.IO.Path.Combine(AppPaths.Stats, day.ToString("yyyy-MM-dd") + ".json");
+        }
+
+        static void Update(Func<Dictionary<string, object>, bool> mutate)
+        {
+            try
+            {
+                Directory.CreateDirectory(AppPaths.Stats);
+                string path = PathFor(DateTime.Now);
+                Dictionary<string, object> d = null;
+                if (File.Exists(path))
+                {
+                    try { d = Json.Parse(File.ReadAllText(path, Encoding.UTF8)) as Dictionary<string, object>; }
+                    catch { d = null; }
+                }
+                if (d == null) d = new Dictionary<string, object>();
+                if (mutate(d)) HookRecorder.WriteAtomic(path, Json.Serialize(d));
+            }
+            catch (Exception ex) { AppPaths.LogError("stats", ex); }
+        }
+
+        /// <summary>Called by the hook while it already holds the sessions lock.</summary>
+        public static void RecordTask(long durationMs)
+        {
+            Update(d =>
+            {
+                d["tasks"] = Json.Long(d, "tasks") + 1;
+                d["busyMs"] = Json.Long(d, "busyMs") + durationMs;
+                return true;
+            });
+        }
+
+        public static void RecordFile(string name)
+        {
+            Update(d =>
+            {
+                var files = Json.Obj(d, "files") ?? new Dictionary<string, object>();
+                files[name] = Json.Long(files, name) + 1;
+                d["files"] = files;
+                return true;
+            });
+        }
+
+        public static DayStats Load(DateTime day)
+        {
+            var r = new DayStats();
+            try
+            {
+                string path = PathFor(day);
+                if (!File.Exists(path)) return r;
+                string text;
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                using (var reader = new StreamReader(fs, Encoding.UTF8)) text = reader.ReadToEnd();
+                var d = Json.Parse(text) as Dictionary<string, object>;
+                r.Tasks = (int)Json.Long(d, "tasks");
+                r.BusyMs = Json.Long(d, "busyMs");
+                var files = Json.Obj(d, "files");
+                if (files != null)
+                    r.Files = files.Select(kv => new KeyValuePair<string, int>(kv.Key, (int)Json.Long(files, kv.Key)))
+                                   .OrderByDescending(kv => kv.Value).ToList();
+            }
+            catch (IOException) { }
+            catch (Exception ex) { AppPaths.LogError("stats load", ex); }
+            return r;
+        }
+
+        /// <summary>Monday through today.</summary>
+        public static DayStats Week()
+        {
+            var total = new DayStats();
+            var files = new Dictionary<string, int>();
+            DateTime today = DateTime.Today;
+            int back = ((int)today.DayOfWeek + 6) % 7;
+            for (int i = 0; i <= back; i++)
+            {
+                var d = Load(today.AddDays(-i));
+                total.Tasks += d.Tasks;
+                total.BusyMs += d.BusyMs;
+                foreach (var f in d.Files)
+                {
+                    int c;
+                    files.TryGetValue(f.Key, out c);
+                    files[f.Key] = c + f.Value;
+                }
+            }
+            total.Files = files.OrderByDescending(kv => kv.Value).ToList();
+            return total;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // The terminal window a session runs in
+    // ─────────────────────────────────────────────────────────────────────
+
+    static class TerminalWindow
+    {
+        [StructLayout(LayoutKind.Sequential)]
+        struct PROCESS_BASIC_INFORMATION
+        {
+            public IntPtr Reserved1, PebBaseAddress, Reserved2_0, Reserved2_1, UniqueProcessId, InheritedFromUniqueProcessId;
+        }
+
+        [DllImport("ntdll.dll")]
+        static extern int NtQueryInformationProcess(IntPtr process, int infoClass, ref PROCESS_BASIC_INFORMATION info, int size, out int returned);
+        [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+        [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+        [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
+        [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
+        [DllImport("user32.dll")] static extern bool IsWindow(IntPtr h);
+        [DllImport("kernel32.dll")] static extern IntPtr GetConsoleWindow();
+
+        static int ParentOf(System.Diagnostics.Process p)
+        {
+            var info = new PROCESS_BASIC_INFORMATION();
+            int returned;
+            if (NtQueryInformationProcess(p.Handle, 0, ref info, Marshal.SizeOf(info), out returned) != 0) return 0;
+            return info.InheritedFromUniqueProcessId.ToInt32();
+        }
+
+        /// <summary>
+        /// Walk up from the hook process (child of Claude Code) to the first
+        /// ancestor that owns a visible window: Windows Terminal, conhost, VS Code ...
+        /// </summary>
+        public static long FindForThisProcess()
+        {
+            try
+            {
+                var p = System.Diagnostics.Process.GetCurrentProcess();
+                for (int depth = 0; depth < 8 && p != null; depth++)
+                {
+                    int parent = ParentOf(p);
+                    if (parent <= 4) break;
+                    try { p = System.Diagnostics.Process.GetProcessById(parent); }
+                    catch { break; }
+                    IntPtr h = p.MainWindowHandle;
+                    if (h != IntPtr.Zero && IsWindowVisible(h)) return h.ToInt64();
+                }
+            }
+            catch (Exception ex) { AppPaths.LogError("terminal lookup", ex); }
+            return 0;
+        }
+
+        public static bool Focus(long hwnd)
+        {
+            var h = new IntPtr(hwnd);
+            if (hwnd == 0 || !IsWindow(h)) return false;
+            if (IsIconic(h)) ShowWindow(h, 9 /* SW_RESTORE */);
+            return SetForegroundWindow(h);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Approving tool use from the island (synchronous PermissionRequest hook)
+    // ─────────────────────────────────────────────────────────────────────
+
+    sealed class ApprovalRequest
+    {
+        public string Id, Session, Tool, Detail, Project;
+        public long Created;
+    }
+
+    static class PermissionBroker
+    {
+        /// <summary>How long the island may hold a request before the terminal dialog takes over.</summary>
+        public const int WaitSeconds = 110;
+
+        public static bool IslandRunning()
+        {
+            Mutex m;
+            if (!Mutex.TryOpenExisting("Local\\ClaudeIsland.Overlay", out m)) return false;
+            m.Dispose();
+            return true;
+        }
+
+        public static int Run()
+        {
+            string input;
+            using (var reader = new StreamReader(Console.OpenStandardInput(), new UTF8Encoding(false)))
+                input = reader.ReadToEnd();
+            string answer = Ask(input, IslandRunning, WaitSeconds * 1000);
+            string output = Decision(answer);
+            if (output.Length > 0)
+            {
+                var bytes = new UTF8Encoding(false).GetBytes(output);
+                using (var o = Console.OpenStandardOutput()) o.Write(bytes, 0, bytes.Length);
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// Post the request for the island and wait for its answer: "allow", "deny",
+        /// or "" to let Claude Code show its own dialog in the terminal.
+        /// </summary>
+        public static string Ask(string input, Func<bool> islandRunning, int timeoutMs)
+        {
+            if (!islandRunning() || !Settings.Load().ApprovalsInIsland) return "";
+            var hook = Json.Parse(input) as Dictionary<string, object>;
+            if (hook == null) return "";
+            string tool = Json.Str(hook, "tool_name");
+            string id = Guid.NewGuid().ToString("N");
+            var req = new Dictionary<string, object>();
+            req["id"] = id;
+            req["session"] = Json.Str(hook, "session_id");
+            req["tool"] = tool;
+            req["detail"] = HookRecorder.DescribeTool(tool, Json.Obj(hook, "tool_input"));
+            req["project"] = PathText.LastSegment(Json.Str(hook, "cwd"));
+            req["created"] = Clock.NowMs();
+            Directory.CreateDirectory(AppPaths.Requests);
+            string reqPath = System.IO.Path.Combine(AppPaths.Requests, id + ".json");
+            string ansPath = System.IO.Path.Combine(AppPaths.Requests, id + ".answer");
+            HookRecorder.WriteAtomic(reqPath, Json.Serialize(req));
+            string answer = "";
+            try
+            {
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                while (watch.ElapsedMilliseconds < timeoutMs)
+                {
+                    if (File.Exists(ansPath))
+                    {
+                        try { answer = File.ReadAllText(ansPath).Trim(); break; }
+                        catch (IOException) { }
+                    }
+                    if (watch.ElapsedMilliseconds % 2000 < 160 && !islandRunning()) break;
+                    Thread.Sleep(150);
+                }
+            }
+            finally
+            {
+                try { File.Delete(reqPath); } catch { }
+                try { File.Delete(ansPath); } catch { }
+            }
+            return answer == "allow" || answer == "deny" ? answer : "";
+        }
+
+        public static string Decision(string answer)
+        {
+            if (answer != "allow" && answer != "deny") return "";
+            var decision = new Dictionary<string, object>();
+            decision["behavior"] = answer;
+            if (answer == "deny") decision["message"] = "In der Claude Island abgelehnt.";
+            var specific = new Dictionary<string, object>();
+            specific["hookEventName"] = "PermissionRequest";
+            specific["decision"] = decision;
+            var root = new Dictionary<string, object>();
+            root["hookSpecificOutput"] = specific;
+            return Json.Serialize(root);
+        }
+
+        /// <summary>Requests waiting for an answer, oldest first (island side).</summary>
+        public static List<ApprovalRequest> Pending()
+        {
+            var list = new List<ApprovalRequest>();
+            if (!Directory.Exists(AppPaths.Requests)) return list;
+            foreach (var file in Directory.GetFiles(AppPaths.Requests, "*.json"))
+            {
+                try
+                {
+                    var d = Json.Parse(File.ReadAllText(file, Encoding.UTF8)) as Dictionary<string, object>;
+                    if (d == null) continue;
+                    var r = new ApprovalRequest
+                    {
+                        Id = Json.Str(d, "id"), Session = Json.Str(d, "session"), Tool = Json.Str(d, "tool"),
+                        Detail = Json.Str(d, "detail"), Project = Json.Str(d, "project"), Created = Json.Long(d, "created")
+                    };
+                    // Stale leftovers (hook killed) are cleaned up here.
+                    if (Clock.NowMs() - r.Created > (WaitSeconds + 30) * 1000L) { File.Delete(file); continue; }
+                    if (!File.Exists(System.IO.Path.Combine(AppPaths.Requests, r.Id + ".answer"))) list.Add(r);
+                }
+                catch (IOException) { }
+                catch (Exception ex) { AppPaths.LogError("pending", ex); }
+            }
+            return list.OrderBy(r => r.Created).ToList();
+        }
+
+        public static void Answer(string id, string answer)
+        {
+            Directory.CreateDirectory(AppPaths.Requests);
+            File.WriteAllText(System.IO.Path.Combine(AppPaths.Requests, id + ".answer"), answer);
+        }
+    }
+
     enum Mode { None, Ready, Busy, Waiting, Done, Error }
 
     sealed class Session
@@ -808,6 +1171,10 @@ namespace ClaudeIsland
         public string Cwd = "";
         public string Model = "";
         public int Context = -1; // context window used, percent; -1 = unknown
+        public int Agents;
+        public string Summary = "";
+        public double Cost = -1;
+        public long Hwnd;
         public string State;    // ready | busy | waiting | done | error
         public string Tool;
         public string Detail;
@@ -850,6 +1217,10 @@ namespace ClaudeIsland
                     s.Cwd = cwd;
                     s.Model = Json.Str(d, "model");
                     s.Context = d.ContainsKey("context") ? (int)Json.Long(d, "context") : -1;
+                    s.Agents = (int)Json.Long(d, "agents");
+                    s.Summary = Json.Str(d, "summary");
+                    s.Cost = d.ContainsKey("cost") && d["cost"] != null ? Convert.ToDouble(d["cost"]) : -1;
+                    s.Hwnd = Json.Long(d, "hwnd");
                     s.Tool = Json.Str(d, "tool");
                     s.Detail = Json.Str(d, "detail");
                     s.TurnStart = Json.Long(d, "turnStart");
@@ -935,22 +1306,39 @@ namespace ClaudeIsland
     /// <summary>Scripted fake sessions for the tray's "Vorführen" item.</summary>
     static class Demo
     {
+        // 0-2.5 ready · 2.5-4.5 reads (glasses) · 4.5-6.5 searches the web (magnifier, two sub-agents)
+        // · 6.5-8.5 runs tests (keyboard) · 8.5-12 asks for approval · 12-14.5 edits (pencil)
+        // · 14.5 done with a summary · 20-21.6 a PDF comes close · 21.6 chomp
         public static List<Session> At(double t, long startMs)
         {
-            var s = new Session { Id = "demo", Project = "mein-projekt", Cwd = @"C:\code\mein-projekt", Context = 34, Model = "Opus", Updated = startMs };
-            var other = new Session { Id = "demo2", Project = "website", Cwd = @"C:\code\website", Context = 8, Model = "Sonnet", State = "ready", Updated = startMs };
+            var s = new Session { Id = "demo", Project = "mein-projekt", Cwd = @"C:\code\mein-projekt", Context = 34, Model = "Opus", Updated = startMs, Cost = 1.85 };
+            var other = new Session { Id = "demo2", Project = "website", Cwd = @"C:\code\website", Context = 8, Model = "Sonnet", State = "ready", Updated = startMs, Cost = 0.40 };
+            s.Tool = "";
+            s.Detail = "";
             if (t < 2.5) s.State = "ready";
-            else if (t < 7.5)
+            else if (t < 8.5)
             {
                 s.State = "busy";
                 s.TurnStart = startMs + 2500;
-                s.Tool = "Bash";
-                s.Detail = t < 5 ? "Liest · REPL.tsx" : "Bash · npm test";
+                if (t < 4.5) { s.Tool = "Read"; s.Detail = "Liest · REPL.tsx"; }
+                else if (t < 6.5) { s.Tool = "WebSearch"; s.Detail = "Recherchiert · WPF Animation"; s.Agents = 2; s.Context = 58; }
+                else { s.Tool = "Bash"; s.Detail = "Bash · npm test"; s.Context = 58; }
             }
-            else if (t < 11.5) { s.State = "waiting"; s.Tool = "Bash"; s.Detail = "Bash · git push origin main"; s.TurnStart = startMs + 2500; }
-            else if (t < 14.5) { s.State = "busy"; s.TurnStart = startMs + 2500; s.Tool = "Edit"; s.Detail = "Bearbeitet · App.tsx"; }
-            else { s.State = "done"; s.DoneAt = startMs + 14500; s.Duration = 12000; }
+            else if (t < 12) { s.State = "waiting"; s.Tool = "Bash"; s.Detail = "Bash · git push origin main"; s.TurnStart = startMs + 2500; s.Context = 58; }
+            else if (t < 14.5) { s.State = "busy"; s.TurnStart = startMs + 2500; s.Tool = "Edit"; s.Detail = "Bearbeitet · App.tsx"; s.Context = 61; }
+            else
+            {
+                s.State = "done"; s.DoneAt = startMs + 14500; s.Duration = 12000; s.Context = 61;
+                s.Summary = "Alle 42 Tests laufen wieder. Der Fehler lag im Mock für fetch.";
+            }
             return new List<Session> { s, other };
+        }
+
+        /// <summary>The approval request shown while the demo is "waiting".</summary>
+        public static ApprovalRequest Request(double t, long startMs)
+        {
+            if (t < 8.5 || t >= 12) return null;
+            return new ApprovalRequest { Id = "demo", Session = "demo", Tool = "Bash", Detail = "Bash · git push origin main", Project = "mein-projekt", Created = startMs + 8500 };
         }
 
         public const double Length = 23.5;
@@ -1003,11 +1391,30 @@ namespace ClaudeIsland
         }
     }
 
+    sealed class QuickCommand
+    {
+        public string Label, Prompt;
+        public bool Edits;
+    }
+
     sealed class Settings
     {
         public bool Sound;
         public bool HideInFullscreen;
+        public bool ApprovalsInIsland = true;
+        public bool FollowMonitor = true;
+        public bool Notify = true;
+        public string Birthday = ""; // "MM-dd"
         public readonly List<string> RecentProjects = new List<string>();
+        public readonly List<QuickCommand> Quick = new List<QuickCommand>();
+
+        static readonly QuickCommand[] DefaultQuick =
+        {
+            new QuickCommand { Label = "Tests laufen lassen", Prompt = "Führe die Tests dieses Projekts aus und fasse das Ergebnis kurz zusammen. Repariere nichts, sag mir nur, was fehlschlägt.", Edits = true },
+            new QuickCommand { Label = "Änderungen committen", Prompt = "Sieh dir die aktuellen Änderungen an und erstelle einen Commit mit einer passenden Nachricht.", Edits = true },
+            new QuickCommand { Label = "Was hab ich gestern gemacht?", Prompt = "Fasse anhand der Git-Historie zusammen, was in diesem Projekt gestern geändert wurde.", Edits = false },
+            new QuickCommand { Label = "Projekt erklären", Prompt = "Erkläre mir kurz, worum es in diesem Projekt geht und wie es aufgebaut ist.", Edits = false },
+        };
 
         public static Settings Load()
         {
@@ -1018,12 +1425,31 @@ namespace ClaudeIsland
                     foreach (var raw in File.ReadAllLines(AppPaths.Settings, Encoding.UTF8))
                     {
                         string line = raw.Trim();
-                        if (line == "sound=1") s.Sound = true;
-                        else if (line == "hideFullscreen=1") s.HideInFullscreen = true;
-                        else if (line.StartsWith("project=")) s.RecentProjects.Add(line.Substring(8));
+                        int eq = line.IndexOf('=');
+                        if (eq <= 0) continue;
+                        string key = line.Substring(0, eq), value = line.Substring(eq + 1);
+                        switch (key)
+                        {
+                            case "sound": s.Sound = value == "1"; break;
+                            case "hideFullscreen": s.HideInFullscreen = value == "1"; break;
+                            case "approvals": s.ApprovalsInIsland = value != "0"; break;
+                            case "followMonitor": s.FollowMonitor = value != "0"; break;
+                            case "notify": s.Notify = value != "0"; break;
+                            case "birthday": s.Birthday = value; break;
+                            case "project": s.RecentProjects.Add(value); break;
+                            case "quick":
+                            {
+                                // quick=Label|Prompt|edit
+                                var parts = value.Split('|');
+                                if (parts.Length >= 2)
+                                    s.Quick.Add(new QuickCommand { Label = parts[0], Prompt = parts[1], Edits = parts.Length > 2 && parts[2].Trim() == "edit" });
+                                break;
+                            }
+                        }
                     }
             }
             catch { }
+            if (s.Quick.Count == 0) s.Quick.AddRange(DefaultQuick);
             return s;
         }
 
@@ -1041,8 +1467,17 @@ namespace ClaudeIsland
             try
             {
                 Directory.CreateDirectory(AppPaths.Root);
-                var lines = new List<string> { "sound=" + (Sound ? "1" : "0"), "hideFullscreen=" + (HideInFullscreen ? "1" : "0") };
+                var lines = new List<string>
+                {
+                    "sound=" + (Sound ? "1" : "0"),
+                    "hideFullscreen=" + (HideInFullscreen ? "1" : "0"),
+                    "approvals=" + (ApprovalsInIsland ? "1" : "0"),
+                    "followMonitor=" + (FollowMonitor ? "1" : "0"),
+                    "notify=" + (Notify ? "1" : "0"),
+                    "birthday=" + Birthday,
+                };
                 lines.AddRange(RecentProjects.Select(p => "project=" + p));
+                lines.AddRange(Quick.Select(q => "quick=" + q.Label + "|" + q.Prompt + "|" + (q.Edits ? "edit" : "ask")));
                 File.WriteAllLines(AppPaths.Settings, lines, new UTF8Encoding(false));
             }
             catch { }

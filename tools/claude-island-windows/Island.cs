@@ -2,10 +2,10 @@
 //
 // A Dynamic-Island-style notch at the top edge of the screen with Clawd, the
 // Claude Code mascot, sitting in it - his legs dangle out of the bottom. Clawd
-// acts out what Claude Code is doing; the left side says it in words, the right
-// side shows the 5-hour usage limit as a ring. Hover it and the island opens:
-// usage limits, sessions, and a drop zone where a PDF (or any file) plus a
-// question or a command goes straight to Claude.
+// acts out what Claude Code is doing (with a costume per tool), the left side
+// says it in words, the right side shows the 5-hour usage limit. Hover it and
+// the island opens: approvals, usage, today's stats, sessions, quick commands
+// and a drop zone - feed Clawd a PDF, a screenshot or the clipboard and ask.
 
 using System;
 using System.Collections.Generic;
@@ -20,6 +20,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Drawing = System.Drawing;
@@ -72,26 +73,98 @@ namespace ClaudeIsland
             b.Freeze();
             return b;
         }
+
+        /// <summary>Colors of the pixel art. '#' is the sprite's own body color.</summary>
+        static readonly Dictionary<char, Brush> Cells = new Dictionary<char, Brush>
+        {
+            { 'w', Brush(Color.FromRgb(246, 243, 238)) },  // tooth
+            { 'm', Brush(Color.FromRgb(58, 13, 20)) },     // mouth
+            { 'p', Brush(Color.FromRgb(250, 250, 250)) },  // paper
+            { 'r', Brush(Color.FromRgb(229, 72, 77)) },    // red
+            { 'g', Brush(Color.FromRgb(200, 205, 214)) },  // glasses
+            { 'b', Brush(Color.FromRgb(255, 143, 163)) },  // blush / eraser
+            { 'h', Brush(Color.FromRgb(214, 40, 57)) },    // santa hat
+            { 'W', Brush(Color.FromRgb(255, 255, 255)) },  // white
+            { 'y', Brush(Color.FromRgb(247, 192, 74)) },   // yellow
+            { 'k', Brush(Color.FromRgb(42, 42, 48)) },     // dark
+            { 'l', Brush(Color.FromRgb(154, 160, 170)) },  // light grey
+            { 'c', Brush(Color.FromRgb(110, 198, 255)) },  // sweat
+            { 'o', Brush(Color.FromRgb(242, 140, 40)) },   // pumpkin
+            { 'G', Brush(Color.FromRgb(61, 220, 151)) },   // green
+            { 'n', Brush(Color.FromRgb(139, 90, 60)) },    // coffee
+            { 's', Brush(Color.FromArgb(150, 220, 220, 220)) }, // steam
+        };
+
+        public static Brush Cell(char c, Brush body)
+        {
+            if (c == '#') return body;
+            Brush b;
+            return Cells.TryGetValue(c, out b) ? b : null;
+        }
     }
 
-    /// <summary>
-    /// Clawd as crisp pixel art, decoded from the logo Claude Code prints on
-    /// start: 18 columns; row 0 is room for raised arms and the extra rows let
-    /// his jaw drop open. Cells: '#' body, 'w' tooth, 'm' mouth, 'p' paper,
-    /// 'r' the red PDF stripe.
-    /// </summary>
-    sealed class Clawd : Canvas
+    /// <summary>A grid of crisp square pixels showing string art ('.' is empty).</summary>
+    class PixelSprite : Canvas
     {
-        public const int Cols = 18, Rows = 11;
-        public const int MaxMouth = 4;
-        static readonly Brush Tooth = Palette.Brush(Color.FromRgb(246, 243, 238));
-        static readonly Brush Mouth = Palette.Brush(Color.FromRgb(58, 13, 20));
-        static readonly Brush Paper = Palette.Brush(Color.FromRgb(250, 250, 250));
-        static readonly Brush Red = Palette.Brush(Color.FromRgb(229, 72, 77));
+        public readonly int Cols, Rows;
         public readonly double Px;
-        readonly Rectangle[] cells = new Rectangle[Cols * Rows];
-        string[] current;
-        Color currentColor;
+        readonly Rectangle[] cells;
+        string key;
+
+        public PixelSprite(int cols, int rows, double px)
+        {
+            Cols = cols;
+            Rows = rows;
+            Px = px;
+            Width = cols * px;
+            Height = rows * px;
+            SnapsToDevicePixels = true;
+            IsHitTestVisible = false;
+            RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
+            cells = new Rectangle[cols * rows];
+            for (int y = 0; y < rows; y++)
+                for (int x = 0; x < cols; x++)
+                {
+                    var r = new Rectangle { Width = px, Height = px, Visibility = Visibility.Hidden };
+                    SetLeft(r, x * px);
+                    SetTop(r, y * px);
+                    cells[y * cols + x] = r;
+                    Children.Add(r);
+                }
+        }
+
+        public void Show(string[] rows, Color body)
+        {
+            string k = body.ToString() + "|" + string.Join("|", rows);
+            if (k == key) return;
+            key = k;
+            var bodyBrush = Palette.Brush(body);
+            for (int y = 0; y < Rows; y++)
+                for (int x = 0; x < Cols; x++)
+                {
+                    char ch = y < rows.Length && x < rows[y].Length ? rows[y][x] : '.';
+                    var cell = cells[y * Cols + x];
+                    Brush fill = ch == '.' ? null : Palette.Cell(ch, bodyBrush);
+                    cell.Visibility = fill != null ? Visibility.Visible : Visibility.Hidden;
+                    if (fill != null) cell.Fill = fill;
+                }
+        }
+    }
+
+    /// <summary>Everything that shapes one frame of Clawd.</summary>
+    sealed class Look
+    {
+        public string Eyes = "c";   // c | l | r | shut
+        public string Arms = "side"; // side | up | down | wave
+        public bool LegsB, Happy, Food, Glasses, Blush;
+        public int Mouth, Belly;
+        public string Hat = "";     // "" | santa | party
+    }
+
+    /// <summary>Clawd, decoded from the logo Claude Code prints on start (18 columns).</summary>
+    static class ClawdArt
+    {
+        public const int Cols = 18, Rows = 11, MaxMouth = 4;
 
         const string E = "..................";
         const string Top = "...############...";
@@ -107,90 +180,160 @@ namespace ClaudeIsland
         const string LegsA = "....#.#....#.#....";
         const string LegsB = ".....#.#..#.#.....";
 
-        public Clawd(double px)
+        public static string[] Pose(Look look)
         {
-            Px = px;
-            Width = Cols * px;
-            Height = Rows * px;
-            SnapsToDevicePixels = true;
-            RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
-            for (int y = 0; y < Rows; y++)
-                for (int x = 0; x < Cols; x++)
-                {
-                    var r = new Rectangle { Width = px, Height = px, Visibility = Visibility.Hidden };
-                    SetLeft(r, x * px);
-                    SetTop(r, y * px);
-                    cells[y * Cols + x] = r;
-                    Children.Add(r);
-                }
-        }
+            string r0 = E, r1 = Top, r2 = Eyes.ContainsKey(look.Eyes) ? Eyes[look.Eyes] : Eyes["c"], r3 = Arms, r4 = Body;
+            if (look.Happy) { r1 = "...##.######.##..."; r2 = "...#.#.####.#.#..."; }
+            if (look.Arms == "up") { r0 = ".##............##."; r3 = Body; }
+            else if (look.Arms == "down") { r3 = Body; r4 = Arms; }
+            else if (look.Arms == "wave") { r0 = "................##"; r3 = ".###############.."; }
+            if (r0 == E && look.Hat == "santa") r0 = "....hhhhhhhhhW....";
+            else if (r0 == E && look.Hat == "party") r0 = ".......yyyy.......";
+            if (look.Glasses && !look.Happy) r2 = WithGlasses(r2);
 
-        /// <summary>Build a pose. arms: side | up | down | wave.</summary>
-        public static string[] Pose(string eyes, string arms, bool legsB, bool happy)
-        {
-            return Pose(eyes, arms, legsB, happy, 0, false);
-        }
-
-        /// <summary>
-        /// With mouth &gt; 0 the jaw drops by that many rows: teeth on both jaws,
-        /// dark mouth between, and optionally the PDF he is about to eat.
-        /// </summary>
-        public static string[] Pose(string eyes, string arms, bool legsB, bool happy, int mouth, bool food)
-        {
-            string r0 = E, r1 = Top, r2 = Eyes[eyes], r3 = Arms, r4 = Body;
-            if (happy) { r1 = "...##.######.##..."; r2 = "...#.#.####.#.#..."; }
-            if (arms == "up") { r0 = ".##............##."; r3 = Body; }
-            else if (arms == "down") { r3 = Body; r4 = Arms; }
-            else if (arms == "wave") { r0 = "................##"; r3 = ".###############.."; }
             var rows = new List<string> { r0, r1, r2 };
-            mouth = Math.Max(0, Math.Min(MaxMouth, mouth));
+            int mouth = Math.Max(0, Math.Min(MaxMouth, look.Mouth));
             if (mouth == 1) rows.Add("...#mmmmmmmmmm#...");
             else if (mouth >= 2)
             {
                 rows.Add("...#wmwmwmwmwm#...");
                 for (int i = 0; i < mouth - 2; i++)
                 {
-                    if (food && i == 0) rows.Add("...#mmmppppmmm#...");
-                    else if (food && i == 1) rows.Add("...#mmmprrpmmm#...");
+                    if (look.Food && i == 0) rows.Add("...#mmmppppmmm#...");
+                    else if (look.Food && i == 1) rows.Add("...#mmmprrpmmm#...");
                     else rows.Add("...#mmmmmmmmmm#...");
                 }
                 rows.Add("...#mwmwmwmwmw#...");
             }
+            if (look.Blush) r3 = Set(Set(r3, 4, 'b'), 13, 'b');
+            // A full context window shows as a round belly.
+            if (look.Belly == 1 && r4 == Body) r4 = "..##############..";
+            else if (look.Belly >= 2 && r4 == Body) r4 = Arms;
             rows.Add(r3);
             rows.Add(r4);
-            rows.Add(legsB ? LegsB : LegsA);
+            rows.Add(look.LegsB ? LegsB : LegsA);
             return rows.ToArray();
         }
 
-        public void Show(string[] rows, Color color)
+        static string WithGlasses(string eyesRow)
         {
-            if (current != null && color == currentColor && rows.SequenceEqual(current)) return;
-            var brush = Palette.Brush(color);
-            for (int y = 0; y < Rows; y++)
-                for (int x = 0; x < Cols; x++)
+            var c = eyesRow.ToCharArray();
+            for (int x = 4; x <= 13; x++)
+                if (c[x] == '#' && (eyesRow[x - 1] == '.' || eyesRow[x + 1] == '.')) c[x] = 'g';
+            return new string(c);
+        }
+
+        static string Set(string row, int x, char ch)
+        {
+            if (row[x] != '#') return row;
+            var c = row.ToCharArray();
+            c[x] = ch;
+            return new string(c);
+        }
+
+        // Props Clawd holds next to him (6 x 7).
+        public static readonly string[] Pencil = { ".....b", "....yb", "...yy.", "..yy..", ".yy...", "kl....", "......" };
+        public static readonly string[] Keyboard = { "......", "......", "......", "......", "llllll", "lWlWlW", "llllll" };
+        public static readonly string[] Magnifier = { ".lll..", "lcccl.", "lcccl.", ".lll..", "....k.", ".....k", "......" };
+        public static readonly string[] Cup = { "..s.s.", "...s..", ".WWWW.", ".WnnWW", ".WWWW.", "..WW..", "......" };
+        public static readonly string[] Pumpkin = { "......", "...G..", ".oooo.", "okookk", "oooooo", ".oooo.", "......" };
+        public static readonly string[] Heart = { ".r.r.", "rrrrr", ".rrr.", "..r.." };
+        public static readonly string[] Drop = { ".c.", "ccc", "ccc", ".c." };
+    }
+
+    /// <summary>Full-screen overlay to drag a rectangle; saves it as PNG.</summary>
+    sealed class SnipWindow : Window
+    {
+        readonly Action<string> done;
+        Point start;
+        bool dragging;
+        readonly Rectangle selection = new Rectangle { Stroke = Brushes.White, StrokeThickness = 1.5, StrokeDashArray = new DoubleCollection { 4, 3 }, Fill = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)), Visibility = Visibility.Collapsed };
+        readonly Canvas surface = new Canvas();
+
+        public SnipWindow(Action<string> onDone)
+        {
+            done = onDone;
+            WindowStyle = WindowStyle.None;
+            AllowsTransparency = true;
+            Background = new SolidColorBrush(Color.FromArgb(90, 0, 0, 0));
+            Topmost = true;
+            ShowInTaskbar = false;
+            Cursor = Cursors.Cross;
+            Left = SystemParameters.VirtualScreenLeft;
+            Top = SystemParameters.VirtualScreenTop;
+            Width = SystemParameters.VirtualScreenWidth;
+            Height = SystemParameters.VirtualScreenHeight;
+            var hint = new TextBlock { Text = "Bereich ziehen – Clawd frisst ihn  ·  Esc bricht ab", Foreground = Brushes.White, FontSize = 16, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 60, 0, 0) };
+            surface.Background = Brushes.Transparent;
+            surface.Children.Add(selection);
+            var grid = new Grid();
+            grid.Children.Add(surface);
+            grid.Children.Add(new Border { Child = hint, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false });
+            Content = grid;
+            MouseLeftButtonDown += (s, e) => { start = e.GetPosition(surface); dragging = true; CaptureMouse(); selection.Visibility = Visibility.Visible; Update(start); };
+            MouseMove += (s, e) => { if (dragging) Update(e.GetPosition(surface)); };
+            MouseLeftButtonUp += (s, e) => { if (dragging) Finish(e.GetPosition(surface)); };
+            KeyDown += (s, e) => { if (e.Key == Key.Escape) { Close(); done(null); } };
+            Loaded += (s, e) => Activate();
+        }
+
+        void Update(Point p)
+        {
+            Canvas.SetLeft(selection, Math.Min(p.X, start.X));
+            Canvas.SetTop(selection, Math.Min(p.Y, start.Y));
+            selection.Width = Math.Abs(p.X - start.X);
+            selection.Height = Math.Abs(p.Y - start.Y);
+        }
+
+        void Finish(Point end)
+        {
+            dragging = false;
+            ReleaseMouseCapture();
+            var rect = new Rect(start, end);
+            Matrix toDevice = PresentationSource.FromVisual(this).CompositionTarget.TransformToDevice;
+            double left = Left, top = Top;
+            Close();
+            if (rect.Width < 4 || rect.Height < 4) { done(null); return; }
+            // Let the overlay disappear before capturing.
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
                 {
-                    var cell = cells[y * Cols + x];
-                    char ch = y < rows.Length ? rows[y][x] : '.';
-                    Brush fill = ch == '#' ? brush : ch == 'w' ? Tooth : ch == 'm' ? Mouth : ch == 'p' ? Paper : ch == 'r' ? Red : null;
-                    cell.Visibility = fill != null ? Visibility.Visible : Visibility.Hidden;
-                    if (fill != null) cell.Fill = fill;
+                    var topLeft = toDevice.Transform(new Point(left + rect.X, top + rect.Y));
+                    var size = toDevice.Transform(new Point(rect.Width, rect.Height));
+                    int w = Math.Max(1, (int)size.X), h = Math.Max(1, (int)size.Y);
+                    Directory.CreateDirectory(AppPaths.Shots);
+                    string path = System.IO.Path.Combine(AppPaths.Shots, "Bildschirmfoto-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".png");
+                    using (var bmp = new Drawing.Bitmap(w, h))
+                    {
+                        using (var g = Drawing.Graphics.FromImage(bmp))
+                            g.CopyFromScreen((int)topLeft.X, (int)topLeft.Y, 0, 0, new Drawing.Size(w, h));
+                        bmp.Save(path, Drawing.Imaging.ImageFormat.Png);
+                    }
+                    done(path);
                 }
-            current = rows;
-            currentColor = color;
+                catch (Exception ex)
+                {
+                    AppPaths.LogError("screenshot", ex);
+                    done(null);
+                }
+            }), DispatcherPriority.ApplicationIdle);
         }
     }
 
     sealed class IslandWindow : Window
     {
         // Geometry (DIPs)
-        const double WindowW = 900, WindowH = 760;
+        const double WindowW = 960, WindowH = 860;
         const double Shoulder = 10;
         const double RowH = 48;
-        const double ClosedW = 420;
-        const double OpenW = 640;
+        const double ClosedW = 470;
+        const double GameW = 190;
+        const double OpenW = 660;
         const double PanelTop = 62;
         const double PanelInset = 14;
         const double ClawdPx = 6;
+        const long ChompMs = 760;
 
         readonly bool demoOnStart;
         readonly SessionStore store = new SessionStore();
@@ -208,6 +351,7 @@ namespace ClaudeIsland
 
         // Visual tree
         Canvas canvas;
+        Rectangle catcher;
         Path glowShape, body, edge;
         DropShadowEffect glow;
         Grid row;
@@ -215,23 +359,30 @@ namespace ClaudeIsland
         Ellipse dot;
         DropShadowEffect dotGlow;
         TextBlock label, timeLabel;
-        Border countBadge;
-        TextBlock countText;
+        StackPanel minis;
         StackPanel usageView;
         TextBlock usageKind, usagePct;
         Path ringValue;
-        Clawd clawd;
+        PixelSprite clawd, prop, sweat;
         TranslateTransform clawdBob;
+        readonly List<PixelSprite> babies = new List<PixelSprite>();
+        readonly List<PixelSprite> hearts = new List<PixelSprite>();
+        readonly List<Ellipse> balls = new List<Ellipse>();
         TextBlock zzz;
+        Border toast;
+        TextBlock toastText;
         Border panel;
         StackPanel panelContent;
 
+        Border approvalCard;
+        TextBlock approvalTitle, approvalDetail;
         StackPanel usagePanel;
+        TextBlock costText, todayText, weekText;
         StackPanel sessionsPanel;
         Grid drop;
         Rectangle dropBorder;
         TextBlock dropHint;
-        WrapPanel chips;
+        WrapPanel chips, quickChips;
         TextBox input;
         TextBlock placeholder;
         Border projectButton;
@@ -248,20 +399,19 @@ namespace ClaudeIsland
         bool open, interactive, dragOver, demoOpen;
         long hoverSince, leftSince;
         readonly Dictionary<string, Mode> lastModes = new Dictionary<string, Mode>();
-        bool firstPoll = true;
-        bool pendingFlash;
+        bool firstPoll = true, pendingFlash;
         long demoStart;
-        bool hiddenForFullscreen;
-        long blinkUntil, nextBlink, nextGlance, waveUntil;
-        // Eating a dropped file: the mouth opens as a file drag comes close,
-        // then he chomps, chews twice and swallows before the island opens.
-        Rectangle catcher;
+        bool demoChomped;
+        bool hiddenForFullscreen, gameMode;
+        long blinkUntil, nextBlink, nextGlance, waveUntil, earUntil, happyUntil, petUntil, yawnUntil, nextYawn;
+        string glance = "c";
         double mouth;
         bool fileDrag, nearDrag;
-        long chompStart, chompUntil, happyUntil;
-        const long ChompMs = 760;
-        bool demoChomped;
-        string glance = "c";
+        long chompStart, chompUntil;
+        readonly List<long> heartSpawns = new List<long>();
+        readonly List<long> petTurns = new List<long>();
+        double lastPetX = double.NaN;
+        int lastPetDir;
         IntPtr hwnd;
         WinForms.NotifyIcon tray;
         readonly List<string> attachments = new List<string>();
@@ -269,7 +419,15 @@ namespace ClaudeIsland
         bool answerVisible;
         string answerSessionId;
         List<Session> lastSessions = new List<Session>();
+        Usage lastUsage = new Usage();
         string usageKey, sessionsKey;
+        ApprovalRequest pendingApproval;
+        bool wasLimited;
+        int lastBellyContext = -1;
+        long lastStatsLoad;
+        string toolNow = "";
+        int agentsNow, contextNow;
+        string monitorKey = "";
 
         public IslandWindow(bool demo)
         {
@@ -295,11 +453,6 @@ namespace ClaudeIsland
             SourceInitialized += OnSourceInitialized;
             Loaded += OnLoaded;
             Closed += (s, e) => { if (tray != null) tray.Dispose(); runner.Cancel(); };
-            SystemParameters.StaticPropertyChanged += (s, e) =>
-            {
-                if (e.PropertyName == "PrimaryScreenWidth")
-                    Left = SystemParameters.PrimaryScreenWidth / 2 - WindowW / 2;
-            };
             DragEnter += OnDragOver;
             DragOver += OnDragOver;
             DragLeave += (s, e) => { dragOver = false; fileDrag = false; Refresh(); };
@@ -318,22 +471,51 @@ namespace ClaudeIsland
         [DllImport("user32.dll")] static extern IntPtr MonitorFromWindow(IntPtr h, uint flags);
         [DllImport("user32.dll")] static extern bool GetMonitorInfo(IntPtr m, ref MONITORINFO info);
         [DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
+        [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
+        [DllImport("user32.dll")] static extern bool RegisterHotKey(IntPtr h, int id, uint mods, uint vk);
+        [DllImport("user32.dll")] static extern bool UnregisterHotKey(IntPtr h, int id);
+        [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
 
         [StructLayout(LayoutKind.Sequential)] struct POINT { public int X, Y; }
         [StructLayout(LayoutKind.Sequential)] struct RECT { public int Left, Top, Right, Bottom; }
         [StructLayout(LayoutKind.Sequential)]
         struct MONITORINFO { public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags; }
+        [StructLayout(LayoutKind.Sequential)] struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
 
         const int GWL_EXSTYLE = -20;
         const int WS_EX_TRANSPARENT = 0x20, WS_EX_TOOLWINDOW = 0x80, WS_EX_LAYERED = 0x80000, WS_EX_NOACTIVATE = 0x8000000;
         static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
         const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10;
+        const int WM_HOTKEY = 0x0312, HotkeyOpen = 1, HotkeyShot = 2;
+        const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_NOREPEAT = 0x4000;
 
         void OnSourceInitialized(object sender, EventArgs e)
         {
             hwnd = new WindowInteropHelper(this).Handle;
             int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
             SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_NOACTIVATE);
+            // Global shortcuts: Ctrl+Alt+C opens the island, Ctrl+Alt+S feeds Clawd a screenshot.
+            try
+            {
+                var source = HwndSource.FromHwnd(hwnd);
+                if (source != null) source.AddHook(WndProc);
+                RegisterHotKey(hwnd, HotkeyOpen, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x43);
+                RegisterHotKey(hwnd, HotkeyShot, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x53);
+                Closed += (s, a) => { UnregisterHotKey(hwnd, HotkeyOpen); UnregisterHotKey(hwnd, HotkeyShot); };
+            }
+            catch (Exception ex2) { AppPaths.LogError("hotkeys", ex2); }
+        }
+
+        IntPtr WndProc(IntPtr h, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_HOTKEY)
+            {
+                handled = true;
+                int id = wParam.ToInt32();
+                if (id == HotkeyOpen) Dispatcher.BeginInvoke(new Action(FocusComposer));
+                else if (id == HotkeyShot) Dispatcher.BeginInvoke(new Action(TakeScreenshot));
+            }
+            return IntPtr.Zero;
         }
 
         /// <summary>Click-through while closed; takes mouse, drops and keys when hovered or open.</summary>
@@ -349,22 +531,22 @@ namespace ClaudeIsland
 
         void OnLoaded(object sender, RoutedEventArgs e)
         {
-
             var poll = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(250) };
-            poll.Tick += (s, a) => Poll();
+            poll.Tick += (s, a) => Guard("poll", Poll);
             poll.Start();
 
             var life = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(40) };
-            life.Tick += (s, a) => { CheckHover(); Animate(); };
+            life.Tick += (s, a) => Guard("animate", () => { CheckHover(); Animate(); });
             life.Start();
 
             // Re-assert "topmost" often: games and video players like to claim it too.
             var chores = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            chores.Tick += (s, a) => { KeepOnTop(); CheckFullscreen(); };
+            chores.Tick += (s, a) => Guard("chores", () => { KeepOnTop(); CheckFullscreen(); FollowMonitor(); });
             chores.Start();
 
+            nextYawn = Clock.NowMs() + 25000;
             if (demoOnStart) StartDemo();
-            Poll();
+            Guard("poll", Poll);
             StartRendering();
 
             // Last and guarded: a problem with the tray icon must never keep the island hidden.
@@ -372,10 +554,28 @@ namespace ClaudeIsland
             catch (Exception ex) { AppPaths.LogError("tray", ex); }
         }
 
+        /// <summary>Runs a timer step; a failure is logged once per kind, never fatal.</summary>
+        readonly HashSet<string> loggedFailures = new HashSet<string>();
+        void Guard(string what, Action step)
+        {
+            try { step(); }
+            catch (Exception ex)
+            {
+                if (loggedFailures.Add(what + ex.GetType().Name)) AppPaths.LogError(what, ex);
+            }
+        }
+
         void KeepOnTop()
         {
             if (hwnd != IntPtr.Zero)
                 SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+
+        static long IdleMs()
+        {
+            var info = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO)) };
+            if (!GetLastInputInfo(ref info)) return 0;
+            return (uint)Environment.TickCount - info.dwTime;
         }
 
         void CheckFullscreen()
@@ -394,18 +594,39 @@ namespace ClaudeIsland
                         RECT r;
                         var mi = new MONITORINFO { cbSize = Marshal.SizeOf(typeof(MONITORINFO)) };
                         IntPtr mon = MonitorFromWindow(fg, 2);
-                        if (GetWindowRect(fg, out r) && GetMonitorInfo(mon, ref mi) && (mi.dwFlags & 1) != 0)
+                        if (GetWindowRect(fg, out r) && GetMonitorInfo(mon, ref mi))
                             fullscreen = r.Left <= mi.rcMonitor.Left && r.Top <= mi.rcMonitor.Top &&
                                          r.Right >= mi.rcMonitor.Right && r.Bottom >= mi.rcMonitor.Bottom;
                     }
                 }
             }
             catch { }
-            // Stays visible over games and videos unless the user opted to hide it there.
-            if (!settings.HideInFullscreen) fullscreen = false;
-            if (fullscreen == hiddenForFullscreen) return;
-            hiddenForFullscreen = fullscreen;
-            canvas.BeginAnimation(OpacityProperty, new DoubleAnimation(fullscreen ? 0 : 1, TimeSpan.FromMilliseconds(fullscreen ? 180 : 320)));
+            // In a game: shrink to just Clawd (focus mode), or hide if the user asked for that.
+            bool game = fullscreen && !settings.HideInFullscreen;
+            if (game != gameMode) { gameMode = game; Refresh(); }
+            bool hide = fullscreen && settings.HideInFullscreen;
+            if (hide == hiddenForFullscreen) return;
+            hiddenForFullscreen = hide;
+            canvas.BeginAnimation(OpacityProperty, new DoubleAnimation(hide ? 0 : 1, TimeSpan.FromMilliseconds(hide ? 180 : 320)));
+        }
+
+        /// <summary>Move to the top of the monitor the mouse is on.</summary>
+        void FollowMonitor()
+        {
+            if (!settings.FollowMonitor || open || interactive) return;
+            var screen = WinForms.Screen.FromPoint(WinForms.Cursor.Position);
+            string key = screen.Bounds.ToString();
+            if (key == monitorKey) return;
+            bool first = monitorKey.Length == 0;
+            monitorKey = key;
+            var source = PresentationSource.FromVisual(this);
+            if (source == null) return;
+            Matrix fromDevice = source.CompositionTarget.TransformFromDevice;
+            var tl = fromDevice.Transform(new Point(screen.Bounds.Left, screen.Bounds.Top));
+            var sz = fromDevice.Transform(new Point(screen.Bounds.Width, screen.Bounds.Height));
+            Left = tl.X + sz.X / 2 - WindowW / 2;
+            Top = tl.Y;
+            if (!first) canvas.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300)));
         }
 
         // ── visual tree ───────────────────────────────────────────────────
@@ -425,10 +646,9 @@ namespace ClaudeIsland
 
             // Nearly invisible (alpha 1) so a file dragged near Clawd reaches this
             // layered window; only shown while the mouse button is held nearby.
-            catcher = new Rectangle { Width = 360, Height = 240, Fill = Palette.Brush(Color.FromArgb(1, 0, 0, 0)), Visibility = Visibility.Collapsed };
+            catcher = new Rectangle { Width = 380, Height = 260, Fill = Palette.Brush(Color.FromArgb(1, 0, 0, 0)), Visibility = Visibility.Collapsed };
             canvas.Children.Add(catcher);
 
-            // Colored glow behind, the black island with a soft drop shadow, then a hairline edge.
             glow = new DropShadowEffect { ShadowDepth = 0, BlurRadius = 30, Color = Colors.Black, Opacity = 0, RenderingBias = RenderingBias.Performance };
             glowShape = new Path { Fill = Brushes.Black, Effect = glow };
             body = new Path
@@ -445,19 +665,56 @@ namespace ClaudeIsland
             BuildRow();
 
             clawdBob = new TranslateTransform();
-            clawd = new Clawd(ClawdPx) { RenderTransform = clawdBob };
+            clawd = new PixelSprite(ClawdArt.Cols, ClawdArt.Rows, ClawdPx) { RenderTransform = clawdBob };
             canvas.Children.Add(clawd);
+            prop = new PixelSprite(6, 7, 4) { Visibility = Visibility.Collapsed };
+            canvas.Children.Add(prop);
+            sweat = new PixelSprite(3, 4, 3) { Visibility = Visibility.Collapsed };
+            sweat.Show(ClawdArt.Drop, Palette.Clawd);
+            canvas.Children.Add(sweat);
+            for (int i = 0; i < 3; i++)
+            {
+                var b = new PixelSprite(ClawdArt.Cols, 6, 2.4) { Visibility = Visibility.Collapsed };
+                babies.Add(b);
+                canvas.Children.Add(b);
+            }
+            for (int i = 0; i < 5; i++)
+            {
+                var h = new PixelSprite(5, 4, 3) { Visibility = Visibility.Collapsed };
+                h.Show(ClawdArt.Heart, Palette.Clawd);
+                hearts.Add(h);
+                canvas.Children.Add(h);
+            }
+            var ballColors = new[] { Palette.Busy, Palette.Ready, Palette.Waiting };
+            for (int i = 0; i < 3; i++)
+            {
+                var e = new Ellipse { Width = 6, Height = 6, Fill = Palette.Brush(ballColors[i]), Visibility = Visibility.Collapsed, IsHitTestVisible = false };
+                balls.Add(e);
+                canvas.Children.Add(e);
+            }
             zzz = Text(11, Palette.Secondary, FontWeights.Bold);
             zzz.Text = "z";
             zzz.Opacity = 0;
+            zzz.IsHitTestVisible = false;
             canvas.Children.Add(zzz);
+
+            toastText = Text(12.5, Palette.Text, FontWeights.Normal);
+            toastText.TextWrapping = TextWrapping.Wrap;
+            toastText.MaxWidth = 380;
+            toast = new Border
+            {
+                Child = toastText, Background = Palette.Brush(Color.FromArgb(240, 16, 16, 18)), BorderBrush = Palette.Brush(Palette.ControlLine),
+                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), Padding = new Thickness(12, 8, 12, 9), Opacity = 0, IsHitTestVisible = false,
+                Effect = new DropShadowEffect { ShadowDepth = 4, Direction = 270, BlurRadius = 16, Opacity = 0.5 }
+            };
+            canvas.Children.Add(toast);
         }
 
         void BuildRow()
         {
             row = new Grid { Height = RowH };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Clawd.Cols * ClawdPx + 24) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ClawdArt.Cols * ClawdPx + 64) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             canvas.Children.Add(row);
 
@@ -467,12 +724,12 @@ namespace ClaudeIsland
             label = new TextBlock { FontFamily = DisplayFont, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Palette.Brush(Palette.Text), VerticalAlignment = VerticalAlignment.Center };
             timeLabel = new TextBlock { FontFamily = DisplayFont, FontSize = 14, FontWeight = FontWeights.Medium, Foreground = Palette.Brush(Palette.Secondary), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             Typography.SetNumeralAlignment(timeLabel, FontNumeralAlignment.Tabular);
-            countText = Text(10.5, Color.FromRgb(216, 216, 220), FontWeights.SemiBold);
-            countBadge = new Border { CornerRadius = new CornerRadius(6), Background = Palette.Brush(Palette.PanelLine), Padding = new Thickness(6, 1, 6, 2), Margin = new Thickness(8, 0, 0, 0), Child = countText, VerticalAlignment = VerticalAlignment.Center };
+            // One tiny Clawd per session when more than one is open.
+            minis = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 2, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             left.Children.Add(dot);
             left.Children.Add(label);
             left.Children.Add(timeLabel);
-            left.Children.Add(countBadge);
+            left.Children.Add(minis);
             row.Children.Add(left);
 
             usageView = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
@@ -480,7 +737,7 @@ namespace ClaudeIsland
             usageKind.VerticalAlignment = VerticalAlignment.Center;
             usageKind.Margin = new Thickness(0, 0, 8, 0);
             var ring = new Grid { Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center };
-            ring.Children.Add(new Ellipse { Stroke = Palette.Brush(Color.FromRgb(38, 38, 43)), StrokeThickness = 2.6, Margin = new Thickness(0.0) });
+            ring.Children.Add(new Ellipse { Stroke = Palette.Brush(Color.FromRgb(38, 38, 43)), StrokeThickness = 2.6 });
             ringValue = new Path { StrokeThickness = 2.6, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Stroke = Palette.Brush(Palette.Ready) };
             ring.Children.Add(ringValue);
             usagePct = new TextBlock { FontFamily = DisplayFont, FontSize = 13, FontWeight = FontWeights.Medium, Foreground = Palette.Brush(Color.FromRgb(201, 201, 207)), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -492,19 +749,16 @@ namespace ClaudeIsland
             row.Children.Add(usageView);
         }
 
-        /// <summary>Arc for the usage ring (18 x 18, from 12 o'clock clockwise).</summary>
         static Geometry RingArc(double pct)
         {
             double p = Math.Max(0.001, Math.Min(99.9, pct)) / 100;
             double r = 7.7, c = 9;
             double a = p * 2 * Math.PI;
-            var start = new Point(c, c - r);
-            var end = new Point(c + r * Math.Sin(a), c - r * Math.Cos(a));
             var g = new StreamGeometry();
             using (var ctx = g.Open())
             {
-                ctx.BeginFigure(start, false, false);
-                ctx.ArcTo(end, new Size(r, r), 0, p > 0.5, SweepDirection.Clockwise, true, false);
+                ctx.BeginFigure(new Point(c, c - r), false, false);
+                ctx.ArcTo(new Point(c + r * Math.Sin(a), c - r * Math.Cos(a)), new Size(r, r), 0, p > 0.5, SweepDirection.Clockwise, true, false);
             }
             g.Freeze();
             return g;
@@ -520,15 +774,71 @@ namespace ClaudeIsland
             };
             canvas.Children.Add(panel);
 
+            // Approval card (only while Claude asks for permission).
+            var card = new StackPanel();
+            approvalTitle = Text(12, Palette.Waiting, FontWeights.SemiBold);
+            approvalDetail = Text(14, Palette.Text, FontWeights.SemiBold);
+            approvalDetail.TextWrapping = TextWrapping.Wrap;
+            approvalDetail.Margin = new Thickness(0, 4, 0, 10);
+            var approvalButtons = new StackPanel { Orientation = Orientation.Horizontal };
+            var allow = MakeButton("Erlauben", true, () => AnswerApproval("allow"));
+            var deny = MakeButton("Ablehnen", false, () => AnswerApproval("deny"));
+            var inTerminal = MakeButton("Im Terminal entscheiden", false, () => AnswerApproval("terminal"));
+            deny.Margin = inTerminal.Margin = new Thickness(8, 0, 0, 0);
+            approvalButtons.Children.Add(allow);
+            approvalButtons.Children.Add(deny);
+            approvalButtons.Children.Add(inTerminal);
+            card.Children.Add(approvalTitle);
+            card.Children.Add(approvalDetail);
+            card.Children.Add(approvalButtons);
+            approvalCard = new Border
+            {
+                Child = card, CornerRadius = new CornerRadius(14), Background = Palette.Brush(Color.FromRgb(30, 24, 12)),
+                BorderBrush = Palette.Brush(Palette.Waiting), BorderThickness = new Thickness(1.5), Padding = new Thickness(14, 12, 14, 14),
+                Margin = new Thickness(0, 0, 0, 16), Visibility = Visibility.Collapsed
+            };
+            panelContent.Children.Add(approvalCard);
+
             panelContent.Children.Add(SectionTitle("Nutzungslimit"));
-            usagePanel = new StackPanel { Margin = new Thickness(0, 2, 0, 14) };
+            usagePanel = new StackPanel { Margin = new Thickness(0, 2, 0, 4) };
             panelContent.Children.Add(usagePanel);
+            costText = Text(12, Palette.Secondary, FontWeights.Normal);
+            costText.Margin = new Thickness(0, 2, 0, 0);
+            panelContent.Children.Add(costText);
+
+            var todayTitle = SectionTitle("Heute");
+            todayTitle.Margin = new Thickness(0, 14, 0, 8);
+            panelContent.Children.Add(todayTitle);
+            todayText = Text(12.5, Palette.Text, FontWeights.Normal);
+            todayText.TextWrapping = TextWrapping.Wrap;
+            weekText = Text(12, Palette.Secondary, FontWeights.Normal);
+            weekText.TextWrapping = TextWrapping.Wrap;
+            weekText.Margin = new Thickness(0, 2, 0, 0);
+            var today = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
+            today.Children.Add(todayText);
+            today.Children.Add(weekText);
+            panelContent.Children.Add(today);
 
             panelContent.Children.Add(SectionTitle("Sitzungen"));
             sessionsPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
             panelContent.Children.Add(sessionsPanel);
 
             panelContent.Children.Add(SectionTitle("Frag Claude oder gib einen Befehl"));
+            quickChips = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            foreach (var q in settings.Quick)
+            {
+                var cmd = q;
+                var t = Text(12, Color.FromRgb(232, 232, 236), FontWeights.Normal);
+                t.Text = cmd.Label;
+                var chip = MakeButton(t, false, () => { input.Text = cmd.Prompt; Send(cmd.Edits); });
+                chip.CornerRadius = new CornerRadius(14);
+                chip.Padding = new Thickness(10, 4, 10, 5);
+                chip.Margin = new Thickness(0, 0, 6, 6);
+                ToolTipService.SetToolTip(chip, cmd.Prompt);
+                quickChips.Children.Add(chip);
+            }
+            panelContent.Children.Add(quickChips);
+
             drop = new Grid();
             dropBorder = new Rectangle
             {
@@ -577,9 +887,22 @@ namespace ClaudeIsland
                 actions.Children.Add(b);
             }
             ToolTipService.SetToolTip(ask, "Claude antwortet hier (liest nur, ändert nichts)");
-            ToolTipService.SetToolTip(run, "Claude darf im Projekt Dateien bearbeiten (Strg+Enter)");
+            ToolTipService.SetToolTip(run, "Claude darf im Projekt Dateien bearbeiten und Befehle ausführen (Strg+Enter)");
             ToolTipService.SetToolTip(term, "Claude Code im Projektordner öffnen");
             composer.Children.Add(actions);
+
+            var feeders = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+            var clip = MakeButton("Zwischenablage", false, FeedClipboard);
+            var shot = MakeButton("Bildschirmfoto", false, TakeScreenshot);
+            var voice = MakeButton("Diktieren", false, Dictate);
+            shot.Margin = voice.Margin = new Thickness(8, 0, 0, 0);
+            ToolTipService.SetToolTip(clip, "Text, Bild oder Dateien aus der Zwischenablage an Clawd verfüttern");
+            ToolTipService.SetToolTip(shot, "Bildschirmbereich auswählen (Strg+Alt+S)");
+            ToolTipService.SetToolTip(voice, "Frage sprechen – nutzt die Windows-Spracheingabe (Win+H)");
+            feeders.Children.Add(clip);
+            feeders.Children.Add(shot);
+            feeders.Children.Add(voice);
+            composer.Children.Add(feeders);
             panelContent.Children.Add(drop);
 
             answerPanel = new StackPanel { Margin = new Thickness(0, 14, 0, 0), Visibility = Visibility.Collapsed };
@@ -652,25 +975,50 @@ namespace ClaudeIsland
             }
         }
 
+        // ── toast (a speech bubble under the island) ─────────────────────
+
+        long toastUntil;
+
+        void Toast(string text, double seconds)
+        {
+            toastText.Text = text;
+            toastUntil = Clock.NowMs() + (long)(seconds * 1000);
+            toast.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(220)));
+            LayoutToast();
+        }
+
         // ── Clawd lives ───────────────────────────────────────────────────
 
-        /// <summary>Picks Clawd's pose and the small ambient motions; every 40 ms.</summary>
+        static string HatForToday(Settings s)
+        {
+            var d = DateTime.Today;
+            if (d.Month == 12 && d.Day <= 26) return "santa";
+            if ((d.Month == 12 && d.Day == 31) || (d.Month == 1 && d.Day == 1)) return "party";
+            if (s.Birthday.Length == 5 && d.ToString("MM-dd") == s.Birthday) return "party";
+            return "";
+        }
+
+        /// <summary>Picks Clawd's look, his props and the ambient motions; every 40 ms.</summary>
         void Animate()
         {
             long now = Clock.NowMs();
             if (now > nextBlink) { blinkUntil = now + 130; nextBlink = now + 2600 + random.Next(3200); }
             bool blink = now < blinkUntil;
             long since = now - modeSince;
-            string[] pose;
+            long idle = IdleMs();
+            int hour = DateTime.Now.Hour;
+            var look = new Look { Hat = HatForToday(settings) };
             Color color = Palette.Clawd;
+            string[] propArt = null;
+            double bob = 0;
+            bool juggling = false;
 
             // Mouth: chomp sequence after a drop, otherwise open wider the closer a file gets.
-            bool food = false;
             double mouthTarget = 0;
             if (chompStart > 0)
             {
                 long t = now - chompStart;
-                if (t < 90) { mouthTarget = Clawd.MaxMouth; food = true; }
+                if (t < 90) { mouthTarget = ClawdArt.MaxMouth; look.Food = true; }
                 else if (t < 210) mouthTarget = 0;
                 else if (t < 330) mouthTarget = 2;
                 else if (t < 450) mouthTarget = 0;
@@ -678,47 +1026,52 @@ namespace ClaudeIsland
                 else if (t < ChompMs) mouthTarget = 0;
                 else
                 {
-                    // Gulp - then show the file in the opened island.
                     chompStart = 0;
                     happyUntil = now + 800;
                     hop.Velocity -= 240;
                     StartRendering();
-                    if (attachments.Count > 0)
-                    {
-                        Activate();
-                        input.Focus();
-                    }
+                    if (attachments.Count > 0) FocusComposer();
                     Refresh();
                 }
-                mouth = mouthTarget; // chomps are snappy
+                mouth = mouthTarget;
             }
             else
             {
-                // Demo: a file approaches, then gets eaten.
                 double dt = demoStart > 0 ? (now - demoStart) / 1000.0 : -1;
-                if (dt >= 20.0 && dt < 21.6) mouthTarget = 1.6 + (dt - 20.0) / 1.6 * (Clawd.MaxMouth - 1.6);
-                else if (dt >= 21.6 && !demoChomped)
-                {
-                    demoChomped = true;
-                    chompStart = now;
-                }
-                if (fileDrag)
-                {
-                    double d = DistanceToMouth();
-                    mouthTarget = Math.Max(1.6, Math.Min(Clawd.MaxMouth, (230 - d) / 160 * Clawd.MaxMouth));
-                }
+                if (dt >= 20.0 && dt < 21.6) mouthTarget = 1.6 + (dt - 20.0) / 1.6 * (ClawdArt.MaxMouth - 1.6);
+                else if (dt >= 21.6 && !demoChomped) { demoChomped = true; chompStart = now; }
+                if (fileDrag) mouthTarget = Math.Max(1.6, Math.Min(ClawdArt.MaxMouth, (230 - DistanceToMouth()) / 160 * ClawdArt.MaxMouth));
+                if (now < yawnUntil) mouthTarget = 2;
                 mouth += (mouthTarget - mouth) * 0.35;
                 if (Math.Abs(mouth - mouthTarget) < 0.05) mouth = mouthTarget;
             }
-            int mouthRows = (int)Math.Round(mouth);
+            look.Mouth = (int)Math.Round(mouth);
+            bool demoDrag = demoStart > 0 && now - demoStart >= 20000 && now - demoStart < 21600;
+            bool bored = mode == Mode.Ready && !open && idle > 3 * 60 * 1000;
 
-            bool demoDrag = demoStart > 0 && (now - demoStart) >= 20000 && (now - demoStart) < 21600;
-            if (mouthRows > 0 || fileDrag || chompStart > 0)
-                pose = Clawd.Pose("c", fileDrag || demoDrag || food ? "up" : "side", false, false, mouthRows, food);
-            else if (now < happyUntil)
-                pose = Clawd.Pose("c", "side", false, true);
-            else if (dragOver) pose = Clawd.Pose("c", "up", false, false);
-            else if (now < waveUntil) pose = Clawd.Pose(blink ? "shut" : "c", (now / 180) % 2 == 1 ? "wave" : "side", false, false);
+            if (look.Mouth > 0 || fileDrag || chompStart > 0)
+            {
+                look.Arms = fileDrag || demoDrag || look.Food ? "up" : "side";
+                look.Eyes = now < yawnUntil ? "shut" : "c";
+            }
+            else if (now < petUntil) { look.Happy = true; look.Blush = true; }
+            else if (now < happyUntil) look.Happy = true;
+            else if (now < earUntil) { look.Arms = "wave"; look.Eyes = blink ? "shut" : "c"; }
+            else if (dragOver) look.Arms = "up";
+            else if (now < waveUntil) { look.Arms = (now / 180) % 2 == 1 ? "wave" : "side"; look.Eyes = blink ? "shut" : "c"; }
+            else if (bored && idle > 15 * 60 * 1000) { look.Eyes = "shut"; color = Color.FromRgb(184, 104, 78); }
+            else if (bored && idle > 8 * 60 * 1000)
+            {
+                // Push-ups at the screen edge.
+                bool down = (now / 450) % 2 == 1;
+                look.Arms = down ? "down" : "side";
+                bob = down ? 4 : 0;
+            }
+            else if (bored)
+            {
+                juggling = true;
+                look.Arms = (now / 300) % 2 == 1 ? "up" : "side";
+            }
             else
             {
                 switch (mode)
@@ -726,51 +1079,170 @@ namespace ClaudeIsland
                     case Mode.Busy:
                     {
                         bool f = (now / 170) % 2 == 1;
-                        string eyes = new[] { "l", "c", "r", "c" }[(now / 900) % 4];
-                        pose = Clawd.Pose(blink ? "shut" : eyes, f ? "down" : "side", f, false);
+                        look.Eyes = blink ? "shut" : new[] { "l", "c", "r", "c" }[(now / 900) % 4];
+                        look.Arms = f ? "down" : "side";
+                        look.LegsB = f;
                         break;
                     }
                     case Mode.Waiting:
-                        pose = Clawd.Pose(blink ? "shut" : "c", (now / 260) % 2 == 1 ? "up" : "side", false, false);
+                        look.Eyes = blink ? "shut" : "c";
+                        look.Arms = (now / 260) % 2 == 1 ? "up" : "side";
+                        bob = -Math.Abs(Math.Sin(now / 260.0)) * 3;
                         break;
                     case Mode.Done:
-                        pose = Clawd.Pose("c", since < 900 ? "up" : "side", false, true);
+                        look.Happy = true;
+                        look.Arms = since < 900 ? "up" : "side";
                         break;
                     case Mode.Error:
-                        pose = Clawd.Pose("shut", "side", false, false);
+                        look.Eyes = "shut";
                         color = Color.FromRgb(168, 87, 74);
                         break;
                     case Mode.None:
-                        pose = Clawd.Pose("shut", "side", false, false);
+                        look.Eyes = "shut";
                         color = Color.FromRgb(154, 90, 70);
                         break;
                     default:
-                        if (now > nextGlance)
-                        {
-                            glance = new[] { "l", "c", "r", "c", "c" }[random.Next(5)];
-                            nextGlance = now + 1800 + random.Next(3500);
-                        }
-                        pose = Clawd.Pose(blink ? "shut" : glance, "side", false, false);
+                        look.Eyes = blink ? "shut" : EyesTowardMouse(now);
+                        // Late at night he yawns now and then.
+                        if (hour < 5 && now > nextYawn) { yawnUntil = now + 900; nextYawn = now + 20000 + random.Next(15000); }
                         break;
                 }
             }
-            clawd.Show(pose, color);
 
-            // Waiting: little hops. Asleep: z's drift up.
-            clawdBob.Y = mode == Mode.Waiting && !dragOver ? -Math.Abs(Math.Sin(now / 260.0)) * 3 : 0;
-            if (mode == Mode.None)
+            // Costume for the tool Claude is using.
+            if (mode == Mode.Busy && chompStart == 0 && look.Mouth == 0)
+            {
+                switch (toolNow)
+                {
+                    case "Read": case "Grep": case "Glob": case "NotebookRead": case "LS": look.Glasses = true; break;
+                    case "Edit": case "Write": case "MultiEdit": case "NotebookEdit": propArt = ClawdArt.Pencil; break;
+                    case "Bash": case "PowerShell": propArt = ClawdArt.Keyboard; break;
+                    case "WebSearch": case "WebFetch": propArt = ClawdArt.Magnifier; look.Glasses = true; break;
+                }
+            }
+            else if (mode == Mode.Ready && !bored && hour >= 6 && hour < 10) propArt = ClawdArt.Cup;
+            if (propArt == null && DateTime.Today.Month == 10 && DateTime.Today.Day >= 24) propArt = ClawdArt.Pumpkin;
+
+            look.Belly = contextNow >= 80 ? 2 : contextNow >= 50 ? 1 : 0;
+            clawd.Show(ClawdArt.Pose(look), color);
+            clawdBob.Y = bob;
+
+            double cx = Canvas.GetLeft(clawd), cy = Canvas.GetTop(clawd);
+            if (double.IsNaN(cx) || double.IsNaN(cy)) return;
+
+            // Prop in his right hand.
+            if (propArt != null && !gameMode)
+            {
+                prop.Show(propArt, Palette.Clawd);
+                prop.Visibility = Visibility.Visible;
+                Canvas.SetLeft(prop, cx + clawd.Width + 2);
+                Canvas.SetTop(prop, cy + 3 * ClawdPx - prop.Height / 2 + bob);
+            }
+            else prop.Visibility = Visibility.Collapsed;
+
+            // Sweat when the limit is nearly used up.
+            double headline = lastUsage.FiveHour >= 0 ? lastUsage.FiveHour : lastUsage.SevenDay;
+            if (headline >= 85)
+            {
+                sweat.Visibility = Visibility.Visible;
+                double p = (now % 900) / 900.0;
+                Canvas.SetLeft(sweat, cx + 1);
+                Canvas.SetTop(sweat, cy + ClawdPx + p * 10);
+                sweat.Opacity = 1 - p;
+            }
+            else sweat.Visibility = Visibility.Collapsed;
+
+            // Baby Clawds for sub-agents, hopping under the island.
+            for (int i = 0; i < babies.Count; i++)
+            {
+                var b = babies[i];
+                if (i < agentsNow && !gameMode)
+                {
+                    bool f = ((now / 200) + i) % 2 == 0;
+                    b.Show(ClawdArt.Pose(new Look { Arms = f ? "down" : "side", LegsB = f, Eyes = new[] { "l", "c", "r" }[(i + now / 700) % 3] }), Palette.Clawd);
+                    b.Visibility = Visibility.Visible;
+                    double side = i % 2 == 0 ? -1 : 1;
+                    double bx = cx + clawd.Width / 2 + side * (clawd.Width / 2 + 10 + (i / 2) * 48) - (side < 0 ? b.Width : 0);
+                    Canvas.SetLeft(b, bx);
+                    Canvas.SetTop(b, Math.Min(height.Value, RowH) + 6 - Math.Abs(Math.Sin(now / 230.0 + i)) * 5);
+                }
+                else b.Visibility = Visibility.Collapsed;
+            }
+
+            // Juggling when you have been away for a while.
+            for (int i = 0; i < balls.Count; i++)
+            {
+                var ball = balls[i];
+                if (juggling)
+                {
+                    double ph = ((now / 1100.0) + i / 3.0) % 1.0;
+                    double x = cx + clawd.Width / 2 + Math.Cos(ph * 2 * Math.PI) * 30 - 3;
+                    double y = cy - 2 - Math.Abs(Math.Sin(ph * 2 * Math.PI)) * 14 + 6;
+                    Canvas.SetLeft(ball, x);
+                    Canvas.SetTop(ball, Math.Max(1, y));
+                    ball.Visibility = Visibility.Visible;
+                }
+                else ball.Visibility = Visibility.Collapsed;
+            }
+
+            // Hearts rise when he is petted.
+            heartSpawns.RemoveAll(t => now - t > 1400);
+            for (int i = 0; i < hearts.Count; i++)
+            {
+                var h = hearts[i];
+                if (i < heartSpawns.Count)
+                {
+                    double age = (now - heartSpawns[i]) / 1400.0;
+                    h.Visibility = Visibility.Visible;
+                    h.Opacity = 1 - age;
+                    Canvas.SetLeft(h, cx + clawd.Width / 2 - 8 + (i - 2) * 16 + Math.Sin(age * 6 + i) * 4);
+                    Canvas.SetTop(h, cy + 4 - age * 22);
+                }
+                else h.Visibility = Visibility.Collapsed;
+            }
+            if (now < petUntil && heartSpawns.Count < hearts.Count && (heartSpawns.Count == 0 || now - heartSpawns[heartSpawns.Count - 1] > 260))
+                heartSpawns.Add(now);
+
+            // Asleep: z's drift up.
+            bool sleeping = mode == Mode.None || (bored && idle > 15 * 60 * 1000);
+            if (sleeping)
             {
                 double p = (now % 2400) / 2400.0;
                 zzz.Opacity = p < 0.3 ? p / 0.3 * 0.9 : 0.9 * (1 - (p - 0.3) / 0.7);
-                zzz.RenderTransform = new TranslateTransform(p * 10, -p * 14);
+                Canvas.SetLeft(zzz, cx + clawd.Width - 6 + p * 10);
+                Canvas.SetTop(zzz, cy + 2 - p * 14);
             }
             else zzz.Opacity = 0;
 
-            // The status dot breathes while something is going on.
             double pulse = mode == Mode.Busy ? 1 - 0.3 * (0.5 + 0.5 * Math.Sin(now / 190.0))
                          : mode == Mode.Waiting ? 1 - 0.3 * (0.5 + 0.5 * Math.Sin(now / 110.0)) : 1;
             var st = (ScaleTransform)dot.RenderTransform;
             st.ScaleX = st.ScaleY = pulse;
+
+            if (toastUntil > 0 && now > toastUntil)
+            {
+                toastUntil = 0;
+                toast.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(300)));
+            }
+        }
+
+        string EyesTowardMouse(long now)
+        {
+            POINT p;
+            if (GetCursorPos(out p) && PresentationSource.FromVisual(canvas) != null)
+            {
+                Point local = canvas.PointFromScreen(new Point(p.X, p.Y));
+                double dx = local.X - (Canvas.GetLeft(clawd) + clawd.Width / 2);
+                double dy = local.Y - Canvas.GetTop(clawd);
+                if (Math.Abs(dx) < 1500 && dy < 1200)
+                    return dx < -50 ? "l" : dx > 50 ? "r" : "c";
+            }
+            if (now > nextGlance)
+            {
+                glance = new[] { "l", "c", "r", "c", "c" }[random.Next(5)];
+                nextGlance = now + 1800 + random.Next(3500);
+            }
+            return glance;
         }
 
         // ── state → visuals ──────────────────────────────────────────────
@@ -780,29 +1252,29 @@ namespace ClaudeIsland
             long now = Clock.NowMs();
             List<Session> sessions;
             Usage usage;
+            ApprovalRequest request;
+            double demoT = -1;
             if (demoStart > 0)
             {
-                double t = (now - demoStart) / 1000.0;
-                if (t > Demo.Length)
-                {
-                    demoStart = 0;
-                    demoOpen = false;
-                    sessions = store.Load();
-                    usage = Usage.Load();
-                }
-                else
-                {
-                    sessions = Demo.At(t, demoStart);
-                    usage = Demo.FakeUsage(demoStart);
-                    demoOpen = t > 15.4 && t < 19.6;
-                }
+                demoT = (now - demoStart) / 1000.0;
+                if (demoT > Demo.Length) { demoStart = 0; demoOpen = false; demoT = -1; }
+            }
+            if (demoT >= 0)
+            {
+                sessions = Demo.At(demoT, demoStart);
+                usage = Demo.FakeUsage(demoStart);
+                request = Demo.Request(demoT, demoStart);
+                demoOpen = demoT > 15.4 && demoT < 19.6;
             }
             else
             {
                 sessions = store.Load();
                 usage = Usage.Load();
+                var pending = PermissionBroker.Pending();
+                request = pending.Count > 0 ? pending[0] : null;
             }
             lastSessions = sessions;
+            lastUsage = usage;
 
             foreach (var s in sessions)
             {
@@ -815,12 +1287,15 @@ namespace ClaudeIsland
                 {
                     pendingFlash = true;
                     if (settings.Sound) System.Media.SystemSounds.Asterisk.Play();
+                    if (s.Summary.Length > 0) Toast(s.Project + ": " + s.Summary, 7);
+                    Notify("Claude ist fertig – " + s.Project, s.Summary.Length > 0 ? s.Summary : "Wartet auf deinen nächsten Befehl.");
                 }
                 else if (m == Mode.Waiting)
                 {
                     shake.Velocity += 480;
                     StartRendering();
                     if (settings.Sound) System.Media.SystemSounds.Exclamation.Play();
+                    Notify("Claude braucht dich – " + s.Project, s.Detail.Length > 0 ? "Freigabe: " + s.Detail : "Bitte antworte im Terminal.");
                 }
             }
             firstPoll = false;
@@ -828,10 +1303,33 @@ namespace ClaudeIsland
             Mode overall = sessions.Count > 0 ? Mode.Ready : Mode.None;
             Func<Mode, int> count = x => sessions.Count(s => SessionStore.DisplayMode(s, now) == x);
             int waiting = count(Mode.Waiting), busy = count(Mode.Busy), done = count(Mode.Done), error = count(Mode.Error);
-            if (waiting > 0) overall = Mode.Waiting;
+            if (waiting > 0 || request != null) overall = Mode.Waiting;
             else if (busy > 0) overall = Mode.Busy;
             else if (error > 0) overall = Mode.Error;
             else if (done > 0) overall = Mode.Done;
+
+            var busySession = sessions.FirstOrDefault(s => SessionStore.DisplayMode(s, now) == Mode.Busy);
+            toolNow = busySession != null ? busySession.Tool : "";
+            agentsNow = Math.Min(3, sessions.Sum(s => s.Agents));
+            int ctx = sessions.Select(s => s.Context).DefaultIfEmpty(-1).Max();
+            if (lastBellyContext >= 0 && lastBellyContext < 80 && ctx >= 80)
+            {
+                // Burp!
+                yawnUntil = now + 500;
+                Toast("Bäuerchen! Kontext " + ctx + " % voll – /compact schafft wieder Platz.", 6);
+            }
+            lastBellyContext = ctx;
+            contextNow = Math.Max(0, ctx);
+
+            // Limit reached / released.
+            double headline = usage.FiveHour >= 0 ? usage.FiveHour : usage.SevenDay;
+            bool limited = headline >= 99.5;
+            if (wasLimited && !limited && usage.Known)
+            {
+                Celebrate();
+                Toast("Limit wieder frei – weiter geht's!", 5);
+            }
+            wasLimited = limited;
 
             string text, time = "";
             switch (overall)
@@ -853,8 +1351,14 @@ namespace ClaudeIsland
                     break;
                 }
                 case Mode.Error: text = "Fehler"; break;
-                case Mode.Ready: text = "Bereit"; break;
+                case Mode.Ready: text = DateTime.Now.Hour >= 1 && DateTime.Now.Hour < 5 ? "Bereit · geh schlafen" : "Bereit"; break;
                 default: text = "Schläft"; break;
+            }
+            if (limited && overall != Mode.Busy && overall != Mode.Waiting)
+            {
+                long reset = usage.FiveHour >= 99.5 ? usage.FiveHourResets : usage.SevenDayResets;
+                text = "Limit erreicht";
+                time = reset > 0 ? "frei in " + Countdown(reset) : "";
             }
 
             ApplyMode(overall, now);
@@ -862,14 +1366,31 @@ namespace ClaudeIsland
             label.Text = text;
             timeLabel.Text = time;
             timeLabel.Visibility = time.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-            label.Foreground = overall == Mode.Busy ? ShimmerBrush() : Palette.Brush(Palette.Text);
-            countBadge.Visibility = sessions.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
-            countText.Text = sessions.Count.ToString();
+            label.Foreground = overall == Mode.Busy ? ShimmerBrush() : Palette.Brush(limited ? Palette.Error : Palette.Text);
 
+            UpdateMinis(sessions, now);
+            UpdateApproval(request);
             UpdateUsage(usage);
+            UpdateCost(sessions);
+            if (now - lastStatsLoad > 3000) { lastStatsLoad = now; UpdateStats(); }
             UpdateSessions(sessions, now);
             if (open) UpdateProjectLabel();
             Refresh();
+        }
+
+        static string Countdown(long resetsAtSeconds)
+        {
+            long s = Math.Max(0, resetsAtSeconds - Clock.NowMs() / 1000);
+            return (s / 3600) + ":" + (s / 60 % 60).ToString("00") + ":" + (s % 60).ToString("00");
+        }
+
+        void Notify(string title, string text)
+        {
+            // Only when you're probably not looking: in a game or away from the keyboard.
+            if (!settings.Notify || tray == null || demoStart > 0) return;
+            if (!gameMode && IdleMs() < 30000) return;
+            try { tray.ShowBalloonTip(5000, title, text.Length > 0 ? text : " ", WinForms.ToolTipIcon.None); }
+            catch (Exception ex) { AppPaths.LogError("notify", ex); }
         }
 
         void ApplyMode(Mode next, long now)
@@ -911,7 +1432,6 @@ namespace ClaudeIsland
             StartRendering();
         }
 
-        /// <summary>Clawd jumps for joy and the island glows green.</summary>
         void Celebrate()
         {
             glow.BeginAnimation(DropShadowEffect.ColorProperty, null);
@@ -943,16 +1463,88 @@ namespace ClaudeIsland
             return b;
         }
 
-        // ── usage ─────────────────────────────────────────────────────────
+        // ── mini Clawds (one per session) ────────────────────────────────
+
+        string minisKey;
+
+        void UpdateMinis(List<Session> sessions, long now)
+        {
+            var shown = sessions.Count > 1 && !gameMode ? sessions.Take(4).ToList() : new List<Session>();
+            string key = string.Join(",", shown.Select(s => s.Id));
+            if (key != minisKey)
+            {
+                minisKey = key;
+                minis.Children.Clear();
+                foreach (var s in shown)
+                {
+                    var sess = s;
+                    var sprite = new PixelSprite(ClawdArt.Cols, 6, 1.6) { IsHitTestVisible = true, Background = Brushes.Transparent, Margin = new Thickness(0, 0, 4, 0), Cursor = Cursors.Hand };
+                    ToolTipService.SetToolTip(sprite, sess.Project + " – klicken: zum Terminal");
+                    sprite.MouseLeftButtonUp += (o, e) => JumpTo(sess);
+                    minis.Children.Add(sprite);
+                }
+            }
+            for (int i = 0; i < shown.Count && i < minis.Children.Count; i++)
+            {
+                Mode m = SessionStore.DisplayMode(shown[i], now);
+                bool f = (now / 200 + i) % 2 == 0;
+                var l = new Look
+                {
+                    Arms = m == Mode.Busy && f ? "down" : m == Mode.Waiting && f ? "up" : "side",
+                    LegsB = m == Mode.Busy && f,
+                    Happy = m == Mode.Done,
+                    Eyes = m == Mode.None || m == Mode.Error ? "shut" : "c"
+                };
+                ((PixelSprite)minis.Children[i]).Show(ClawdArt.Pose(l), m == Mode.Error ? Color.FromRgb(168, 87, 74) : Palette.Clawd);
+            }
+        }
+
+        void JumpTo(Session s)
+        {
+            if (!TerminalWindow.Focus(s.Hwnd))
+                Toast("Das Terminal von " + s.Project + " habe ich nicht gefunden. Es meldet sich beim nächsten Befehl neu an.", 5);
+        }
+
+        // ── approvals ─────────────────────────────────────────────────────
+
+        void UpdateApproval(ApprovalRequest r)
+        {
+            bool changed = (r == null) != (pendingApproval == null) || (r != null && pendingApproval != null && r.Id != pendingApproval.Id);
+            pendingApproval = r;
+            approvalCard.Visibility = r != null ? Visibility.Visible : Visibility.Collapsed;
+            if (r == null) return;
+            approvalTitle.Text = (r.Project.Length > 0 ? r.Project : "Claude") + " möchte " + (r.Tool.Length > 0 ? r.Tool : "etwas") + " ausführen";
+            long remaining = PermissionBroker.WaitSeconds - (Clock.NowMs() - r.Created) / 1000;
+            approvalDetail.Text = (r.Detail.Length > 0 ? r.Detail : r.Tool) + (remaining > 0 && remaining < 30 ? "\n(noch " + remaining + " s, dann fragt das Terminal)" : "");
+            if (changed)
+            {
+                shake.Velocity += 480;
+                StartRendering();
+            }
+        }
+
+        void AnswerApproval(string answer)
+        {
+            var r = pendingApproval;
+            if (r == null) return;
+            if (r.Id != "demo") PermissionBroker.Answer(r.Id, answer);
+            pendingApproval = null;
+            approvalCard.Visibility = Visibility.Collapsed;
+            if (answer == "allow") { happyUntil = Clock.NowMs() + 700; hop.Velocity -= 200; StartRendering(); }
+            Toast(answer == "allow" ? "Erlaubt: " + r.Detail : answer == "deny" ? "Abgelehnt: " + r.Detail : "Entscheide im Terminal.", 3);
+            Refresh();
+        }
+
+        // ── usage, cost, stats ────────────────────────────────────────────
 
         void UpdateUsage(Usage u)
         {
-            string key = Math.Round(u.FiveHour) + "|" + Math.Round(u.SevenDay) + "|" + Usage.ResetText(u.FiveHourResets) + "|" + Usage.ResetText(u.SevenDayResets);
+            double headline = u.FiveHour >= 0 ? u.FiveHour : u.SevenDay;
+            string key = Math.Round(u.FiveHour) + "|" + Math.Round(u.SevenDay) + "|" + Usage.ResetText(u.FiveHourResets) + "|" + Usage.ResetText(u.SevenDayResets) +
+                         (headline >= 99.5 ? "|" + (Clock.NowMs() / 1000) : "");
             if (key == usageKey) return;
             usageKey = key;
 
-            double headline = u.FiveHour >= 0 ? u.FiveHour : u.SevenDay;
-            usageView.Visibility = headline >= 0 ? Visibility.Visible : Visibility.Hidden;
             if (headline >= 0)
             {
                 usageKind.Text = u.FiveHour >= 0 ? "5h" : "WOCHE";
@@ -992,18 +1584,51 @@ namespace ClaudeIsland
             g.Children.Add(track);
             var v = Text(12.5, Palette.Secondary, FontWeights.Normal);
             Typography.SetNumeralAlignment(v, FontNumeralAlignment.Tabular);
-            string reset = Usage.ResetText(resets);
-            v.Text = Math.Round(pct) + " %" + (reset.Length > 0 ? " · Reset " + reset : "");
+            string reset = pct >= 99.5 && resets > 0 ? "frei in " + Countdown(resets) : Usage.ResetText(resets);
+            v.Text = Math.Round(pct) + " %" + (reset.Length > 0 ? " · " + (pct >= 99.5 ? "" : "Reset ") + reset : "");
             Grid.SetColumn(v, 2);
             g.Children.Add(v);
             return g;
+        }
+
+        void UpdateCost(List<Session> sessions)
+        {
+            var today = DateTime.Today;
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            double sum = sessions.Where(s => s.Cost >= 0 && epoch.AddMilliseconds(s.Updated).ToLocalTime().Date == today).Sum(s => s.Cost);
+            costText.Text = sum > 0 ? "Heute ≈ " + sum.ToString("0.00", new System.Globalization.CultureInfo("de-DE")) + " $ API-Gegenwert (bei Abos nur zur Orientierung)" : "";
+            costText.Visibility = sum > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        void UpdateStats()
+        {
+            var d = demoStart > 0
+                ? new DayStats { Tasks = 7, BusyMs = 72 * 60 * 1000, Files = new List<KeyValuePair<string, int>> { new KeyValuePair<string, int>("App.tsx", 5) } }
+                : Stats.Load(DateTime.Today);
+            todayText.Text = d.Tasks == 0 ? "Noch keine Aufgabe erledigt."
+                : d.Tasks + (d.Tasks == 1 ? " Aufgabe" : " Aufgaben") + " · " + Hours(d.BusyMs) + " gearbeitet" +
+                  (d.Files.Count > 0 ? " · meist bearbeitet: " + d.Files[0].Key + " (" + d.Files[0].Value + "×)" : "");
+            var dow = DateTime.Today.DayOfWeek;
+            if (dow == DayOfWeek.Friday || dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday)
+            {
+                var w = Stats.Week();
+                weekText.Text = "Diese Woche: " + w.Tasks + " Aufgaben · " + Hours(w.BusyMs) + (w.Files.Count > 0 ? " · Top-Datei " + w.Files[0].Key : "");
+                weekText.Visibility = w.Tasks > 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+            else weekText.Visibility = Visibility.Collapsed;
+        }
+
+        static string Hours(long ms)
+        {
+            long m = ms / 60000;
+            return m < 60 ? m + " min" : (m / 60) + " h " + (m % 60).ToString("00") + " min";
         }
 
         // ── sessions ──────────────────────────────────────────────────────
 
         void UpdateSessions(List<Session> sessions, long now)
         {
-            var lines = new List<Tuple<Color, string, string, string>>();
+            var lines = new List<Tuple<Session, Color, string, string, string>>();
             foreach (var s in sessions.Take(3))
             {
                 Mode m = SessionStore.DisplayMode(s, now);
@@ -1012,25 +1637,27 @@ namespace ClaudeIsland
                 {
                     case Mode.Busy:
                         detail = s.Detail.Length > 0 ? s.Detail : "Denkt nach …";
+                        if (s.Agents > 0) detail += " · " + s.Agents + " Helfer";
                         if (s.TurnStart > 0) right = Clock.Duration(now - s.TurnStart) + (right.Length > 0 ? " · " + right : "");
                         break;
                     case Mode.Waiting:
                         detail = s.Tool.Length > 0 ? "Freigabe: " + s.Detail : (s.Detail.Length > 0 ? s.Detail : "Wartet auf deine Antwort");
                         break;
                     case Mode.Done:
-                        detail = "Fertig – wartet auf deinen nächsten Befehl";
+                        detail = s.Summary.Length > 0 ? s.Summary : "Fertig – wartet auf deinen nächsten Befehl";
                         if (s.Duration > 0) right = Clock.Duration(s.Duration) + (right.Length > 0 ? " · " + right : "");
                         break;
                     case Mode.Error:
                         detail = s.Detail.Length > 0 ? "Fehler · " + s.Detail : "Abbruch mit Fehler";
                         break;
                     default:
-                        detail = "Bereit für den nächsten Befehl";
+                        detail = s.Summary.Length > 0 ? "Zuletzt: " + s.Summary : "Bereit für den nächsten Befehl";
                         break;
                 }
-                lines.Add(Tuple.Create(Palette.For(m), s.Project + (s.Model.Length > 0 ? "  ·  " + s.Model : ""), detail, right));
+                if (s.Context >= 80) right += " – /compact";
+                lines.Add(Tuple.Create(s, Palette.For(m), s.Project + (s.Model.Length > 0 ? "  ·  " + s.Model : ""), detail, right));
             }
-            string key = string.Join("\n", lines.Select(l => l.Item1 + l.Item2 + l.Item3 + l.Item4));
+            string key = string.Join("\n", lines.Select(l => l.Item2 + l.Item3 + l.Item4 + l.Item5));
             if (key == sessionsKey) return;
             sessionsKey = key;
 
@@ -1046,21 +1673,24 @@ namespace ClaudeIsland
             for (int i = 0; i < lines.Count; i++)
             {
                 var l = lines[i];
-                var r = new Grid();
+                var sess = l.Item1;
+                var r = new Grid { Background = Brushes.Transparent, Cursor = Cursors.Hand };
+                ToolTipService.SetToolTip(r, "Klicken: zum Terminal dieser Sitzung springen");
+                r.MouseLeftButtonUp += (o, e) => JumpTo(sess);
                 if (i > 0) r.Children.Add(new Border { Height = 1, Background = Palette.Brush(Color.FromRgb(26, 26, 29)), VerticalAlignment = VerticalAlignment.Top });
                 var g = new Grid { Margin = new Thickness(0, 7, 0, 7) };
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                g.Children.Add(new Ellipse { Width = 7, Height = 7, Fill = Palette.Brush(l.Item1), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left });
+                g.Children.Add(new Ellipse { Width = 7, Height = 7, Fill = Palette.Brush(l.Item2), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left });
                 var texts = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
-                texts.Inlines.Add(new System.Windows.Documents.Run(l.Item2) { FontFamily = UiFont, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Palette.Brush(Palette.Text) });
-                texts.Inlines.Add(new System.Windows.Documents.Run("   " + l.Item3) { FontFamily = UiFont, FontSize = 12, Foreground = Palette.Brush(Palette.Secondary) });
+                texts.Inlines.Add(new System.Windows.Documents.Run(l.Item3) { FontFamily = UiFont, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Palette.Brush(Palette.Text) });
+                texts.Inlines.Add(new System.Windows.Documents.Run("   " + l.Item4) { FontFamily = UiFont, FontSize = 12, Foreground = Palette.Brush(Palette.Secondary) });
                 Grid.SetColumn(texts, 1);
                 g.Children.Add(texts);
-                var right = Text(12, Palette.Secondary, FontWeights.Normal);
+                var right = Text(12, sess.Context >= 80 ? Palette.Waiting : Palette.Secondary, FontWeights.Normal);
                 Typography.SetNumeralAlignment(right, FontNumeralAlignment.Tabular);
-                right.Text = l.Item4;
+                right.Text = l.Item5;
                 right.VerticalAlignment = VerticalAlignment.Center;
                 Grid.SetColumn(right, 2);
                 g.Children.Add(right);
@@ -1092,7 +1722,7 @@ namespace ClaudeIsland
 
         void UpdateDropHint()
         {
-            dropHint.Text = dragOver ? "Loslassen – Clawd fängt sie!" : "PDF oder Datei hierher ziehen – Clawd fängt sie.";
+            dropHint.Text = dragOver ? "Loslassen – Clawd fängt sie!" : "PDF, Bild oder Datei hierher ziehen – Clawd frisst sie.";
             dropHint.Foreground = Palette.Brush(dragOver ? Palette.Clawd : Palette.Faint);
             dropHint.Visibility = dragOver || attachments.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             dropBorder.Stroke = Palette.Brush(dragOver ? Palette.Clawd : Color.FromRgb(52, 52, 58));
@@ -1139,6 +1769,96 @@ namespace ClaudeIsland
                 e.Handled = true;
                 ClearComposer();
             }
+        }
+
+        /// <summary>Open the island with the cursor in the question box (Ctrl+Alt+C).</summary>
+        void FocusComposer()
+        {
+            open = true;
+            SetInteractive(true);
+            Activate();
+            input.Focus();
+            Keyboard.Focus(input);
+            waveUntil = Clock.NowMs() + 900;
+            Refresh();
+        }
+
+        /// <summary>Clawd eats new attachments, then the island opens with them.</summary>
+        void Feed(IEnumerable<string> files)
+        {
+            int before = attachments.Count;
+            foreach (var f in files.Where(File.Exists))
+                if (!attachments.Contains(f, StringComparer.OrdinalIgnoreCase)) attachments.Add(f);
+            if (attachments.Count == before) return;
+            RenderChips();
+            long now = Clock.NowMs();
+            chompStart = now;
+            chompUntil = now + ChompMs + 60;
+            Refresh();
+        }
+
+        void FeedClipboard()
+        {
+            try
+            {
+                Directory.CreateDirectory(AppPaths.Shots);
+                string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+                if (Clipboard.ContainsFileDropList())
+                {
+                    Feed(Clipboard.GetFileDropList().Cast<string>().ToList());
+                }
+                else if (Clipboard.ContainsImage())
+                {
+                    string path = System.IO.Path.Combine(AppPaths.Shots, "Zwischenablage-" + stamp + ".png");
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(Clipboard.GetImage()));
+                    using (var fs = File.Create(path)) encoder.Save(fs);
+                    Feed(new[] { path });
+                }
+                else if (Clipboard.ContainsText())
+                {
+                    string path = System.IO.Path.Combine(AppPaths.Shots, "Zwischenablage-" + stamp + ".txt");
+                    File.WriteAllText(path, Clipboard.GetText(), new UTF8Encoding(false));
+                    Feed(new[] { path });
+                    if (input.Text.Length == 0) input.Text = "Erklär mir das bitte: ";
+                }
+                else Toast("Die Zwischenablage ist leer.", 3);
+            }
+            catch (Exception ex)
+            {
+                AppPaths.LogError("clipboard", ex);
+                Toast("Die Zwischenablage konnte ich nicht lesen.", 3);
+            }
+        }
+
+        void TakeScreenshot()
+        {
+            try
+            {
+                var snip = new SnipWindow(path => { if (path != null) Feed(new[] { path }); });
+                snip.Show();
+            }
+            catch (Exception ex)
+            {
+                AppPaths.LogError("snip", ex);
+                Toast("Bildschirmfoto hat nicht geklappt.", 3);
+            }
+        }
+
+        /// <summary>Focus the question box and start Windows voice typing (Win+H).</summary>
+        void Dictate()
+        {
+            FocusComposer();
+            earUntil = Clock.NowMs() + 8000;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                const byte VK_LWIN = 0x5B, VK_H = 0x48;
+                const uint KEYUP = 0x2;
+                keybd_event(VK_LWIN, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_H, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_H, 0, KEYUP, UIntPtr.Zero);
+                keybd_event(VK_LWIN, 0, KEYUP, UIntPtr.Zero);
+            }), DispatcherPriority.Background);
         }
 
         void Send(bool allowEdits)
@@ -1227,7 +1947,6 @@ namespace ClaudeIsland
             e.Handled = true;
             if (!files) return;
             fileDrag = true;
-            // Over an already open island the drop zone lights up as well.
             if (open && !dragOver)
             {
                 dragOver = true;
@@ -1240,20 +1959,10 @@ namespace ClaudeIsland
             dragOver = false;
             fileDrag = false;
             var files = e.Data.GetData(DataFormats.FileDrop) as string[];
-            if (files != null && files.Any(File.Exists))
-            {
-                foreach (var f in files.Where(File.Exists))
-                    if (!attachments.Contains(f, StringComparer.OrdinalIgnoreCase)) attachments.Add(f);
-                RenderChips();
-                // Chomp! The island opens once he has swallowed it (see Animate).
-                long now = Clock.NowMs();
-                chompStart = now;
-                chompUntil = now + ChompMs + 60;
-            }
+            if (files != null) Feed(files);
             Refresh();
         }
 
-        /// <summary>Distance (DIPs) from the cursor to Clawd's mouth.</summary>
         double DistanceToMouth()
         {
             POINT p;
@@ -1261,6 +1970,7 @@ namespace ClaudeIsland
             Point local = canvas.PointFromScreen(new Point(p.X, p.Y));
             double mx = Canvas.GetLeft(clawd) + clawd.Width / 2;
             double my = Canvas.GetTop(clawd) + 3.5 * ClawdPx;
+            if (double.IsNaN(mx) || double.IsNaN(my)) return double.MaxValue;
             return Math.Sqrt((local.X - mx) * (local.X - mx) + (local.Y - my) * (local.Y - my));
         }
 
@@ -1270,11 +1980,13 @@ namespace ClaudeIsland
             foreach (var f in attachments)
             {
                 string file = f;
-                bool pdf = file.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+                string ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
+                bool pdf = ext == ".pdf";
+                bool image = ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" || ext == ".webp";
                 var panelRow = new StackPanel { Orientation = Orientation.Horizontal };
                 var kind = Text(9.5, Colors.White, FontWeights.Bold);
-                kind.Text = pdf ? "PDF" : "DATEI";
-                var tag = new Border { Child = kind, CornerRadius = new CornerRadius(4), Background = Palette.Brush(pdf ? Color.FromRgb(229, 72, 77) : Color.FromRgb(70, 70, 78)), Padding = new Thickness(5, 1, 5, 2), Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center };
+                kind.Text = pdf ? "PDF" : image ? "BILD" : "DATEI";
+                var tag = new Border { Child = kind, CornerRadius = new CornerRadius(4), Background = Palette.Brush(pdf ? Color.FromRgb(229, 72, 77) : image ? Color.FromRgb(64, 120, 220) : Color.FromRgb(70, 70, 78)), Padding = new Thickness(5, 1, 5, 2), Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center };
                 var name = Text(12, Palette.Text, FontWeights.Normal);
                 name.Text = PathText.LastSegment(file);
                 name.MaxWidth = 280;
@@ -1298,14 +2010,14 @@ namespace ClaudeIsland
             UpdateDropHint();
         }
 
-        // ── open / close ─────────────────────────────────────────────────
+        // ── open / close, petting ────────────────────────────────────────
 
         bool Pinned
         {
             get
             {
                 return input.IsKeyboardFocusWithin || input.Text.Length > 0 || attachments.Count > 0 ||
-                       answerVisible || runner.Running || demoOpen;
+                       answerVisible || runner.Running || demoOpen || pendingApproval != null;
             }
         }
 
@@ -1320,13 +2032,35 @@ namespace ClaudeIsland
             bool dragging = (GetAsyncKeyState(0x01) & 0x8000) != 0;
             long now = Clock.NowMs();
 
+            // Petting: quick back-and-forth strokes over Clawd.
+            double cx = Canvas.GetLeft(clawd), cy = Canvas.GetTop(clawd);
+            bool overClawd = !double.IsNaN(cx) && local.X >= cx - 6 && local.X <= cx + clawd.Width + 6 && local.Y >= cy - 6 && local.Y <= cy + 6 * ClawdPx + 6;
+            if (overClawd && !dragging)
+            {
+                if (!double.IsNaN(lastPetX) && Math.Abs(local.X - lastPetX) > 5)
+                {
+                    int dir = Math.Sign(local.X - lastPetX);
+                    if (lastPetDir != 0 && dir != lastPetDir) petTurns.Add(now);
+                    lastPetDir = dir;
+                    lastPetX = local.X;
+                }
+                else if (double.IsNaN(lastPetX)) lastPetX = local.X;
+                petTurns.RemoveAll(t => now - t > 1500);
+                if (petTurns.Count >= 4 && now > petUntil)
+                {
+                    petUntil = now + 2600;
+                    petTurns.Clear();
+                    hop.Velocity -= 120;
+                    StartRendering();
+                }
+            }
+            else { lastPetX = double.NaN; lastPetDir = 0; }
+
             if (inside) { leftSince = 0; if (hoverSince == 0) hoverSince = now; }
             else { hoverSince = 0; if (leftSince == 0) leftSince = now; }
 
-            // While the mouse button is held near Clawd, a file may be on its way:
-            // take drops there so his mouth can open, but don't unfold the island.
             nearDrag = dragging && DistanceToMouth() < 240;
-            if (!dragging && fileDrag && chompStart == 0) fileDrag = false; // drag ended elsewhere
+            if (!dragging && fileDrag && chompStart == 0) fileDrag = false;
             catcher.Visibility = nearDrag || fileDrag ? Visibility.Visible : Visibility.Collapsed;
 
             bool chewing = now < chompUntil;
@@ -1340,13 +2074,12 @@ namespace ClaudeIsland
             if (want != open)
             {
                 open = want;
-                if (open) waveUntil = now + 900; // Clawd says hi
+                if (open) waveUntil = now + 900;
                 else Keyboard.ClearFocus();
                 Refresh();
             }
         }
 
-        /// <summary>Recompute the target size and the panel's look.</summary>
         void Refresh()
         {
             bool show = open || dragOver;
@@ -1354,6 +2087,9 @@ namespace ClaudeIsland
             {
                 BeginTime = TimeSpan.FromMilliseconds(show ? 120 : 0)
             });
+            bool compact = gameMode && !show && mode != Mode.Waiting;
+            left.Visibility = compact ? Visibility.Hidden : Visibility.Visible;
+            usageView.Visibility = compact || !lastUsage.Known ? Visibility.Hidden : Visibility.Visible;
             UpdateDropHint();
             UpdateTargets();
         }
@@ -1361,7 +2097,8 @@ namespace ClaudeIsland
         void UpdateTargets()
         {
             bool show = open || dragOver;
-            double w = ClosedW, h = RowH;
+            bool compact = gameMode && !show && mode != Mode.Waiting;
+            double w = compact ? GameW : ClosedW, h = RowH;
             if (show)
             {
                 w = OpenW;
@@ -1432,17 +2169,23 @@ namespace ClaudeIsland
             Canvas.SetLeft(panel, x + PanelInset);
             Canvas.SetTop(panel, PanelTop);
 
-            // Clawd sits on the island's floor with his legs dangling out; when open he stays in the header.
             double cy = Math.Min(h, RowH) - 5 * ClawdPx + hop.Value;
             Canvas.SetLeft(clawd, Math.Round(x + w / 2 - clawd.Width / 2));
             Canvas.SetTop(clawd, Math.Round(cy));
             Canvas.SetLeft(catcher, x + w / 2 - catcher.Width / 2);
             Canvas.SetTop(catcher, 0);
-            Canvas.SetLeft(zzz, x + w / 2 + clawd.Width / 2 - 6);
-            Canvas.SetTop(zzz, cy + 2);
+            LayoutToast();
         }
 
-        /// <summary>Dynamic-Island silhouette: concave shoulders at the screen edge, smooth bottom corners.</summary>
+        void LayoutToast()
+        {
+            toast.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            double w = Math.Max(40, width.Value), h = Math.Max(0, height.Value);
+            double x = (WindowW - w) / 2 + shake.Value;
+            Canvas.SetLeft(toast, Math.Round(x + w / 2 - toast.DesiredSize.Width / 2));
+            Canvas.SetTop(toast, Math.Round(h + (agentsNow > 0 ? 30 : 16)));
+        }
+
         static Geometry IslandGeometry(double w, double h)
         {
             double r = Math.Min(h / 2, h > 80 ? 30 : 24), s = Math.Max(0, Math.Min(Shoulder, h - r)), k = 0.36, S = Shoulder;
@@ -1485,14 +2228,17 @@ namespace ClaudeIsland
         {
             tray = new WinForms.NotifyIcon { Text = "Claude Island", Icon = MakeTrayIcon(), Visible = true };
             var menu = new WinForms.ContextMenuStrip();
+            menu.Items.Add("Island öffnen (Strg+Alt+C)", null, (s, e) => Dispatcher.BeginInvoke(new Action(FocusComposer)));
+            menu.Items.Add("Bildschirmfoto verfüttern (Strg+Alt+S)", null, (s, e) => Dispatcher.BeginInvoke(new Action(TakeScreenshot)));
             menu.Items.Add("Animation vorführen", null, (s, e) => Dispatcher.BeginInvoke(new Action(StartDemo)));
             menu.Items.Add("Claude Code öffnen", null, (s, e) => Dispatcher.BeginInvoke(new Action(() => SafeRun(() => ClaudeRunner.OpenTerminal(CurrentProject(), null)))));
-            var sound = new WinForms.ToolStripMenuItem("Ton bei Fertig / Freigabe") { Checked = settings.Sound, CheckOnClick = true };
-            sound.CheckedChanged += (s, e) => { settings.Sound = sound.Checked; settings.Save(); };
-            menu.Items.Add(sound);
-            var hide = new WinForms.ToolStripMenuItem("Bei Vollbild (Spiele, Videos) ausblenden") { Checked = settings.HideInFullscreen, CheckOnClick = true };
-            hide.CheckedChanged += (s, e) => { settings.HideInFullscreen = hide.Checked; settings.Save(); Dispatcher.BeginInvoke(new Action(CheckFullscreen)); };
-            menu.Items.Add(hide);
+            menu.Items.Add(new WinForms.ToolStripSeparator());
+            menu.Items.Add(Toggle("Freigaben in der Island", () => settings.ApprovalsInIsland, v => settings.ApprovalsInIsland = v));
+            menu.Items.Add(Toggle("Windows-Benachrichtigungen", () => settings.Notify, v => settings.Notify = v));
+            menu.Items.Add(Toggle("Dem Bildschirm mit der Maus folgen", () => settings.FollowMonitor, v => settings.FollowMonitor = v));
+            menu.Items.Add(Toggle("Bei Vollbild (Spiele, Videos) ausblenden", () => settings.HideInFullscreen, v => settings.HideInFullscreen = v));
+            menu.Items.Add(Toggle("Ton bei Fertig / Freigabe", () => settings.Sound, v => settings.Sound = v));
+            menu.Items.Add("Geburtstag festlegen …", null, (s, e) => AskBirthday());
             menu.Items.Add("Datenordner öffnen", null, (s, e) =>
             {
                 Directory.CreateDirectory(AppPaths.Root);
@@ -1505,7 +2251,40 @@ namespace ClaudeIsland
                 Application.Current.Shutdown();
             })));
             tray.ContextMenuStrip = menu;
-            tray.MouseClick += (s, e) => { if (e.Button == WinForms.MouseButtons.Left) Dispatcher.BeginInvoke(new Action(StartDemo)); };
+            tray.MouseClick += (s, e) => { if (e.Button == WinForms.MouseButtons.Left) Dispatcher.BeginInvoke(new Action(FocusComposer)); };
+        }
+
+        WinForms.ToolStripMenuItem Toggle(string text, Func<bool> get, Action<bool> set)
+        {
+            var item = new WinForms.ToolStripMenuItem(text) { Checked = get(), CheckOnClick = true };
+            item.CheckedChanged += (s, e) =>
+            {
+                set(item.Checked);
+                settings.Save();
+                Dispatcher.BeginInvoke(new Action(() => { monitorKey = ""; CheckFullscreen(); Refresh(); }));
+            };
+            return item;
+        }
+
+        void AskBirthday()
+        {
+            using (var form = new WinForms.Form { Text = "Claude Island", Width = 360, Height = 170, FormBorderStyle = WinForms.FormBorderStyle.FixedDialog, StartPosition = WinForms.FormStartPosition.CenterScreen, MaximizeBox = false, MinimizeBox = false, TopMost = true })
+            {
+                var lbl = new WinForms.Label { Text = "Dein Geburtstag (TT.MM) – dann trägt Clawd einen Partyhut:", Left = 12, Top = 12, Width = 320 };
+                var box = new WinForms.TextBox { Left = 12, Top = 40, Width = 120, Text = settings.Birthday.Length == 5 ? settings.Birthday.Substring(3, 2) + "." + settings.Birthday.Substring(0, 2) : "" };
+                var ok = new WinForms.Button { Text = "Speichern", Left = 240, Top = 80, Width = 90, DialogResult = WinForms.DialogResult.OK };
+                form.Controls.Add(lbl);
+                form.Controls.Add(box);
+                form.Controls.Add(ok);
+                form.AcceptButton = ok;
+                if (form.ShowDialog() != WinForms.DialogResult.OK) return;
+                DateTime d;
+                if (DateTime.TryParseExact(box.Text.Trim() + ".2000", "dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out d))
+                {
+                    settings.Birthday = d.ToString("MM-dd");
+                    settings.Save();
+                }
+            }
         }
 
         void StartDemo()
@@ -1520,7 +2299,7 @@ namespace ClaudeIsland
         /// <summary>Clawd as a 32 x 32 tray icon.</summary>
         static Drawing.Icon MakeTrayIcon()
         {
-            var rows = Clawd.Pose("c", "side", false, false);
+            var rows = ClawdArt.Pose(new Look());
             using (var bmp = new Drawing.Bitmap(32, 32))
             {
                 using (var g = Drawing.Graphics.FromImage(bmp))
@@ -1528,7 +2307,7 @@ namespace ClaudeIsland
                 {
                     g.Clear(Drawing.Color.Transparent);
                     for (int y = 1; y < rows.Length; y++)
-                        for (int x = 0; x < Clawd.Cols; x++)
+                        for (int x = 0; x < rows[y].Length; x++)
                             if (rows[y][x] == '#') g.FillRectangle(b, 2 + (x - 1) * 1.75f, 8 + (y - 1) * 3.2f, 1.75f, 3.2f);
                 }
                 return Drawing.Icon.FromHandle(bmp.GetHicon());

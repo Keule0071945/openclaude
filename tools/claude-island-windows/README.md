@@ -21,6 +21,40 @@ Links steht der Status in Worten mit leuchtendem Punkt, rechts dein **5-Stunden-
 (grün, ab 60 % gelb, ab 85 % rot). Clawd ist pixelgenau aus dem Logo nachgebaut, das Claude Code
 beim Start zeigt.
 
+## Was Clawd sonst noch kann
+
+- **Kostüm je Werkzeug:** Brille beim Lesen und Suchen, Stift beim Bearbeiten, Tastatur bei
+  Bash, Lupe bei der Websuche.
+- **Augen folgen der Maus.**
+- **Tageszeit:** morgens mit Kaffeetasse, nachts gähnt er, zwischen 1 und 5 Uhr steht
+  „Bereit · geh schlafen“ da.
+- **Langeweile:** Lässt du ihn lange allein, jongliert er, macht Liegestütze und schläft irgendwann ein.
+- **Streicheln:** Fahr mit der Maus ein paarmal schnell über ihm hin und her, dann gibt es Herzchen
+  und rote Bäckchen.
+- **Feiertage:** Weihnachtsmütze bis zum 26.12., Partyhut an Silvester und Neujahr, Kürbis vor
+  Halloween und Partyhut an deinem Geburtstag (Tray-Menü → „Geburtstag festlegen …“).
+- **Limit-Warnung:** Ab 90 % schwitzt er, bei vollem Limit zeigt die Island einen Countdown bis
+  zum Reset und feiert, sobald es wieder frei ist.
+- **Kontext-Bauch:** Wird der Kontext einer Sitzung voll, rülpst er und erinnert an `/compact`.
+- **Kosten:** In der geöffneten Island steht der API-Gegenwert des Tages. Bei einem Abo dient er
+  nur zur Orientierung.
+- **Mehrere Sitzungen:** Jede weitere Sitzung bekommt einen Mini-Clawd neben dem Status.
+  Ein Klick auf eine Sitzung **springt in ihr Terminal**.
+- **Subagenten:** Startet Claude Helfer-Agenten, laufen Baby-Clawds unter der Island herum.
+- **Tagesstatistik:** Aufgaben, Arbeitszeit und meistbearbeitete Datei. Freitags bis sonntags
+  kommt ein Wochenrückblick dazu.
+- **Ergebnis-Vorschau:** Ist Claude fertig, zeigt eine Sprechblase kurz die letzte Antwort.
+- **Windows-Benachrichtigungen,** wenn Claude fertig ist oder dich braucht.
+- **Spielmodus:** Bei Vollbild-Spielen wird die Island zu einem kleinen Clawd ohne Text.
+- **Mehrere Bildschirme:** Die Island wandert auf den Bildschirm, auf dem deine Maus ist.
+
+## Freigaben direkt in der Island
+
+Will Claude etwas tun, das deine Erlaubnis braucht (z. B. `git push`), erscheint in der Island
+eine Karte mit **Erlauben**, **Ablehnen** und **Im Terminal entscheiden**. Antwortest du nicht
+innerhalb von zwei Minuten, fragt Claude Code ganz normal im Terminal nach. Ist die Island nicht
+gestartet, ändert sich nichts. Abschalten: Tray-Menü → „Freigaben in der Island“.
+
 ## Island öffnen (Maus drüber)
 
 - **Nutzungslimit:** 5 Stunden und Woche, jeweils mit Reset-Zeit.
@@ -34,6 +68,15 @@ beim Start zeigt.
 - **Befehle:** „Ausführen“ (oder **Strg+Enter**) erlaubt Claude, Dateien im Projekt zu
   bearbeiten. „Im Terminal weiter“ öffnet genau diese Sitzung in Claude Code.
   „Terminal“ startet Claude Code im Projektordner.
+- **Schnellbefehle:** Chips wie „Tests laufen lassen“, „Änderungen committen“ oder „Projekt
+  erklären“ starten mit einem Klick. Eigene Befehle trägst du in
+  `%LOCALAPPDATA%\ClaudeIsland\settings.ini` ein, eine Zeile je Befehl:
+  `quick=Beschriftung|Auftrag an Claude|edit`. Mit `|edit` am Ende darf Claude dabei Dateien ändern.
+- **Zwischenablage:** Ein Klick verfüttert, was gerade kopiert ist (Text, Bild oder Dateien).
+- **Bildschirmfoto:** **Strg+Alt+S** oder der Knopf in der Island. Bereich aufziehen, und Clawd
+  frisst das Bild.
+- **Sprechen:** Der Mikrofon-Knopf startet die Windows-Spracheingabe (**Win+H**).
+- **Strg+Alt+C** öffnet die Island von überall und setzt den Cursor ins Eingabefeld.
 - **Esc** oder „Schließen“ schließt die Island wieder.
 
 Weitere Eigenschaften:
@@ -53,7 +96,7 @@ Weitere Eigenschaften:
 2. Füge diese Zeile ein und drücke Enter:
 
    ```powershell
-   irm https://raw.githubusercontent.com/Keule0071945/openclaude/claude/flat-notch-status-indicator-x3h3ds/tools/claude-island-windows/get.ps1 | iex
+   iex ((irm "https://raw.githubusercontent.com/Keule0071945/openclaude/claude/flat-notch-status-indicator-x3h3ds/tools/claude-island-windows/get.ps1?nocache=$(Get-Random)") -replace '^\uFEFF','')
    ```
 
 3. Clawd erscheint oben mittig und spielt einmal alles vor, auch die geöffnete Island.
@@ -84,9 +127,13 @@ dabei keine doppelten Einträge.
 
 Das Symbol im Infobereich der Taskleiste bietet:
 
-- **Linksklick:** Animation vorführen
-- **Ton bei Fertig / Freigabe:** Systemton an oder aus
-- **Sitzungsordner öffnen**
+- **Linksklick:** Island öffnen
+- **Island öffnen (Strg+Alt+C)** und **Bildschirmfoto verfüttern (Strg+Alt+S)**
+- **Animation vorführen** und **Claude Code öffnen**
+- Schalter: **Freigaben in der Island**, **Windows-Benachrichtigungen**, **Dem Bildschirm mit der
+  Maus folgen**, **Bei Vollbild ausblenden**, **Ton bei Fertig / Freigabe**
+- **Geburtstag festlegen …**
+- **Datenordner öffnen**
 - **Beenden**
 
 ## Deinstallation
@@ -106,6 +153,11 @@ Claude Code ruft bei jedem relevanten Ereignis `ClaudeIsland.exe hook` auf, und 
 - `Notification`
 - `Stop` und `StopFailure`
 - `SessionStart` und `SessionEnd`
+- `SubagentStart` und `SubagentStop`
+
+Nur für Freigaben gibt es zusätzlich einen **synchronen** `PermissionRequest`-Hook
+(`ClaudeIsland.exe permission`). Er wartet höchstens zwei Minuten auf deine Antwort in der Island.
+Ohne Antwort gibt er nichts zurück, und Claude Code fragt wie gewohnt im Terminal.
 
 Der Hook schreibt den Zustand der Sitzung nach
 `%LOCALAPPDATA%\ClaudeIsland\sessions\<sitzung>.json`. Die Island liest diesen Ordner viermal
