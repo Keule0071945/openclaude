@@ -43,10 +43,29 @@ beim Start zeigt.
 - **Subagenten:** Startet Claude Helfer-Agenten, laufen Baby-Clawds unter der Island herum.
 - **Tagesstatistik:** Aufgaben, Arbeitszeit und meistbearbeitete Datei. Freitags bis sonntags
   kommt ein Wochenrückblick dazu.
+- **Aufgabenliste live:** Plant Claude in Schritten, steht neben der Laufzeit z. B. „2/4“. In
+  der geöffneten Island zeigt ein Balken „Schritt 3 von 4“ und woran Claude gerade arbeitet.
+- **Limit-Vorhersage:** In der geöffneten Island steht z. B. „Bei deinem Tempo ist das
+  5-Stunden-Limit um 16:40 voll“. Wird es in den nächsten 30 Minuten knapp, warnt Clawd vorher.
 - **Ergebnis-Vorschau:** Ist Claude fertig, zeigt eine Sprechblase kurz die letzte Antwort.
 - **Windows-Benachrichtigungen,** wenn Claude fertig ist oder dich braucht.
 - **Spielmodus:** Bei Vollbild-Spielen wird die Island zu einem kleinen Clawd ohne Text.
 - **Mehrere Bildschirme:** Die Island wandert auf den Bildschirm, auf dem deine Maus ist.
+
+## Clawd auf dem Desktop
+
+Drück auf Clawd und zieh ihn nach unten aus der Island (oder Tray-Menü → „Clawd auf dem Desktop
+laufen lassen“). Dann läuft er unten über die Taskleiste:
+
+- Arbeitet Claude, hat er es eilig. Dabei trägt er Brille oder Werkzeug wie in der Island.
+- Braucht Claude dich, springt er auf und ab und zeigt ein gelbes **!**.
+- Ist Claude fertig, macht er einen Freudensprung. Ist keine Sitzung offen, schläft er.
+- Du kannst ihn packen und **werfen**. Er prallt von den Bildschirmrändern ab und landet wieder
+  auf der Taskleiste.
+- **Doppelklick** (oder Rechtsklick → „Zurück in die Island“) holt ihn zurück.
+
+Er bleibt auch nach einem Neustart draußen, bis du ihn zurückholst. Bei Vollbild-Spielen und
+-Videos versteckt er sich.
 
 ## Freigaben direkt in der Island
 
@@ -54,6 +73,23 @@ Will Claude etwas tun, das deine Erlaubnis braucht (z. B. `git push`), erscheint
 eine Karte mit **Erlauben**, **Ablehnen** und **Im Terminal entscheiden**. Antwortest du nicht
 innerhalb von zwei Minuten, fragt Claude Code ganz normal im Terminal nach. Ist die Island nicht
 gestartet, ändert sich nichts. Abschalten: Tray-Menü → „Freigaben in der Island“.
+
+Ohne Maus geht es auch, von überall: **Strg+Alt+J** erlaubt, **Strg+Alt+N** lehnt ab. Die
+beiden Tastenkürzel sind nur belegt, solange eine Freigabe wartet.
+
+## Nachrichten aufs Handy
+
+Bist du nicht am PC, schickt Clawd eine Push-Nachricht aufs Handy, wenn Claude fertig ist oder
+dich braucht. Dafür gibt es die kostenlose App **ntfy** (Android und iPhone, ohne Konto).
+
+1. Tray-Menü → „Nachrichten aufs Handy …“.
+2. Installiere ntfy auf dem Handy, tippe auf **+** und abonniere das angezeigte Thema
+   (z. B. `clawd-…`).
+3. Klick auf **Testnachricht**. Kommt sie an, klick auf **Einschalten**.
+
+Nachrichten kommen nur, wenn du seit mindestens 2 Minuten nichts am PC gemacht hast. Das Thema ist
+wie ein Passwort: Wer es kennt, kann die Nachrichten mitlesen. Gesendet werden nur Projektname,
+Status und die kurze Zusammenfassung über `https://ntfy.sh`.
 
 ## Island öffnen (Maus drüber)
 
@@ -130,6 +166,7 @@ Das Symbol im Infobereich der Taskleiste bietet:
 - **Linksklick:** Island öffnen
 - **Island öffnen (Strg+Alt+C)** und **Bildschirmfoto verfüttern (Strg+Alt+S)**
 - **Animation vorführen** und **Claude Code öffnen**
+- **Clawd auf dem Desktop laufen lassen** und **Nachrichten aufs Handy …**
 - Schalter: **Freigaben in der Island**, **Windows-Benachrichtigungen**, **Dem Bildschirm mit der
   Maus folgen**, **Bei Vollbild ausblenden**, **Ton bei Fertig / Freigabe**
 - **Geburtstag festlegen …**

@@ -497,6 +497,7 @@ namespace ClaudeIsland
                     break;
                 case "UserPromptSubmit":
                     state = "busy";
+                    Todos.ForgetIfFinished(s);
                     s["turnStart"] = now;
                     s["tool"] = "";
                     s["detail"] = "";
@@ -509,6 +510,7 @@ namespace ClaudeIsland
                     state = "busy";
                     if (Json.Long(s, "turnStart") == 0) s["turnStart"] = now;
                     if (toolName.Length > 0) { s["tool"] = toolName; s["detail"] = detail; }
+                    if (ev == "PostToolUse" || (ev == "PreToolUse" && toolName == "TodoWrite")) Todos.Apply(s, toolName, Json.Obj(hook, "tool_input"), hook.ContainsKey("tool_response") ? hook["tool_response"] : null);
                     if (ev == "PostToolUse" && (toolName == "Edit" || toolName == "Write" || toolName == "MultiEdit" || toolName == "NotebookEdit"))
                     {
                         var input = Json.Obj(hook, "tool_input");
@@ -1175,6 +1177,8 @@ namespace ClaudeIsland
         public string Summary = "";
         public double Cost = -1;
         public long Hwnd;
+        public int TodoDone, TodoTotal; // Claude's own task list
+        public string TodoNow = "";
         public string State;    // ready | busy | waiting | done | error
         public string Tool;
         public string Detail;
@@ -1221,6 +1225,7 @@ namespace ClaudeIsland
                     s.Summary = Json.Str(d, "summary");
                     s.Cost = d.ContainsKey("cost") && d["cost"] != null ? Convert.ToDouble(d["cost"]) : -1;
                     s.Hwnd = Json.Long(d, "hwnd");
+                    Todos.Read(d, s);
                     s.Tool = Json.Str(d, "tool");
                     s.Detail = Json.Str(d, "detail");
                     s.TurnStart = Json.Long(d, "turnStart");
@@ -1331,6 +1336,15 @@ namespace ClaudeIsland
                 s.State = "done"; s.DoneAt = startMs + 14500; s.Duration = 12000; s.Context = 61;
                 s.Summary = "Alle 42 Tests laufen wieder. Der Fehler lag im Mock für fetch.";
             }
+            // Claude's task list fills up as the demo goes on.
+            if (t >= 2.5)
+            {
+                string[] steps = { "Liest den fehlschlagenden Test", "Sucht nach der Ursache", "Führt die Tests aus", "Repariert den Mock" };
+                int done = t < 4.5 ? 0 : t < 6.5 ? 1 : t < 12 ? 2 : t < 14.5 ? 3 : 4;
+                s.TodoTotal = steps.Length;
+                s.TodoDone = done;
+                s.TodoNow = done < steps.Length ? steps[done] : "";
+            }
             return new List<Session> { s, other };
         }
 
@@ -1351,6 +1365,184 @@ namespace ClaudeIsland
             u.SevenDay = 18;
             u.SevenDayResets = startMs / 1000 + 4 * 86400;
             return u;
+        }
+    }
+
+    /// <summary>
+    /// Claude's own task list, from TodoWrite (the whole list each time) or
+    /// TaskCreate / TaskUpdate (one task at a time). Stored in the session file
+    /// as "todos": [{ "id", "s" (pending | in_progress | completed), "t", "a" }].
+    /// </summary>
+    static class Todos
+    {
+        public static void Apply(Dictionary<string, object> s, string tool, Dictionary<string, object> input, object response)
+        {
+            if (input == null) return;
+            var list = Load(s);
+            if (tool == "TodoWrite")
+            {
+                var todos = input.ContainsKey("todos") ? input["todos"] as List<object> : null;
+                if (todos == null) return;
+                list.Clear();
+                int n = 0;
+                foreach (var item in todos.OfType<Dictionary<string, object>>())
+                {
+                    n++;
+                    list.Add(Item(Json.Str(item, "id").Length > 0 ? Json.Str(item, "id") : n.ToString(),
+                                  Json.Str(item, "status"), Json.Str(item, "content"), Json.Str(item, "activeForm")));
+                }
+            }
+            else if (tool == "TaskCreate")
+            {
+                string id = TaskIdFrom(response);
+                if (id.Length == 0) id = (list.Count + 1).ToString();
+                list.RemoveAll(x => Json.Str(x, "id") == id);
+                list.Add(Item(id, "pending", Json.Str(input, "subject"), Json.Str(input, "activeForm")));
+            }
+            else if (tool == "TaskUpdate")
+            {
+                string id = Json.Str(input, "taskId");
+                var item = list.FirstOrDefault(x => Json.Str(x, "id") == id);
+                if (item == null) return;
+                string status = Json.Str(input, "status");
+                if (status == "deleted") list.Remove(item);
+                else if (status.Length > 0) item["s"] = status;
+                if (Json.Str(input, "subject").Length > 0) item["t"] = Json.Str(input, "subject");
+                if (Json.Str(input, "activeForm").Length > 0) item["a"] = Json.Str(input, "activeForm");
+            }
+            else return;
+            s["todos"] = list.Cast<object>().ToList();
+        }
+
+        /// <summary>A new prompt starts a fresh list once the old one is all done.</summary>
+        public static void ForgetIfFinished(Dictionary<string, object> s)
+        {
+            var list = Load(s);
+            if (list.Count > 0 && list.All(x => Json.Str(x, "s") == "completed")) s.Remove("todos");
+        }
+
+        public static void Read(Dictionary<string, object> d, Session s)
+        {
+            var list = Load(d);
+            s.TodoTotal = list.Count;
+            s.TodoDone = list.Count(x => Json.Str(x, "s") == "completed");
+            var now = list.FirstOrDefault(x => Json.Str(x, "s") == "in_progress");
+            s.TodoNow = now == null ? "" : (Json.Str(now, "a").Length > 0 ? Json.Str(now, "a") : Json.Str(now, "t"));
+        }
+
+        static List<Dictionary<string, object>> Load(Dictionary<string, object> s)
+        {
+            object v;
+            var raw = s.TryGetValue("todos", out v) ? v as List<object> : null;
+            return raw == null ? new List<Dictionary<string, object>>() : raw.OfType<Dictionary<string, object>>().ToList();
+        }
+
+        static Dictionary<string, object> Item(string id, string status, string text, string active)
+        {
+            return new Dictionary<string, object> { { "id", id }, { "s", status.Length > 0 ? status : "pending" }, { "t", text }, { "a", active } };
+        }
+
+        /// <summary>TaskCreate answers with the new id, as an object or as text like "Task #3 created".</summary>
+        static string TaskIdFrom(object response)
+        {
+            var d = response as Dictionary<string, object>;
+            if (d != null)
+            {
+                var task = Json.Obj(d, "task");
+                if (task != null && Json.Str(task, "id").Length > 0) return Json.Str(task, "id");
+                if (Json.Str(d, "id").Length > 0) return Json.Str(d, "id");
+                if (Json.Str(d, "taskId").Length > 0) return Json.Str(d, "taskId");
+            }
+            var m = System.Text.RegularExpressions.Regex.Match(Convert.ToString(response) ?? "", "#(\\d+)");
+            return m.Success ? m.Groups[1].Value : "";
+        }
+    }
+
+    /// <summary>
+    /// Predicts when the 5-hour limit runs out at the current pace, from the
+    /// usage samples the status line delivers.
+    /// </summary>
+    sealed class UsageForecast
+    {
+        const long WindowMs = 40 * 60 * 1000;
+        readonly List<KeyValuePair<long, double>> samples = new List<KeyValuePair<long, double>>();
+        long resetsAt;
+
+        public void Add(long ms, double pct, long resetsAtSeconds)
+        {
+            if (pct < 0) return;
+            bool newWindow = resetsAtSeconds != resetsAt && resetsAt != 0 && Math.Abs(resetsAtSeconds - resetsAt) > 120;
+            if (newWindow || (samples.Count > 0 && pct < samples[samples.Count - 1].Value - 1)) samples.Clear();
+            resetsAt = resetsAtSeconds;
+            if (samples.Count > 0 && samples[samples.Count - 1].Key >= ms) return;
+            samples.Add(new KeyValuePair<long, double>(ms, pct));
+            samples.RemoveAll(x => ms - x.Key > WindowMs);
+        }
+
+        /// <summary>Unix ms when 100 % is reached before the reset; 0 = it lasts; -1 = not enough data yet.</summary>
+        public long FullAt(long nowMs)
+        {
+            if (samples.Count < 2) return -1;
+            var first = samples[0];
+            var last = samples[samples.Count - 1];
+            long span = last.Key - first.Key;
+            double rise = last.Value - first.Value;
+            if (span < 5 * 60 * 1000) return -1;
+            if (rise <= 0.5) return 0;
+            double perMs = rise / span;
+            long eta = last.Key + (long)((100 - last.Value) / perMs);
+            if (eta < nowMs) eta = nowMs;
+            return resetsAt > 0 && eta >= resetsAt * 1000 ? 0 : eta;
+        }
+    }
+
+    /// <summary>Push messages to the phone through ntfy.sh (free app, no account).</summary>
+    static class Phone
+    {
+        public static bool IsValidTopic(string topic)
+        {
+            return !string.IsNullOrEmpty(topic) && topic.Length <= 64 && topic.All(c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_');
+        }
+
+        public static string NewTopic()
+        {
+            const string chars = "abcdefghijkmnpqrstuvwxyz23456789";
+            var bytes = new byte[14];
+            using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create()) rng.GetBytes(bytes);
+            return "clawd-" + new string(bytes.Select(b => chars[b % chars.Length]).ToArray());
+        }
+
+        public static string Body(string topic, string title, string message, string tag, int priority)
+        {
+            return Json.Serialize(new Dictionary<string, object>
+            {
+                { "topic", topic }, { "title", title }, { "message", message.Length > 0 ? message : " " },
+                { "tags", new List<object> { tag } }, { "priority", priority }
+            });
+        }
+
+        /// <summary>Fire and forget on a pool thread; failures only go to the log.</summary>
+        public static void Send(string topic, string title, string message, string tag, int priority, Action<bool> done)
+        {
+            if (!IsValidTopic(topic)) return;
+            string body = Body(topic, title, message, tag, priority);
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                bool ok = false;
+                try
+                {
+                    System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
+                    var req = (System.Net.HttpWebRequest)System.Net.WebRequest.Create("https://ntfy.sh/");
+                    req.Method = "POST";
+                    req.ContentType = "application/json; charset=utf-8";
+                    req.Timeout = 10000;
+                    var bytes = new UTF8Encoding(false).GetBytes(body);
+                    using (var s = req.GetRequestStream()) s.Write(bytes, 0, bytes.Length);
+                    using (var resp = (System.Net.HttpWebResponse)req.GetResponse()) ok = (int)resp.StatusCode < 300;
+                }
+                catch (Exception ex) { AppPaths.LogError("phone", ex); }
+                if (done != null) done(ok);
+            });
         }
     }
 
@@ -1405,6 +1597,8 @@ namespace ClaudeIsland
         public bool FollowMonitor = true;
         public bool Notify = true;
         public string Birthday = ""; // "MM-dd"
+        public string PhoneTopic = ""; // ntfy topic; empty = off
+        public bool PetOut;
         public readonly List<string> RecentProjects = new List<string>();
         public readonly List<QuickCommand> Quick = new List<QuickCommand>();
 
@@ -1436,6 +1630,8 @@ namespace ClaudeIsland
                             case "followMonitor": s.FollowMonitor = value != "0"; break;
                             case "notify": s.Notify = value != "0"; break;
                             case "birthday": s.Birthday = value; break;
+                            case "phone": s.PhoneTopic = Phone.IsValidTopic(value) ? value : ""; break;
+                            case "pet": s.PetOut = value == "1"; break;
                             case "project": s.RecentProjects.Add(value); break;
                             case "quick":
                             {
@@ -1475,6 +1671,8 @@ namespace ClaudeIsland
                     "followMonitor=" + (FollowMonitor ? "1" : "0"),
                     "notify=" + (Notify ? "1" : "0"),
                     "birthday=" + Birthday,
+                    "phone=" + PhoneTopic,
+                    "pet=" + (PetOut ? "1" : "0"),
                 };
                 lines.AddRange(RecentProjects.Select(p => "project=" + p));
                 lines.AddRange(Quick.Select(q => "quick=" + q.Label + "|" + q.Prompt + "|" + (q.Edits ? "edit" : "ask")));

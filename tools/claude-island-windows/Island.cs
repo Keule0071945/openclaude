@@ -428,6 +428,14 @@ namespace ClaudeIsland
         string toolNow = "";
         int agentsNow, contextNow;
         string monitorKey = "";
+        PetWindow pet;
+        WinForms.ToolStripMenuItem petItem;
+        bool pulling, buttonWasDown;
+        Point pullFrom;
+        readonly UsageForecast forecast = new UsageForecast();
+        long lastUsageSample, forecastWarnedFor;
+        readonly Dictionary<string, long> phoneSent = new Dictionary<string, long>();
+        bool approvalKeys;
 
         public IslandWindow(bool demo)
         {
@@ -486,7 +494,7 @@ namespace ClaudeIsland
         const int WS_EX_TRANSPARENT = 0x20, WS_EX_TOOLWINDOW = 0x80, WS_EX_LAYERED = 0x80000, WS_EX_NOACTIVATE = 0x8000000;
         static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
         const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10;
-        const int WM_HOTKEY = 0x0312, HotkeyOpen = 1, HotkeyShot = 2;
+        const int WM_HOTKEY = 0x0312, HotkeyOpen = 1, HotkeyShot = 2, HotkeyAllow = 3, HotkeyDeny = 4;
         const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_NOREPEAT = 0x4000;
 
         void OnSourceInitialized(object sender, EventArgs e)
@@ -501,7 +509,7 @@ namespace ClaudeIsland
                 if (source != null) source.AddHook(WndProc);
                 RegisterHotKey(hwnd, HotkeyOpen, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x43);
                 RegisterHotKey(hwnd, HotkeyShot, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x53);
-                Closed += (s, a) => { UnregisterHotKey(hwnd, HotkeyOpen); UnregisterHotKey(hwnd, HotkeyShot); };
+                Closed += (s, a) => { UnregisterHotKey(hwnd, HotkeyOpen); UnregisterHotKey(hwnd, HotkeyShot); SetApprovalKeys(false); };
             }
             catch (Exception ex2) { AppPaths.LogError("hotkeys", ex2); }
         }
@@ -514,8 +522,27 @@ namespace ClaudeIsland
                 int id = wParam.ToInt32();
                 if (id == HotkeyOpen) Dispatcher.BeginInvoke(new Action(FocusComposer));
                 else if (id == HotkeyShot) Dispatcher.BeginInvoke(new Action(TakeScreenshot));
+                else if (id == HotkeyAllow) Dispatcher.BeginInvoke(new Action(() => AnswerApproval("allow")));
+                else if (id == HotkeyDeny) Dispatcher.BeginInvoke(new Action(() => AnswerApproval("deny")));
             }
             return IntPtr.Zero;
+        }
+
+        /// <summary>Ctrl+Alt+J / Ctrl+Alt+N answer an approval - only claimed while one is waiting.</summary>
+        void SetApprovalKeys(bool on)
+        {
+            if (on == approvalKeys || hwnd == IntPtr.Zero) return;
+            approvalKeys = on;
+            if (on)
+            {
+                RegisterHotKey(hwnd, HotkeyAllow, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x4A);
+                RegisterHotKey(hwnd, HotkeyDeny, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x4E);
+            }
+            else
+            {
+                UnregisterHotKey(hwnd, HotkeyAllow);
+                UnregisterHotKey(hwnd, HotkeyDeny);
+            }
         }
 
         /// <summary>Click-through while closed; takes mouse, drops and keys when hovered or open.</summary>
@@ -552,6 +579,7 @@ namespace ClaudeIsland
             // Last and guarded: a problem with the tray icon must never keep the island hidden.
             try { SetupTray(); }
             catch (Exception ex) { AppPaths.LogError("tray", ex); }
+            if (settings.PetOut) Dispatcher.BeginInvoke(new Action(() => Guard("pet", () => LetOut(false))), DispatcherPriority.ApplicationIdle);
         }
 
         /// <summary>Runs a timer step; a failure is logged once per kind, never fatal.</summary>
@@ -569,6 +597,7 @@ namespace ClaudeIsland
         {
             if (hwnd != IntPtr.Zero)
                 SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            if (pet != null) pet.KeepOnTop();
         }
 
         static long IdleMs()
@@ -788,9 +817,13 @@ namespace ClaudeIsland
             approvalButtons.Children.Add(allow);
             approvalButtons.Children.Add(deny);
             approvalButtons.Children.Add(inTerminal);
+            var keysHint = Text(11.5, Palette.Secondary, FontWeights.Normal);
+            keysHint.Text = "Von überall: Strg+Alt+J erlauben · Strg+Alt+N ablehnen";
+            keysHint.Margin = new Thickness(0, 9, 0, 0);
             card.Children.Add(approvalTitle);
             card.Children.Add(approvalDetail);
             card.Children.Add(approvalButtons);
+            card.Children.Add(keysHint);
             approvalCard = new Border
             {
                 Child = card, CornerRadius = new CornerRadius(14), Background = Palette.Brush(Color.FromRgb(30, 24, 12)),
@@ -1126,12 +1159,16 @@ namespace ClaudeIsland
             look.Belly = contextNow >= 80 ? 2 : contextNow >= 50 ? 1 : 0;
             clawd.Show(ClawdArt.Pose(look), color);
             clawdBob.Y = bob;
+            // Out on the desktop: the island stays empty, except when a file comes to be eaten.
+            bool away = pet != null && !fileDrag && chompStart == 0 && !dragOver && look.Mouth == 0;
+            if (pet != null) pet.Sync(mode, look.Hat, look.Glasses, propArt, color, gameMode || hiddenForFullscreen);
+            clawd.Visibility = away ? Visibility.Hidden : Visibility.Visible;
 
             double cx = Canvas.GetLeft(clawd), cy = Canvas.GetTop(clawd);
             if (double.IsNaN(cx) || double.IsNaN(cy)) return;
 
             // Prop in his right hand.
-            if (propArt != null && !gameMode)
+            if (propArt != null && !gameMode && !away)
             {
                 prop.Show(propArt, Palette.Clawd);
                 prop.Visibility = Visibility.Visible;
@@ -1142,7 +1179,7 @@ namespace ClaudeIsland
 
             // Sweat when the limit is nearly used up.
             double headline = lastUsage.FiveHour >= 0 ? lastUsage.FiveHour : lastUsage.SevenDay;
-            if (headline >= 85)
+            if (headline >= 85 && !away)
             {
                 sweat.Visibility = Visibility.Visible;
                 double p = (now % 900) / 900.0;
@@ -1173,7 +1210,7 @@ namespace ClaudeIsland
             for (int i = 0; i < balls.Count; i++)
             {
                 var ball = balls[i];
-                if (juggling)
+                if (juggling && !away)
                 {
                     double ph = ((now / 1100.0) + i / 3.0) % 1.0;
                     double x = cx + clawd.Width / 2 + Math.Cos(ph * 2 * Math.PI) * 30 - 3;
@@ -1204,7 +1241,7 @@ namespace ClaudeIsland
                 heartSpawns.Add(now);
 
             // Asleep: z's drift up.
-            bool sleeping = mode == Mode.None || (bored && idle > 15 * 60 * 1000);
+            bool sleeping = !away && (mode == Mode.None || (bored && idle > 15 * 60 * 1000));
             if (sleeping)
             {
                 double p = (now % 2400) / 2400.0;
@@ -1275,6 +1312,17 @@ namespace ClaudeIsland
             }
             lastSessions = sessions;
             lastUsage = usage;
+            if (demoT < 0 && usage.FiveHour >= 0 && usage.Updated != lastUsageSample)
+            {
+                lastUsageSample = usage.Updated;
+                forecast.Add(usage.Updated > 0 ? usage.Updated : now, usage.FiveHour, usage.FiveHourResets);
+                long full = forecast.FullAt(now);
+                if (full > 0 && full - now < 30 * 60 * 1000 && usage.FiveHourResets != forecastWarnedFor)
+                {
+                    forecastWarnedFor = usage.FiveHourResets;
+                    Toast("Achtung: Bei diesem Tempo ist dein Limit um " + LocalTime(full) + " voll.", 7);
+                }
+            }
 
             foreach (var s in sessions)
             {
@@ -1289,6 +1337,7 @@ namespace ClaudeIsland
                     if (settings.Sound) System.Media.SystemSounds.Asterisk.Play();
                     if (s.Summary.Length > 0) Toast(s.Project + ": " + s.Summary, 7);
                     Notify("Claude ist fertig – " + s.Project, s.Summary.Length > 0 ? s.Summary : "Wartet auf deinen nächsten Befehl.");
+                    ToPhone("done:" + s.Id, "Claude ist fertig – " + s.Project, s.Summary.Length > 0 ? s.Summary : "Wartet auf deinen nächsten Befehl.", "white_check_mark", 3);
                 }
                 else if (m == Mode.Waiting)
                 {
@@ -1296,6 +1345,7 @@ namespace ClaudeIsland
                     StartRendering();
                     if (settings.Sound) System.Media.SystemSounds.Exclamation.Play();
                     Notify("Claude braucht dich – " + s.Project, s.Detail.Length > 0 ? "Freigabe: " + s.Detail : "Bitte antworte im Terminal.");
+                    if (request == null) ToPhone("wait:" + s.Id, "Claude braucht dich – " + s.Project, s.Detail.Length > 0 ? "Freigabe: " + s.Detail : "Bitte antworte im Terminal.", "warning", 4);
                 }
             }
             firstPoll = false;
@@ -1341,6 +1391,8 @@ namespace ClaudeIsland
                                            .Select(s => now - s.TurnStart).DefaultIfEmpty(0).Max();
                     text = "Arbeitet";
                     time = Clock.Duration(longest);
+                    var planned = sessions.FirstOrDefault(s => SessionStore.DisplayMode(s, now) == Mode.Busy && s.TodoTotal > 0);
+                    if (planned != null) time += " · " + planned.TodoDone + "/" + planned.TodoTotal;
                     break;
                 }
                 case Mode.Done:
@@ -1391,6 +1443,17 @@ namespace ClaudeIsland
             if (!gameMode && IdleMs() < 30000) return;
             try { tray.ShowBalloonTip(5000, title, text.Length > 0 ? text : " ", WinForms.ToolTipIcon.None); }
             catch (Exception ex) { AppPaths.LogError("notify", ex); }
+        }
+
+        /// <summary>A push to the phone - only while you are away from the PC, at most once a minute per event.</summary>
+        void ToPhone(string key, string title, string text, string tag, int priority)
+        {
+            if (settings.PhoneTopic.Length == 0 || demoStart > 0) return;
+            if (IdleMs() < 2 * 60 * 1000) return;
+            long now = Clock.NowMs(), last;
+            if (phoneSent.TryGetValue(key, out last) && now - last < 60000) return;
+            phoneSent[key] = now;
+            Phone.Send(settings.PhoneTopic, title, text, tag, priority, null);
         }
 
         void ApplyMode(Mode next, long now)
@@ -1512,6 +1575,8 @@ namespace ClaudeIsland
             bool changed = (r == null) != (pendingApproval == null) || (r != null && pendingApproval != null && r.Id != pendingApproval.Id);
             pendingApproval = r;
             approvalCard.Visibility = r != null ? Visibility.Visible : Visibility.Collapsed;
+            SetApprovalKeys(r != null && demoStart == 0);
+            if (r != null && changed) ToPhone("approval:" + r.Id, "Claude braucht deine Freigabe – " + (r.Project.Length > 0 ? r.Project : "Claude"), r.Detail, "warning", 4);
             if (r == null) return;
             approvalTitle.Text = (r.Project.Length > 0 ? r.Project : "Claude") + " möchte " + (r.Tool.Length > 0 ? r.Tool : "etwas") + " ausführen";
             long remaining = PermissionBroker.WaitSeconds - (Clock.NowMs() - r.Created) / 1000;
@@ -1541,7 +1606,7 @@ namespace ClaudeIsland
         {
             double headline = u.FiveHour >= 0 ? u.FiveHour : u.SevenDay;
             string key = Math.Round(u.FiveHour) + "|" + Math.Round(u.SevenDay) + "|" + Usage.ResetText(u.FiveHourResets) + "|" + Usage.ResetText(u.SevenDayResets) +
-                         (headline >= 99.5 ? "|" + (Clock.NowMs() / 1000) : "");
+                         (headline >= 99.5 ? "|" + (Clock.NowMs() / 1000) : "") + "|" + forecast.FullAt(Clock.NowMs()) / 60000 + "|" + demoStart;
             if (key == usageKey) return;
             usageKey = key;
 
@@ -1564,6 +1629,25 @@ namespace ClaudeIsland
             }
             if (u.FiveHour >= 0) usagePanel.Children.Add(UsageRow("5 Stunden", u.FiveHour, u.FiveHourResets));
             if (u.SevenDay >= 0) usagePanel.Children.Add(UsageRow("Woche", u.SevenDay, u.SevenDayResets));
+
+            // At this pace ... ?
+            long now = Clock.NowMs();
+            long full = demoStart > 0 ? demoStart + 100 * 60 * 1000 : forecast.FullAt(now);
+            if (u.FiveHour >= 0 && u.FiveHour < 99.5 && full >= 0)
+            {
+                var f = Text(12, full > 0 ? Palette.Waiting : Palette.Secondary, FontWeights.Normal);
+                f.TextWrapping = TextWrapping.Wrap;
+                f.Margin = new Thickness(0, 2, 0, 0);
+                f.Text = full > 0
+                    ? "Bei deinem Tempo ist das 5-Stunden-Limit um " + LocalTime(full) + " voll (in " + Hours(full - now) + ")."
+                    : "Bei deinem Tempo reicht das 5-Stunden-Limit bis zum Reset.";
+                usagePanel.Children.Add(f);
+            }
+        }
+
+        static string LocalTime(long unixMs)
+        {
+            return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddMilliseconds(unixMs).ToLocalTime().ToString("HH:mm");
         }
 
         static Grid UsageRow(string name, double pct, long resets)
@@ -1626,6 +1710,26 @@ namespace ClaudeIsland
 
         // ── sessions ──────────────────────────────────────────────────────
 
+        /// <summary>Claude's task list as a thin bar with "Schritt 3 von 7".</summary>
+        static FrameworkElement TodoBar(int done, int total)
+        {
+            var g = new Grid { Margin = new Thickness(16, -3, 0, 8) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var track = new Border { Height = 4, CornerRadius = new CornerRadius(2), Background = Palette.Brush(Palette.Track), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
+            var fill = new Border { CornerRadius = new CornerRadius(2), Background = Palette.Brush(Palette.Clawd), HorizontalAlignment = HorizontalAlignment.Left, Width = 0 };
+            track.Child = fill;
+            double share = total > 0 ? (double)done / total : 0;
+            track.SizeChanged += (s, e) => fill.BeginAnimation(WidthProperty, new DoubleAnimation(track.ActualWidth * share, TimeSpan.FromMilliseconds(500)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+            g.Children.Add(track);
+            var t = Text(11.5, Palette.Secondary, FontWeights.Normal);
+            Typography.SetNumeralAlignment(t, FontNumeralAlignment.Tabular);
+            t.Text = done >= total ? "Alle " + total + " Schritte erledigt" : "Schritt " + Math.Min(total, done + 1) + " von " + total;
+            Grid.SetColumn(t, 1);
+            g.Children.Add(t);
+            return g;
+        }
+
         void UpdateSessions(List<Session> sessions, long now)
         {
             var lines = new List<Tuple<Session, Color, string, string, string>>();
@@ -1637,6 +1741,7 @@ namespace ClaudeIsland
                 {
                     case Mode.Busy:
                         detail = s.Detail.Length > 0 ? s.Detail : "Denkt nach …";
+                        if (s.TodoNow.Length > 0) detail = s.TodoNow + " · " + detail;
                         if (s.Agents > 0) detail += " · " + s.Agents + " Helfer";
                         if (s.TurnStart > 0) right = Clock.Duration(now - s.TurnStart) + (right.Length > 0 ? " · " + right : "");
                         break;
@@ -1657,7 +1762,7 @@ namespace ClaudeIsland
                 if (s.Context >= 80) right += " – /compact";
                 lines.Add(Tuple.Create(s, Palette.For(m), s.Project + (s.Model.Length > 0 ? "  ·  " + s.Model : ""), detail, right));
             }
-            string key = string.Join("\n", lines.Select(l => l.Item2 + l.Item3 + l.Item4 + l.Item5));
+            string key = string.Join("\n", lines.Select(l => l.Item2 + l.Item3 + l.Item4 + l.Item5 + "|" + l.Item1.TodoDone + "/" + l.Item1.TodoTotal));
             if (key == sessionsKey) return;
             sessionsKey = key;
 
@@ -1695,6 +1800,14 @@ namespace ClaudeIsland
                 Grid.SetColumn(right, 2);
                 g.Children.Add(right);
                 r.Children.Add(g);
+                if (sess.TodoTotal > 0 && (SessionStore.DisplayMode(sess, now) == Mode.Busy || SessionStore.DisplayMode(sess, now) == Mode.Waiting))
+                {
+                    r.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    r.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    var bar = TodoBar(sess.TodoDone, sess.TodoTotal);
+                    Grid.SetRow(bar, 1);
+                    r.Children.Add(bar);
+                }
                 sessionsPanel.Children.Add(r);
             }
         }
@@ -2034,7 +2147,7 @@ namespace ClaudeIsland
 
             // Petting: quick back-and-forth strokes over Clawd.
             double cx = Canvas.GetLeft(clawd), cy = Canvas.GetTop(clawd);
-            bool overClawd = !double.IsNaN(cx) && local.X >= cx - 6 && local.X <= cx + clawd.Width + 6 && local.Y >= cy - 6 && local.Y <= cy + 6 * ClawdPx + 6;
+            bool overClawd = pet == null && !double.IsNaN(cx) && local.X >= cx - 6 && local.X <= cx + clawd.Width + 6 && local.Y >= cy - 6 && local.Y <= cy + 6 * ClawdPx + 6;
             if (overClawd && !dragging)
             {
                 if (!double.IsNaN(lastPetX) && Math.Abs(local.X - lastPetX) > 5)
@@ -2055,6 +2168,12 @@ namespace ClaudeIsland
                 }
             }
             else { lastPetX = double.NaN; lastPetDir = 0; }
+
+            // Pull Clawd out of the island: press on him and drag downwards.
+            if (dragging && !buttonWasDown) { pulling = overClawd && !fileDrag; pullFrom = local; }
+            if (!dragging) pulling = false;
+            if (pulling && local.Y - pullFrom.Y > 36) { pulling = false; LetOut(true); }
+            buttonWasDown = dragging;
 
             if (inside) { leftSince = 0; if (hoverSince == 0) hoverSince = now; }
             else { hoverSince = 0; if (leftSince == 0) leftSince = now; }
@@ -2238,6 +2357,9 @@ namespace ClaudeIsland
             menu.Items.Add(Toggle("Dem Bildschirm mit der Maus folgen", () => settings.FollowMonitor, v => settings.FollowMonitor = v));
             menu.Items.Add(Toggle("Bei Vollbild (Spiele, Videos) ausblenden", () => settings.HideInFullscreen, v => settings.HideInFullscreen = v));
             menu.Items.Add(Toggle("Ton bei Fertig / Freigabe", () => settings.Sound, v => settings.Sound = v));
+            petItem = Toggle("Clawd auf dem Desktop laufen lassen", () => pet != null, v => Dispatcher.BeginInvoke(new Action(() => { if (v) LetOut(false); else Recall(); })));
+            menu.Items.Add(petItem);
+            menu.Items.Add("Nachrichten aufs Handy …", null, (s, e) => Dispatcher.BeginInvoke(new Action(SetupPhone)));
             menu.Items.Add("Geburtstag festlegen …", null, (s, e) => AskBirthday());
             menu.Items.Add("Datenordner öffnen", null, (s, e) =>
             {
@@ -2264,6 +2386,81 @@ namespace ClaudeIsland
                 Dispatcher.BeginInvoke(new Action(() => { monitorKey = ""; CheckFullscreen(); Refresh(); }));
             };
             return item;
+        }
+
+        // ── Clawd on the desktop ─────────────────────────────────────────
+
+        void LetOut(bool grabbed)
+        {
+            if (pet != null) return;
+            double cx = Canvas.GetLeft(clawd), cy = Canvas.GetTop(clawd);
+            var feet = double.IsNaN(cx) || double.IsNaN(cy)
+                ? new Point(Left + WindowW / 2, Top + RowH + 30)
+                : new Point(Left + cx + clawd.Width / 2, Top + cy + 6 * ClawdPx);
+            pet = new PetWindow();
+            pet.GoHome += () => Dispatcher.BeginInvoke(new Action(Recall));
+            pet.Start(feet, grabbed);
+            settings.PetOut = true;
+            settings.Save();
+            if (petItem != null) petItem.Checked = true;
+            Toast("Clawd macht einen Ausflug. Doppelklick auf ihn holt ihn zurück.", 5);
+        }
+
+        void Recall()
+        {
+            if (pet == null) return;
+            var p = pet;
+            pet = null;
+            p.Close();
+            settings.PetOut = false;
+            settings.Save();
+            if (petItem != null) petItem.Checked = false;
+            happyUntil = Clock.NowMs() + 900;
+            hop.Velocity -= 260;
+            StartRendering();
+        }
+
+        // ── phone ─────────────────────────────────────────────────────────
+
+        void SetupPhone()
+        {
+            string topic = settings.PhoneTopic.Length > 0 ? settings.PhoneTopic : Phone.NewTopic();
+            using (var form = new WinForms.Form { Text = "Claude Island – Nachrichten aufs Handy", Width = 520, Height = 330, FormBorderStyle = WinForms.FormBorderStyle.FixedDialog, StartPosition = WinForms.FormStartPosition.CenterScreen, MaximizeBox = false, MinimizeBox = false, TopMost = true })
+            {
+                var steps = new WinForms.Label
+                {
+                    Left = 14, Top = 12, Width = 480, Height = 120,
+                    Text = "Bist du nicht am PC, schickt Clawd eine Nachricht aufs Handy, wenn Claude fertig ist oder dich braucht.\n\n" +
+                           "1. Installiere auf dem Handy die kostenlose App „ntfy“ (Play Store / App Store).\n" +
+                           "2. Tippe dort auf „+“ und abonniere dieses Thema:\n" +
+                           "3. Klick unten auf „Testnachricht“ und schau aufs Handy.\n\n" +
+                           "Das Thema ist wie ein Passwort: Wer es kennt, kann deine Nachrichten mitlesen."
+                };
+                var box = new WinForms.TextBox { Left = 14, Top = 140, Width = 330, ReadOnly = true, Text = topic, Font = new Drawing.Font("Consolas", 11f) };
+                var copy = new WinForms.Button { Text = "Kopieren", Left = 352, Top = 139, Width = 140, Height = 28 };
+                var status = new WinForms.Label { Left = 14, Top = 178, Width = 480, Height = 40, ForeColor = Drawing.Color.DimGray };
+                var test = new WinForms.Button { Text = "Testnachricht", Left = 14, Top = 238, Width = 120, Height = 30 };
+                var off = new WinForms.Button { Text = "Ausschalten", Left = 252, Top = 238, Width = 110, Height = 30, DialogResult = WinForms.DialogResult.No };
+                var ok = new WinForms.Button { Text = "Einschalten", Left = 372, Top = 238, Width = 120, Height = 30, DialogResult = WinForms.DialogResult.OK };
+                copy.Click += (s, e) => { try { WinForms.Clipboard.SetText(topic); status.Text = "Kopiert."; } catch { } };
+                test.Click += (s, e) =>
+                {
+                    status.Text = "Sende …";
+                    Phone.Send(topic, "Clawd sagt hallo", "So sehen die Nachrichten von Claude Island aus.", "wave", 3, sent =>
+                    {
+                        try { form.BeginInvoke(new Action(() => status.Text = sent ? "Gesendet. Ist sie auf dem Handy angekommen? Dann auf „Einschalten“." : "Senden hat nicht geklappt. Ist der PC online?")); }
+                        catch { }
+                    });
+                };
+                foreach (WinForms.Control c in new WinForms.Control[] { steps, box, copy, status, test, off, ok }) form.Controls.Add(c);
+                form.AcceptButton = ok;
+                var result = form.ShowDialog();
+                if (result == WinForms.DialogResult.OK) settings.PhoneTopic = topic;
+                else if (result == WinForms.DialogResult.No) settings.PhoneTopic = "";
+                else return;
+                settings.Save();
+                Toast(settings.PhoneTopic.Length > 0 ? "Handy-Nachrichten sind an – sobald du 2 Minuten nicht am PC bist." : "Handy-Nachrichten sind aus.", 4);
+            }
         }
 
         void AskBirthday()
