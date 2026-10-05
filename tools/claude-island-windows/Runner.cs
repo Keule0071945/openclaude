@@ -185,19 +185,7 @@ namespace ClaudeIsland
 
         static string FindOnPath(string name)
         {
-            string path = Environment.GetEnvironmentVariable("PATH") ?? "";
-            foreach (var raw in path.Split(';'))
-            {
-                string dir = raw.Trim().Trim('"');
-                if (dir.Length == 0) continue;
-                try
-                {
-                    string candidate = System.IO.Path.Combine(dir, name);
-                    if (File.Exists(candidate)) return candidate;
-                }
-                catch (ArgumentException) { }
-            }
-            return null;
+            return Shell.FindOnPath(name);
         }
 
         static string Existing(string path)

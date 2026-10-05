@@ -53,6 +53,7 @@ namespace ClaudeIsland
         public static readonly string Stats = System.IO.Path.Combine(Root, "stats");
         public static readonly string Requests = System.IO.Path.Combine(Root, "requests");
         public static readonly string Shots = System.IO.Path.Combine(Root, "shots");
+        public static readonly string History = System.IO.Path.Combine(Root, "history.jsonl");
         /// <summary>A status line command that was configured before the island took over.</summary>
         public static readonly string ChainedStatusLine = System.IO.Path.Combine(Root, "statusline-previous.txt");
 
@@ -498,6 +499,7 @@ namespace ClaudeIsland
                 case "UserPromptSubmit":
                     state = "busy";
                     Todos.ForgetIfFinished(s);
+                    s.Remove("files");
                     s["turnStart"] = now;
                     s["tool"] = "";
                     s["detail"] = "";
@@ -514,9 +516,14 @@ namespace ClaudeIsland
                     if (ev == "PostToolUse" && (toolName == "Edit" || toolName == "Write" || toolName == "MultiEdit" || toolName == "NotebookEdit"))
                     {
                         var input = Json.Obj(hook, "tool_input");
-                        string file = PathText.LastSegment(Json.Str(input, "file_path").Length > 0 ? Json.Str(input, "file_path") : Json.Str(input, "notebook_path"));
+                        string full = Json.Str(input, "file_path").Length > 0 ? Json.Str(input, "file_path") : Json.Str(input, "notebook_path");
+                        string file = PathText.LastSegment(full);
                         if (file.Length > 0) Stats.RecordFile(file);
+                        Signals.AddFile(s, full);
                     }
+                    if ((ev == "PostToolUse" || ev == "PostToolUseFailure") && (toolName == "Bash" || toolName == "PowerShell"))
+                        Signals.FromShell(s, Json.Str(Json.Obj(hook, "tool_input"), "command"), ev == "PostToolUseFailure",
+                                          hook.ContainsKey("tool_response") ? hook["tool_response"] : null, now);
                     break;
                 case "PermissionRequest":
                     state = "waiting";
@@ -866,6 +873,23 @@ namespace ClaudeIsland
         {
             return string.Join(" ", args.Select(Quote));
         }
+
+        public static string FindOnPath(string name)
+        {
+            string path = Environment.GetEnvironmentVariable("PATH") ?? "";
+            foreach (var raw in path.Split(';'))
+            {
+                string dir = raw.Trim().Trim('"');
+                if (dir.Length == 0) continue;
+                try
+                {
+                    string candidate = System.IO.Path.Combine(dir, name);
+                    if (File.Exists(candidate)) return candidate;
+                }
+                catch (ArgumentException) { }
+            }
+            return null;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -911,6 +935,11 @@ namespace ClaudeIsland
             {
                 d["tasks"] = Json.Long(d, "tasks") + 1;
                 d["busyMs"] = Json.Long(d, "busyMs") + durationMs;
+                // For the badges: night owl, early bird, marathon.
+                int hour = DateTime.Now.Hour;
+                if (hour < 5) d["night"] = Json.Long(d, "night") + 1;
+                else if (hour < 7) d["early"] = Json.Long(d, "early") + 1;
+                if (durationMs > 30 * 60 * 1000) d["long"] = Json.Long(d, "long") + 1;
                 return true;
             });
         }
@@ -1178,6 +1207,12 @@ namespace ClaudeIsland
         public double Cost = -1;
         public long Hwnd;
         public int TodoDone, TodoTotal; // Claude's own task list
+        public string Tests = "";       // "" | pass | fail
+        public long TestsAt;
+        public int TestFails;           // failed runs in a row
+        public string Git = "";         // "" | commit | push
+        public long GitAt;
+        public List<string> Files = new List<string>(); // changed this turn, newest first
         public string TodoNow = "";
         public string State;    // ready | busy | waiting | done | error
         public string Tool;
@@ -1226,6 +1261,13 @@ namespace ClaudeIsland
                     s.Cost = d.ContainsKey("cost") && d["cost"] != null ? Convert.ToDouble(d["cost"]) : -1;
                     s.Hwnd = Json.Long(d, "hwnd");
                     Todos.Read(d, s);
+                    s.Tests = Json.Str(d, "tests");
+                    s.TestsAt = Json.Long(d, "testsAt");
+                    s.TestFails = (int)Json.Long(d, "testFails");
+                    s.Git = Json.Str(d, "git");
+                    s.GitAt = Json.Long(d, "gitAt");
+                    object files;
+                    if (d.TryGetValue("files", out files) && files is List<object>) s.Files = ((List<object>)files).OfType<string>().ToList();
                     s.Tool = Json.Str(d, "tool");
                     s.Detail = Json.Str(d, "detail");
                     s.TurnStart = Json.Long(d, "turnStart");
@@ -1336,6 +1378,12 @@ namespace ClaudeIsland
                 s.State = "done"; s.DoneAt = startMs + 14500; s.Duration = 12000; s.Context = 61;
                 s.Summary = "Alle 42 Tests laufen wieder. Der Fehler lag im Mock für fetch.";
             }
+            // Tests fail first (grumpy Clawd), then pass; then a commit (confetti) and a push (rocket).
+            if (t >= 8.5) { s.Tests = "fail"; s.TestsAt = startMs + 8500; s.TestFails = 1; }
+            if (t >= 13.5) { s.Tests = "pass"; s.TestsAt = startMs + 13500; s.TestFails = 0; }
+            if (t >= 16) { s.Git = "commit"; s.GitAt = startMs + 16000; }
+            if (t >= 17.5) { s.Git = "push"; s.GitAt = startMs + 17500; }
+            if (t >= 14.5) s.Files = new List<string> { @"C:\code\mein-projekt\src\App.tsx", @"C:\code\mein-projekt\src\api\fetch.ts", @"C:\code\mein-projekt\test\App.test.tsx" };
             // Claude's task list fills up as the demo goes on.
             if (t >= 2.5)
             {
@@ -1599,6 +1647,13 @@ namespace ClaudeIsland
         public string Birthday = ""; // "MM-dd"
         public string PhoneTopic = ""; // ntfy topic; empty = off
         public bool PetOut;
+        public string Skin = "classic";
+        public string KnownBadges = "";  // comma separated, to announce new ones once
+        public int KnownLevel;
+        public string WeatherPlace = "";
+        public double WeatherLat, WeatherLon;
+        public bool Breaks = true;       // stretch reminder after 90 minutes
+        public bool RespectQuiet = true; // no sounds or pop-ups in quiet hours
         public readonly List<string> RecentProjects = new List<string>();
         public readonly List<QuickCommand> Quick = new List<QuickCommand>();
 
@@ -1632,6 +1687,14 @@ namespace ClaudeIsland
                             case "birthday": s.Birthday = value; break;
                             case "phone": s.PhoneTopic = Phone.IsValidTopic(value) ? value : ""; break;
                             case "pet": s.PetOut = value == "1"; break;
+                            case "skin": s.Skin = value; break;
+                            case "badges": s.KnownBadges = value; break;
+                            case "level": int.TryParse(value, out s.KnownLevel); break;
+                            case "weatherPlace": s.WeatherPlace = value; break;
+                            case "weatherLat": double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out s.WeatherLat); break;
+                            case "weatherLon": double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out s.WeatherLon); break;
+                            case "breaks": s.Breaks = value != "0"; break;
+                            case "quiet": s.RespectQuiet = value != "0"; break;
                             case "project": s.RecentProjects.Add(value); break;
                             case "quick":
                             {
@@ -1673,6 +1736,14 @@ namespace ClaudeIsland
                     "birthday=" + Birthday,
                     "phone=" + PhoneTopic,
                     "pet=" + (PetOut ? "1" : "0"),
+                    "skin=" + Skin,
+                    "badges=" + KnownBadges,
+                    "level=" + KnownLevel,
+                    "weatherPlace=" + WeatherPlace,
+                    "weatherLat=" + WeatherLat.ToString("R", System.Globalization.CultureInfo.InvariantCulture),
+                    "weatherLon=" + WeatherLon.ToString("R", System.Globalization.CultureInfo.InvariantCulture),
+                    "breaks=" + (Breaks ? "1" : "0"),
+                    "quiet=" + (RespectQuiet ? "1" : "0"),
                 };
                 lines.AddRange(RecentProjects.Select(p => "project=" + p));
                 lines.AddRange(Quick.Select(q => "quick=" + q.Label + "|" + q.Prompt + "|" + (q.Edits ? "edit" : "ask")));

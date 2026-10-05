@@ -156,7 +156,7 @@ namespace ClaudeIsland
     {
         public string Eyes = "c";   // c | l | r | shut
         public string Arms = "side"; // side | up | down | wave
-        public bool LegsB, Happy, Food, Glasses, Blush;
+        public bool LegsB, Happy, Food, Glasses, Shades, Blush, Grumpy;
         public int Mouth, Belly;
         public string Hat = "";     // "" | santa | party
     }
@@ -189,7 +189,8 @@ namespace ClaudeIsland
             else if (look.Arms == "wave") { r0 = "................##"; r3 = ".###############.."; }
             if (r0 == E && look.Hat == "santa") r0 = "....hhhhhhhhhW....";
             else if (r0 == E && look.Hat == "party") r0 = ".......yyyy.......";
-            if (look.Glasses && !look.Happy) r2 = WithGlasses(r2);
+            if ((look.Glasses || look.Shades) && !look.Happy) r2 = WithGlasses(r2, look.Shades ? 'k' : 'g');
+            if (look.Grumpy && !look.Happy && r1 == Top) r1 = "...##kk####kk##...";
 
             var rows = new List<string> { r0, r1, r2 };
             int mouth = Math.Max(0, Math.Min(MaxMouth, look.Mouth));
@@ -215,11 +216,11 @@ namespace ClaudeIsland
             return rows.ToArray();
         }
 
-        static string WithGlasses(string eyesRow)
+        static string WithGlasses(string eyesRow, char lens)
         {
             var c = eyesRow.ToCharArray();
             for (int x = 4; x <= 13; x++)
-                if (c[x] == '#' && (eyesRow[x - 1] == '.' || eyesRow[x + 1] == '.')) c[x] = 'g';
+                if (c[x] == '#' && (eyesRow[x - 1] == '.' || eyesRow[x + 1] == '.')) c[x] = lens;
             return new string(c);
         }
 
@@ -239,6 +240,8 @@ namespace ClaudeIsland
         public static readonly string[] Pumpkin = { "......", "...G..", ".oooo.", "okookk", "oooooo", ".oooo.", "......" };
         public static readonly string[] Heart = { ".r.r.", "rrrrr", ".rrr.", "..r.." };
         public static readonly string[] Drop = { ".c.", "ccc", "ccc", ".c." };
+        public static readonly string[] Umbrella = { "..rr..", ".rrrr.", "rrrrrr", "...k..", "...k..", "...k..", "..kk.." };
+        public static readonly string[] Rocket = { "..W..", ".WWW.", ".WcW.", ".WWW.", ".WWW.", "rWWWr", "r...r", ".yoy.", "..y.." };
     }
 
     /// <summary>Full-screen overlay to drag a rectangle; saves it as PNG.</summary>
@@ -430,12 +433,38 @@ namespace ClaudeIsland
         string monitorKey = "";
         PetWindow pet;
         WinForms.ToolStripMenuItem petItem;
-        bool pulling, buttonWasDown;
+        bool pulling, buttonWasDown, rightWasDown;
         Point pullFrom;
         readonly UsageForecast forecast = new UsageForecast();
         long lastUsageSample, forecastWarnedFor;
         readonly Dictionary<string, long> phoneSent = new Dictionary<string, long>();
         bool approvalKeys;
+
+        // Round 4: mood, git moments, music, weather, levels, queue, tricks
+        sealed class Particle { public Rectangle Shape; public double X, Y, Vx, Vy, Spin; public long Born, Life; public bool Fade; }
+        Canvas fx;
+        readonly List<Particle> particles = new List<Particle>();
+        PixelSprite rocket;
+        long rocketStart;
+        double rocketX, rocketY;
+        readonly Dictionary<string, long> seenGit = new Dictionary<string, long>();
+        readonly Dictionary<string, long> seenTests = new Dictionary<string, long>();
+        readonly Dictionary<string, int> seenFails = new Dictionary<string, int>();
+        readonly Dictionary<string, long> doneSince = new Dictionary<string, long>();
+        bool grumpy;
+        long highFiveUntil, trickUntil, dizzyUntil, stretchUntil, activeSince, nextBreakNag;
+        readonly List<long> clawdClicks = new List<long>();
+        double musicAvg;
+        long musicSince;
+        bool dancing;
+        ProgressState progress;
+        long lastProgressLoad;
+        TextBlock progressText, queueText;
+        sealed class Job { public string Prompt, Cwd, Question; public bool Edits; public List<string> Dirs; }
+        readonly List<Job> queue = new List<Job>();
+        Job currentJob;
+        bool quietNow;
+        long quietCheckedAt;
 
         public IslandWindow(bool demo)
         {
@@ -568,7 +597,7 @@ namespace ClaudeIsland
 
             // Re-assert "topmost" often: games and video players like to claim it too.
             var chores = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            chores.Tick += (s, a) => Guard("chores", () => { KeepOnTop(); CheckFullscreen(); FollowMonitor(); });
+            chores.Tick += (s, a) => Guard("chores", () => { KeepOnTop(); CheckFullscreen(); FollowMonitor(); CheckBreak(); });
             chores.Start();
 
             nextYawn = Clock.NowMs() + 25000;
@@ -598,6 +627,19 @@ namespace ClaudeIsland
             if (hwnd != IntPtr.Zero)
                 SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             if (pet != null) pet.KeepOnTop();
+        }
+
+        /// <summary>After 90 minutes at the PC without a 5-minute break, Clawd stretches and suggests one.</summary>
+        void CheckBreak()
+        {
+            long now = Clock.NowMs();
+            if (IdleMs() > 5 * 60 * 1000) { activeSince = 0; return; }
+            if (activeSince == 0) activeSince = now;
+            if (!settings.Breaks || gameMode || now - activeSince < 90 * 60 * 1000 || now < nextBreakNag) return;
+            nextBreakNag = now + 30 * 60 * 1000;
+            stretchUntil = now + 3500;
+            StartRendering();
+            Ambient("Du sitzt seit " + Hours(now - activeSince) + " dran. Kurz die Beine vertreten? Ich halte die Stellung.", 8);
         }
 
         static long IdleMs()
@@ -726,6 +768,11 @@ namespace ClaudeIsland
             zzz.Opacity = 0;
             zzz.IsHitTestVisible = false;
             canvas.Children.Add(zzz);
+            fx = new Canvas { IsHitTestVisible = false, Width = WindowW, Height = WindowH };
+            canvas.Children.Add(fx);
+            rocket = new PixelSprite(5, 9, 3) { Visibility = Visibility.Collapsed };
+            rocket.Show(ClawdArt.Rocket, Palette.Clawd);
+            canvas.Children.Add(rocket);
 
             toastText = Text(12.5, Palette.Text, FontWeights.Normal);
             toastText.TextWrapping = TextWrapping.Wrap;
@@ -850,6 +897,10 @@ namespace ClaudeIsland
             var today = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
             today.Children.Add(todayText);
             today.Children.Add(weekText);
+            progressText = Text(12, Palette.Secondary, FontWeights.Normal);
+            progressText.TextWrapping = TextWrapping.Wrap;
+            progressText.Margin = new Thickness(0, 2, 0, 0);
+            today.Children.Add(progressText);
             panelContent.Children.Add(today);
 
             panelContent.Children.Add(SectionTitle("Sitzungen"));
@@ -928,13 +979,16 @@ namespace ClaudeIsland
             var clip = MakeButton("Zwischenablage", false, FeedClipboard);
             var shot = MakeButton("Bildschirmfoto", false, TakeScreenshot);
             var voice = MakeButton("Diktieren", false, Dictate);
-            shot.Margin = voice.Margin = new Thickness(8, 0, 0, 0);
+            var history = MakeButton("Verlauf", false, () => Dispatcher.BeginInvoke(new Action(ShowHistory)));
+            shot.Margin = voice.Margin = history.Margin = new Thickness(8, 0, 0, 0);
+            ToolTipService.SetToolTip(history, "Frühere Fragen und Antworten durchsuchen");
             ToolTipService.SetToolTip(clip, "Text, Bild oder Dateien aus der Zwischenablage an Clawd verfüttern");
             ToolTipService.SetToolTip(shot, "Bildschirmbereich auswählen (Strg+Alt+S)");
             ToolTipService.SetToolTip(voice, "Frage sprechen – nutzt die Windows-Spracheingabe (Win+H)");
             feeders.Children.Add(clip);
             feeders.Children.Add(shot);
             feeders.Children.Add(voice);
+            feeders.Children.Add(history);
             composer.Children.Add(feeders);
             panelContent.Children.Add(drop);
 
@@ -942,6 +996,10 @@ namespace ClaudeIsland
             answerPanel.Children.Add(new Border { Height = 1, Background = Palette.Brush(Palette.PanelLine), Margin = new Thickness(0, 0, 0, 12) });
             activityText = Text(12, Palette.Clawd, FontWeights.SemiBold);
             answerPanel.Children.Add(activityText);
+            queueText = Text(11.5, Palette.Secondary, FontWeights.Normal);
+            queueText.Visibility = Visibility.Collapsed;
+            queueText.Margin = new Thickness(0, 2, 0, 0);
+            answerPanel.Children.Add(queueText);
             answerBox = new TextBox
             {
                 FontFamily = UiFont, FontSize = 13.5, Foreground = Palette.Brush(Color.FromRgb(236, 236, 240)), Background = Brushes.Transparent,
@@ -1041,7 +1099,17 @@ namespace ClaudeIsland
             long idle = IdleMs();
             int hour = DateTime.Now.Hour;
             var look = new Look { Hat = HatForToday(settings) };
-            Color color = Palette.Clawd;
+            Color color = SkinColor(now);
+            var weather = Weather.Current;
+            bool hot = weather.Kind == "sun" && weather.Temperature >= 28;
+            look.Shades = CurrentSkin().Shades || hot;
+
+            // Music (or any sound) playing while Claude is idle: he dances.
+            float peak = mode == Mode.Ready || mode == Mode.None ? AudioMeter.Peak() : -1;
+            if (peak >= 0) musicAvg += (peak - musicAvg) * 0.08;
+            if (peak > 0.03 && musicAvg > 0.02) { if (musicSince == 0) musicSince = now; }
+            else if (musicAvg < 0.01) musicSince = 0;
+            dancing = musicSince > 0 && now - musicSince > 1200 && !open;
             string[] propArt = null;
             double bob = 0;
             bool juggling = false;
@@ -1063,7 +1131,7 @@ namespace ClaudeIsland
                     happyUntil = now + 800;
                     hop.Velocity -= 240;
                     StartRendering();
-                    if (attachments.Count > 0) FocusComposer();
+                    if (attachments.Count > 0 || input.Text.Length > 0) FocusComposer();
                     Refresh();
                 }
                 mouth = mouthTarget;
@@ -1088,6 +1156,19 @@ namespace ClaudeIsland
                 look.Eyes = now < yawnUntil ? "shut" : "c";
             }
             else if (now < petUntil) { look.Happy = true; look.Blush = true; }
+            else if (now < dizzyUntil) { look.Eyes = (now / 110) % 2 == 0 ? "l" : "r"; bob = Math.Sin(now / 90.0) * 2; }
+            else if (now < trickUntil) { look.Happy = true; look.Arms = (now / 150) % 2 == 0 ? "up" : "wave"; if ((now / 600) % 2 == 0 && hop.Settled) { hop.Velocity -= 220; StartRendering(); } }
+            else if (now < highFiveUntil) { look.Happy = true; look.Arms = "up"; }
+            else if (now < stretchUntil) { look.Eyes = "shut"; look.Arms = "up"; bob = -Math.Abs(Math.Sin(now / 400.0)) * 4; }
+            else if (dancing)
+            {
+                // On the beat: arms up when the level jumps over the average.
+                bool beat = peak > musicAvg * 1.25;
+                look.Arms = beat ? "up" : (now / 250) % 2 == 0 ? "wave" : "side";
+                look.LegsB = (now / 250) % 2 == 0;
+                look.Eyes = "c";
+                bob = beat ? -4 : 0;
+            }
             else if (now < happyUntil) look.Happy = true;
             else if (now < earUntil) { look.Arms = "wave"; look.Eyes = blink ? "shut" : "c"; }
             else if (dragOver) look.Arms = "up";
@@ -1115,6 +1196,7 @@ namespace ClaudeIsland
                         look.Eyes = blink ? "shut" : new[] { "l", "c", "r", "c" }[(now / 900) % 4];
                         look.Arms = f ? "down" : "side";
                         look.LegsB = f;
+                        look.Grumpy = grumpy; // the tests keep failing
                         break;
                     }
                     case Mode.Waiting:
@@ -1153,6 +1235,7 @@ namespace ClaudeIsland
                     case "WebSearch": case "WebFetch": propArt = ClawdArt.Magnifier; look.Glasses = true; break;
                 }
             }
+            else if (mode == Mode.Ready && !bored && (weather.Kind == "rain" || weather.Kind == "storm")) propArt = ClawdArt.Umbrella;
             else if (mode == Mode.Ready && !bored && hour >= 6 && hour < 10) propArt = ClawdArt.Cup;
             if (propArt == null && DateTime.Today.Month == 10 && DateTime.Today.Day >= 24) propArt = ClawdArt.Pumpkin;
 
@@ -1241,7 +1324,9 @@ namespace ClaudeIsland
                 heartSpawns.Add(now);
 
             // Asleep: z's drift up.
-            bool sleeping = !away && (mode == Mode.None || (bored && idle > 15 * 60 * 1000));
+            bool sleeping = !away && !dancing && (mode == Mode.None || (bored && idle > 15 * 60 * 1000));
+            zzz.Text = dancing && !away ? "♪" : "z";
+            if (dancing && !away) sleeping = true; // the same drifting symbol, as music notes
             if (sleeping)
             {
                 double p = (now % 2400) / 2400.0;
@@ -1250,6 +1335,8 @@ namespace ClaudeIsland
                 Canvas.SetTop(zzz, cy + 2 - p * 14);
             }
             else zzz.Opacity = 0;
+
+            AnimateEffects(now, cx, cy, weather);
 
             double pulse = mode == Mode.Busy ? 1 - 0.3 * (0.5 + 0.5 * Math.Sin(now / 190.0))
                          : mode == Mode.Waiting ? 1 - 0.3 * (0.5 + 0.5 * Math.Sin(now / 110.0)) : 1;
@@ -1260,6 +1347,59 @@ namespace ClaudeIsland
             {
                 toastUntil = 0;
                 toast.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(300)));
+            }
+        }
+
+        /// <summary>Confetti, the push rocket, rain and snow.</summary>
+        void AnimateEffects(long now, double cx, double cy, WeatherNow weather)
+        {
+            // Weather under the closed island (and a little snow all December).
+            bool december = DateTime.Today.Month == 12;
+            string sky = weather.Kind == "storm" ? "rain" : weather.Kind;
+            if (sky != "rain" && sky != "snow" && december) sky = "snow";
+            if (!open && !gameMode && !hiddenForFullscreen && (sky == "rain" || sky == "snow"))
+            {
+                double w = width.Value, x0 = (WindowW - w) / 2;
+                double chance = sky == "rain" ? 0.9 : (weather.Kind == "snow" ? 0.45 : 0.18);
+                if (random.NextDouble() < chance)
+                {
+                    double x = x0 + 20 + random.NextDouble() * (w - 40);
+                    if (sky == "rain") Spawn(x, RowH - 2, 0, 160, Color.FromArgb(170, 110, 198, 255), 1.5, 6, 450, true, 0);
+                    else Spawn(x, RowH - 2, (random.NextDouble() - 0.5) * 16, 26, Color.FromArgb(220, 255, 255, 255), 3, 3, 2400, true, 0);
+                }
+            }
+
+            // Particles: gravity for confetti, steady fall for rain and snow.
+            for (int i = particles.Count - 1; i >= 0; i--)
+            {
+                var p = particles[i];
+                double age = now - p.Born;
+                if (age > p.Life) { fx.Children.Remove(p.Shape); particles.RemoveAt(i); continue; }
+                const double dt = 0.04;
+                if (p.Spin != 0) { p.Vy += 520 * dt; ((RotateTransform)p.Shape.RenderTransform).Angle += p.Spin * 6; }
+                p.X += p.Vx * dt;
+                p.Y += p.Vy * dt;
+                Canvas.SetLeft(p.Shape, p.X);
+                Canvas.SetTop(p.Shape, p.Y);
+                if (p.Fade) p.Shape.Opacity = Math.Max(0, 1 - age / p.Life);
+            }
+
+            // The push rocket takes off next to Clawd.
+            if (rocketStart > 0)
+            {
+                double t = (now - rocketStart) / 1000.0;
+                if (t > 1.9) { rocketStart = 0; rocket.Visibility = Visibility.Collapsed; }
+                else
+                {
+                    rocket.Visibility = Visibility.Visible;
+                    double shakeX = t < 0.35 ? Math.Sin(now / 20.0) * 1.5 : 0;
+                    double lift = t < 0.35 ? 0 : 160 * (t - 0.35) * (t - 0.35) + 60 * (t - 0.35);
+                    Canvas.SetLeft(rocket, rocketX + shakeX);
+                    Canvas.SetTop(rocket, rocketY - lift);
+                    if (random.NextDouble() < 0.8)
+                        Spawn(rocketX + 6 + (random.NextDouble() - 0.5) * 6, rocketY - lift + 26, (random.NextDouble() - 0.5) * 30, 60,
+                              random.NextDouble() < 0.5 ? Color.FromRgb(247, 192, 74) : Color.FromRgb(242, 140, 40), 3, 3, 420, true, 0);
+                }
             }
         }
 
@@ -1320,7 +1460,7 @@ namespace ClaudeIsland
                 if (full > 0 && full - now < 30 * 60 * 1000 && usage.FiveHourResets != forecastWarnedFor)
                 {
                     forecastWarnedFor = usage.FiveHourResets;
-                    Toast("Achtung: Bei diesem Tempo ist dein Limit um " + LocalTime(full) + " voll.", 7);
+                    Ambient("Achtung: Bei diesem Tempo ist dein Limit um " + LocalTime(full) + " voll.", 7);
                 }
             }
 
@@ -1334,8 +1474,11 @@ namespace ClaudeIsland
                 if (m == Mode.Done)
                 {
                     pendingFlash = true;
-                    if (settings.Sound) System.Media.SystemSounds.Asterisk.Play();
-                    if (s.Summary.Length > 0) Toast(s.Project + ": " + s.Summary, 7);
+                    Sound("done");
+                    if (s.Summary.Length > 0) Ambient(s.Project + ": " + s.Summary, 7);
+                    // Two sessions done at nearly the same time: high five!
+                    if (doneSince.Any(kv => kv.Key != s.Id && now - kv.Value < 4000)) HighFive();
+                    doneSince[s.Id] = now;
                     Notify("Claude ist fertig – " + s.Project, s.Summary.Length > 0 ? s.Summary : "Wartet auf deinen nächsten Befehl.");
                     ToPhone("done:" + s.Id, "Claude ist fertig – " + s.Project, s.Summary.Length > 0 ? s.Summary : "Wartet auf deinen nächsten Befehl.", "white_check_mark", 3);
                 }
@@ -1343,11 +1486,15 @@ namespace ClaudeIsland
                 {
                     shake.Velocity += 480;
                     StartRendering();
-                    if (settings.Sound) System.Media.SystemSounds.Exclamation.Play();
+                    Sound("waiting");
                     Notify("Claude braucht dich – " + s.Project, s.Detail.Length > 0 ? "Freigabe: " + s.Detail : "Bitte antworte im Terminal.");
                     if (request == null) ToPhone("wait:" + s.Id, "Claude braucht dich – " + s.Project, s.Detail.Length > 0 ? "Freigabe: " + s.Detail : "Bitte antworte im Terminal.", "warning", 4);
                 }
             }
+            foreach (var s in sessions) Signals(s, now);
+            grumpy = sessions.Any(s => SessionStore.DisplayMode(s, now) == Mode.Busy && s.TestFails > 0 && now - s.TestsAt < 10 * 60 * 1000);
+            if (now - lastProgressLoad > 30000) { lastProgressLoad = now; UpdateProgress(); }
+            if (settings.WeatherPlace.Length > 0) Weather.Tick(settings.WeatherLat, settings.WeatherLon);
             firstPoll = false;
 
             Mode overall = sessions.Count > 0 ? Mode.Ready : Mode.None;
@@ -1366,7 +1513,7 @@ namespace ClaudeIsland
             {
                 // Burp!
                 yawnUntil = now + 500;
-                Toast("Bäuerchen! Kontext " + ctx + " % voll – /compact schafft wieder Platz.", 6);
+                Ambient("Bäuerchen! Kontext " + ctx + " % voll – /compact schafft wieder Platz.", 6);
             }
             lastBellyContext = ctx;
             contextNow = Math.Max(0, ctx);
@@ -1377,7 +1524,7 @@ namespace ClaudeIsland
             if (wasLimited && !limited && usage.Known)
             {
                 Celebrate();
-                Toast("Limit wieder frei – weiter geht's!", 5);
+                Ambient("Limit wieder frei – weiter geht's!", 5);
             }
             wasLimited = limited;
 
@@ -1439,10 +1586,177 @@ namespace ClaudeIsland
         void Notify(string title, string text)
         {
             // Only when you're probably not looking: in a game or away from the keyboard.
-            if (!settings.Notify || tray == null || demoStart > 0) return;
+            if (!settings.Notify || tray == null || demoStart > 0 || QuietNow()) return;
             if (!gameMode && IdleMs() < 30000) return;
             try { tray.ShowBalloonTip(5000, title, text.Length > 0 ? text : " ", WinForms.ToolTipIcon.None); }
             catch (Exception ex) { AppPaths.LogError("notify", ex); }
+        }
+
+        // ── sounds, quiet hours, signals ──────────────────────────────────
+
+        bool QuietNow()
+        {
+            long now = Clock.NowMs();
+            if (now - quietCheckedAt > 2000) { quietCheckedAt = now; quietNow = settings.RespectQuiet && Quiet.Now(); }
+            return quietNow;
+        }
+
+        void Sound(string name)
+        {
+            if (settings.Sound && demoStart == 0 && !QuietNow()) Chiptune.Play(name);
+        }
+
+        /// <summary>A toast you did not ask for - skipped in quiet hours and presentations.</summary>
+        void Ambient(string text, double seconds)
+        {
+            if (!QuietNow()) Toast(text, seconds);
+        }
+
+        /// <summary>Tests and git events a session reported since the last poll.</summary>
+        void Signals(Session s, long now)
+        {
+            long seen;
+            bool known = seenGit.TryGetValue(s.Id, out seen);
+            seenGit[s.Id] = s.GitAt;
+            if (known && s.GitAt > seen && !firstPoll) GitMoment(s.Git, s.Project);
+
+            known = seenTests.TryGetValue(s.Id, out seen);
+            int fails;
+            seenFails.TryGetValue(s.Id, out fails);
+            seenTests[s.Id] = s.TestsAt;
+            seenFails[s.Id] = s.TestFails;
+            if (!known || s.TestsAt <= seen || firstPoll) return;
+            if (s.Tests == "fail")
+            {
+                Sound("fail");
+                shake.Velocity += 300;
+                StartRendering();
+            }
+            else if (s.Tests == "pass" && fails > 0)
+            {
+                // Red to green: proud Clawd.
+                Celebrate();
+                happyUntil = now + 2200;
+                Sound("level");
+                Ambient("Tests wieder grün – " + s.Project + "!", 4);
+            }
+        }
+
+        void GitMoment(string kind, string project)
+        {
+            long now = Clock.NowMs();
+            double cx = Canvas.GetLeft(clawd), cy = Canvas.GetTop(clawd);
+            if (double.IsNaN(cx)) return;
+            if (kind == "push")
+            {
+                rocketStart = now;
+                // Starts under the island (it sits at the top edge) and flies up past it.
+                rocketX = cx + clawd.Width + 10;
+                rocketY = Math.Min(height.Value, RowH) + 34;
+                Sound("push");
+                Ambient("Gepusht – " + project + " ist oben!", 3);
+            }
+            else
+            {
+                for (int i = 0; i < 26; i++)
+                    Spawn(cx + clawd.Width / 2, cy + 10, (random.NextDouble() - 0.5) * 340, -120 - random.NextDouble() * 260,
+                          ConfettiColors[i % ConfettiColors.Length], 4, 5, 1400 + random.Next(600), true, (random.NextDouble() - 0.5) * 20);
+                happyUntil = now + 1200;
+                Sound("commit");
+                Ambient("Commit gemacht – " + project, 3);
+            }
+            StartRendering();
+        }
+
+        static readonly Color[] ConfettiColors =
+        {
+            Color.FromRgb(215, 119, 87), Color.FromRgb(61, 220, 151), Color.FromRgb(247, 192, 74),
+            Color.FromRgb(110, 198, 255), Color.FromRgb(255, 143, 163), Colors.White
+        };
+
+        void Spawn(double x, double y, double vx, double vy, Color color, double w, double h, long life, bool fade, double spin)
+        {
+            if (particles.Count > 160) return;
+            var r = new Rectangle { Width = w, Height = h, Fill = Palette.Brush(color), RenderTransform = new RotateTransform(random.Next(360)) };
+            fx.Children.Add(r);
+            particles.Add(new Particle { Shape = r, X = x, Y = y, Vx = vx, Vy = vy, Born = Clock.NowMs(), Life = life, Fade = fade, Spin = spin });
+        }
+
+        void HighFive()
+        {
+            highFiveUntil = Clock.NowMs() + 1800;
+            hop.Velocity -= 200;
+            StartRendering();
+            Sound("hifive");
+            Ambient("High-Five! Zwei Sitzungen gleichzeitig fertig.", 4);
+        }
+
+        // ── levels, looks, badges ─────────────────────────────────────────
+
+        void UpdateProgress()
+        {
+            var p = demoStart > 0 ? DemoProgress() : Progress.Load();
+            progress = p;
+            if (demoStart == 0)
+            {
+                var known = new HashSet<string>(settings.KnownBadges.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
+                bool firstRun = settings.KnownLevel == 0;
+                var fresh = p.Badges.Where(b => !known.Contains(b)).ToList();
+                bool changed = fresh.Count > 0 || p.Level != settings.KnownLevel;
+                if (!firstRun && p.Level > settings.KnownLevel)
+                {
+                    var skin = Progress.Skins.FirstOrDefault(s => s.BadgeId == null && s.Level == p.Level);
+                    Celebrate();
+                    Sound("level");
+                    Ambient("Level " + p.Level + "!" + (skin != null ? " Neues Aussehen freigeschaltet: " + skin.Name + " (Tray-Menü → Aussehen)." : ""), 6);
+                }
+                else if (!firstRun && fresh.Count > 0)
+                {
+                    var badge = Progress.AllBadges.First(b => b.Id == fresh[0]);
+                    Celebrate();
+                    Sound("level");
+                    Ambient("Abzeichen: " + badge.Name + " – " + badge.How, 6);
+                }
+                if (changed)
+                {
+                    settings.KnownBadges = string.Join(",", p.Badges);
+                    settings.KnownLevel = p.Level;
+                    settings.Save();
+                }
+            }
+            var names = p.Badges.Select(id => Progress.AllBadges.First(b => b.Id == id).Name).ToList();
+            progressText.Text = "Level " + p.Level + " · noch " + Math.Max(0, p.NextAt - p.Tasks) + " Aufgaben bis Level " + (p.Level + 1) +
+                                " · Abzeichen " + names.Count + "/" + Progress.AllBadges.Length + (names.Count > 0 ? ": " + string.Join(", ", names) : "");
+        }
+
+        static ProgressState DemoProgress()
+        {
+            var p = new ProgressState { Tasks = 63, Edits = 410, Level = Progress.LevelFor(63) };
+            p.NextAt = Progress.TasksFor(p.Level + 1);
+            p.Badges.AddRange(new[] { "first", "owl", "marathon" });
+            return p;
+        }
+
+        Skin CurrentSkin()
+        {
+            var s = Progress.Skins.FirstOrDefault(x => x.Id == settings.Skin) ?? Progress.Skins[0];
+            return progress == null || Progress.Unlocked(s, progress) ? s : Progress.Skins[0];
+        }
+
+        Color SkinColor(long now)
+        {
+            var s = CurrentSkin();
+            if (now < trickUntil || s.Rainbow) return Hue((now / 12) % 360);
+            return Color.FromRgb(s.R, s.G, s.B);
+        }
+
+        static Color Hue(double h)
+        {
+            double x = 1 - Math.Abs(h / 60 % 2 - 1);
+            double r = 0, g = 0, b = 0;
+            if (h < 60) { r = 1; g = x; } else if (h < 120) { r = x; g = 1; } else if (h < 180) { g = 1; b = x; }
+            else if (h < 240) { g = x; b = 1; } else if (h < 300) { r = x; b = 1; } else { r = 1; b = x; }
+            return Color.FromRgb((byte)(80 + r * 160), (byte)(80 + g * 160), (byte)(80 + b * 160));
         }
 
         /// <summary>A push to the phone - only while you are away from the PC, at most once a minute per event.</summary>
@@ -1553,9 +1867,9 @@ namespace ClaudeIsland
                 bool f = (now / 200 + i) % 2 == 0;
                 var l = new Look
                 {
-                    Arms = m == Mode.Busy && f ? "down" : m == Mode.Waiting && f ? "up" : "side",
+                    Arms = now < highFiveUntil ? (i % 2 == 0 ? "wave" : "up") : m == Mode.Busy && f ? "down" : m == Mode.Waiting && f ? "up" : "side",
                     LegsB = m == Mode.Busy && f,
-                    Happy = m == Mode.Done,
+                    Happy = m == Mode.Done || now < highFiveUntil,
                     Eyes = m == Mode.None || m == Mode.Error ? "shut" : "c"
                 };
                 ((PixelSprite)minis.Children[i]).Show(ClawdArt.Pose(l), m == Mode.Error ? Color.FromRgb(168, 87, 74) : Palette.Clawd);
@@ -1710,6 +2024,39 @@ namespace ClaudeIsland
 
         // ── sessions ──────────────────────────────────────────────────────
 
+        /// <summary>"Geändert: App.tsx · api.ts · +3" - click a name to open it in the editor.</summary>
+        FrameworkElement ChangedFiles(List<string> files)
+        {
+            var wrap = new WrapPanel { Margin = new Thickness(16, -3, 0, 8) };
+            var label = Text(11.5, Palette.Secondary, FontWeights.Normal);
+            label.Text = "Geändert:";
+            wrap.Children.Add(label);
+            foreach (var f in files.Take(4))
+            {
+                string path = f;
+                var link = Text(11.5, Palette.ClawdHover, FontWeights.SemiBold);
+                link.Text = PathText.LastSegment(path);
+                link.Margin = new Thickness(8, 0, 0, 0);
+                link.Cursor = Cursors.Hand;
+                ToolTipService.SetToolTip(link, path + "\nKlicken: im Editor öffnen");
+                link.MouseLeftButtonUp += (s, e) =>
+                {
+                    e.Handled = true;
+                    try { if (!Editor.Open(path)) Toast("Die Datei gibt es nicht mehr: " + path, 4); }
+                    catch (Exception ex) { AppPaths.LogError("editor", ex); Toast("Konnte die Datei nicht öffnen.", 3); }
+                };
+                wrap.Children.Add(link);
+            }
+            if (files.Count > 4)
+            {
+                var more = Text(11.5, Palette.Secondary, FontWeights.Normal);
+                more.Text = "+" + (files.Count - 4);
+                more.Margin = new Thickness(8, 0, 0, 0);
+                wrap.Children.Add(more);
+            }
+            return wrap;
+        }
+
         /// <summary>Claude's task list as a thin bar with "Schritt 3 von 7".</summary>
         static FrameworkElement TodoBar(int done, int total)
         {
@@ -1760,9 +2107,11 @@ namespace ClaudeIsland
                         break;
                 }
                 if (s.Context >= 80) right += " – /compact";
+                var git = demoStart > 0 ? (s.Id == "demo" ? new GitState { Branch = "main", Changed = 3 } : null) : GitInfo.Get(s.Cwd);
+                if (git != null) right = git.Branch + (git.Changed > 0 ? " · " + git.Changed + " geändert" : "") + (right.Length > 0 ? " · " + right : "");
                 lines.Add(Tuple.Create(s, Palette.For(m), s.Project + (s.Model.Length > 0 ? "  ·  " + s.Model : ""), detail, right));
             }
-            string key = string.Join("\n", lines.Select(l => l.Item2 + l.Item3 + l.Item4 + l.Item5 + "|" + l.Item1.TodoDone + "/" + l.Item1.TodoTotal));
+            string key = string.Join("\n", lines.Select(l => l.Item2 + l.Item3 + l.Item4 + l.Item5 + "|" + l.Item1.TodoDone + "/" + l.Item1.TodoTotal + "|" + l.Item1.Tests + l.Item1.TestsAt + "|" + string.Join(";", l.Item1.Files)));
             if (key == sessionsKey) return;
             sessionsKey = key;
 
@@ -1790,6 +2139,13 @@ namespace ClaudeIsland
                 g.Children.Add(new Ellipse { Width = 7, Height = 7, Fill = Palette.Brush(l.Item2), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left });
                 var texts = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
                 texts.Inlines.Add(new System.Windows.Documents.Run(l.Item3) { FontFamily = UiFont, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Palette.Brush(Palette.Text) });
+                // Test traffic light: the last test run of this session (within two hours).
+                if (sess.Tests.Length > 0 && now - sess.TestsAt < 2 * 60 * 60 * 1000)
+                    texts.Inlines.Add(new System.Windows.Documents.Run(sess.Tests == "pass" ? "  ● Tests grün" : "  ● Tests rot")
+                    {
+                        FontFamily = UiFont, FontSize = 12, FontWeight = FontWeights.SemiBold,
+                        Foreground = Palette.Brush(sess.Tests == "pass" ? Palette.Ready : Palette.Error)
+                    });
                 texts.Inlines.Add(new System.Windows.Documents.Run("   " + l.Item4) { FontFamily = UiFont, FontSize = 12, Foreground = Palette.Brush(Palette.Secondary) });
                 Grid.SetColumn(texts, 1);
                 g.Children.Add(texts);
@@ -1807,6 +2163,14 @@ namespace ClaudeIsland
                     var bar = TodoBar(sess.TodoDone, sess.TodoTotal);
                     Grid.SetRow(bar, 1);
                     r.Children.Add(bar);
+                }
+                else if (sess.Files.Count > 0 && (SessionStore.DisplayMode(sess, now) == Mode.Done || SessionStore.DisplayMode(sess, now) == Mode.Ready))
+                {
+                    r.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    r.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    var list = ChangedFiles(sess.Files);
+                    Grid.SetRow(list, 1);
+                    r.Children.Add(list);
                 }
                 sessionsPanel.Children.Add(r);
             }
@@ -1907,7 +2271,28 @@ namespace ClaudeIsland
             long now = Clock.NowMs();
             chompStart = now;
             chompUntil = now + ChompMs + 60;
+            Sound("chomp");
             Refresh();
+        }
+
+        void FeedText(string text)
+        {
+            bool link = !text.Contains("\n") && (text.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || text.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+            if (link)
+            {
+                // Links go straight into the question; Claude can fetch them (WebFetch).
+                long now = Clock.NowMs();
+                chompStart = now;
+                chompUntil = now + ChompMs + 60;
+                input.Text = (input.Text.Trim().Length > 0 ? input.Text.Trim() + " " : "Fasse diese Seite kurz zusammen: ") + text;
+                Sound("chomp");
+                return;
+            }
+            Directory.CreateDirectory(AppPaths.Shots);
+            string path = System.IO.Path.Combine(AppPaths.Shots, "Text-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".txt");
+            File.WriteAllText(path, text, new UTF8Encoding(false));
+            Feed(new[] { path });
+            if (input.Text.Length == 0) input.Text = "Erklär mir das bitte: ";
         }
 
         void FeedClipboard()
@@ -1976,38 +2361,81 @@ namespace ClaudeIsland
 
         void Send(bool allowEdits)
         {
-            if (runner.Running) return;
             string text = input.Text.Trim();
             if (text.Length == 0 && attachments.Count == 0)
             {
                 input.Focus();
                 return;
             }
+            // Easter egg.
+            if (attachments.Count == 0 && string.Equals(text, "clawd", StringComparison.OrdinalIgnoreCase))
+            {
+                input.Text = "";
+                trickUntil = Clock.NowMs() + 3200;
+                for (int i = 0; i < 4; i++) heartSpawns.Add(Clock.NowMs() - i * 300);
+                heartSpawns.Sort();
+                Toast("Das bin ich!", 3);
+                StartRendering();
+                return;
+            }
             string cwd = CurrentProject();
             settings.RememberProject(cwd);
-            string prompt = ClaudeRunner.BuildPrompt(text, attachments);
-            var dirs = attachments.Select(f => System.IO.Path.GetDirectoryName(f)).Where(d => !string.IsNullOrEmpty(d)).ToList();
+            var job = new Job
+            {
+                Prompt = ClaudeRunner.BuildPrompt(text, attachments), Cwd = cwd, Edits = allowEdits,
+                Question = text.Length > 0 ? text : string.Join(", ", attachments.Select(PathText.LastSegment)),
+                Dirs = attachments.Select(f => System.IO.Path.GetDirectoryName(f)).Where(d => !string.IsNullOrEmpty(d)).ToList()
+            };
+            input.Text = "";
+            attachments.Clear();
+            RenderChips();
+            if (runner.Running)
+            {
+                // Busy: queue it, it starts as soon as the current one is done.
+                queue.Add(job);
+                UpdateQueueText();
+                Toast("In der Warteschlange (Platz " + queue.Count + "): " + Shorten(job.Question, 60), 3);
+                Refresh();
+                return;
+            }
+            StartJob(job);
+        }
 
+        void StartJob(Job job)
+        {
+            currentJob = job;
             ShowAnswer();
             answerBox.Text = "";
             answerSessionId = null;
             continueButton.Visibility = Visibility.Collapsed;
             activityText.Foreground = Palette.Brush(Palette.Clawd);
-            activityText.Text = (allowEdits ? "Arbeitet in " : "Liest in ") + PathText.LastSegment(cwd) + " …";
+            activityText.Text = (job.Edits ? "Arbeitet in " : "Liest in ") + PathText.LastSegment(job.Cwd) + " …";
+            UpdateQueueText();
             try
             {
-                runner.Start(prompt, cwd, allowEdits, dirs);
-                input.Text = "";
-                attachments.Clear();
-                RenderChips();
+                runner.Start(job.Prompt, job.Cwd, job.Edits, job.Dirs);
             }
             catch (Exception ex)
             {
                 AppPaths.LogError("runner", ex);
+                currentJob = null;
                 activityText.Foreground = Palette.Brush(Palette.Error);
                 activityText.Text = "Claude Code wurde nicht gefunden. Ist es installiert? (" + ex.Message + ")";
             }
             Refresh();
+        }
+
+        void UpdateQueueText()
+        {
+            queueText.Visibility = queue.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            queueText.Text = queue.Count == 0 ? "" :
+                "Danach " + (queue.Count == 1 ? "1 Auftrag" : queue.Count + " Aufträge") + " in der Warteschlange: " + string.Join(" · ", queue.Select(j => Shorten(j.Question, 40)));
+        }
+
+        static string Shorten(string s, int max)
+        {
+            s = (s ?? "").Replace("\r", " ").Replace("\n", " ");
+            return s.Length > max ? s.Substring(0, max - 1) + "…" : s;
         }
 
         void WireRunner()
@@ -2027,6 +2455,20 @@ namespace ClaudeIsland
                 activityText.Text = ok ? "Fertig. Du kannst im Terminal weitermachen." : message;
                 continueButton.Visibility = answerSessionId != null ? Visibility.Visible : Visibility.Collapsed;
                 if (ok) Celebrate();
+                if (ok && currentJob != null)
+                {
+                    var entry = new HistoryEntry { Time = Clock.NowMs(), Project = PathText.LastSegment(currentJob.Cwd), Question = currentJob.Question, Answer = answerBox.Text };
+                    System.Threading.ThreadPool.QueueUserWorkItem(_ => History.Add(entry));
+                }
+                currentJob = null;
+                if (queue.Count > 0)
+                {
+                    var next = queue[0];
+                    queue.RemoveAt(0);
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1200) };
+                    timer.Tick += (s, e) => { timer.Stop(); if (!runner.Running) StartJob(next); else queue.Insert(0, next); };
+                    timer.Start();
+                }
                 Refresh();
             }));
         }
@@ -2039,6 +2481,8 @@ namespace ClaudeIsland
 
         void ClearComposer()
         {
+            queue.Clear();
+            UpdateQueueText();
             runner.Cancel();
             input.Text = "";
             attachments.Clear();
@@ -2055,7 +2499,7 @@ namespace ClaudeIsland
 
         void OnDragOver(object sender, DragEventArgs e)
         {
-            bool files = e.Data.GetDataPresent(DataFormats.FileDrop);
+            bool files = e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(DataFormats.UnicodeText) || e.Data.GetDataPresent(DataFormats.Text);
             e.Effects = files ? DragDropEffects.Copy : DragDropEffects.None;
             e.Handled = true;
             if (!files) return;
@@ -2073,6 +2517,12 @@ namespace ClaudeIsland
             fileDrag = false;
             var files = e.Data.GetData(DataFormats.FileDrop) as string[];
             if (files != null) Feed(files);
+            else
+            {
+                // Dragged text or a link (from a browser, an editor, a mail).
+                string text = (e.Data.GetData(DataFormats.UnicodeText) ?? e.Data.GetData(DataFormats.Text)) as string;
+                if (!string.IsNullOrWhiteSpace(text)) FeedText(text.Trim());
+            }
             Refresh();
         }
 
@@ -2130,7 +2580,7 @@ namespace ClaudeIsland
             get
             {
                 return input.IsKeyboardFocusWithin || input.Text.Length > 0 || attachments.Count > 0 ||
-                       answerVisible || runner.Running || demoOpen || pendingApproval != null;
+                       answerVisible || runner.Running || demoOpen || pendingApproval != null || queue.Count > 0;
             }
         }
 
@@ -2173,6 +2623,16 @@ namespace ClaudeIsland
             if (dragging && !buttonWasDown) { pulling = overClawd && !fileDrag; pullFrom = local; }
             if (!dragging) pulling = false;
             if (pulling && local.Y - pullFrom.Y > 36) { pulling = false; LetOut(true); }
+            // Seven quick clicks on Clawd make him dizzy.
+            if (dragging && !buttonWasDown && overClawd)
+            {
+                clawdClicks.Add(now);
+                clawdClicks.RemoveAll(c => now - c > 2500);
+                if (clawdClicks.Count >= 7) { clawdClicks.Clear(); dizzyUntil = now + 3000; Toast("Hör auf, mir ist schwindelig …", 3); }
+            }
+            bool right = (GetAsyncKeyState(0x02) & 0x8000) != 0;
+            if (right && !rightWasDown && overClawd && interactive) Dispatcher.BeginInvoke(new Action(ShowClawdMenu));
+            rightWasDown = right;
             buttonWasDown = dragging;
 
             if (inside) { leftSince = 0; if (hoverSince == 0) hoverSince = now; }
@@ -2356,10 +2816,30 @@ namespace ClaudeIsland
             menu.Items.Add(Toggle("Windows-Benachrichtigungen", () => settings.Notify, v => settings.Notify = v));
             menu.Items.Add(Toggle("Dem Bildschirm mit der Maus folgen", () => settings.FollowMonitor, v => settings.FollowMonitor = v));
             menu.Items.Add(Toggle("Bei Vollbild (Spiele, Videos) ausblenden", () => settings.HideInFullscreen, v => settings.HideInFullscreen = v));
-            menu.Items.Add(Toggle("Ton bei Fertig / Freigabe", () => settings.Sound, v => settings.Sound = v));
+            menu.Items.Add(Toggle("8-Bit-Töne", () => settings.Sound, v => { settings.Sound = v; if (v) Chiptune.Play("done"); }));
             petItem = Toggle("Clawd auf dem Desktop laufen lassen", () => pet != null, v => Dispatcher.BeginInvoke(new Action(() => { if (v) LetOut(false); else Recall(); })));
             menu.Items.Add(petItem);
             menu.Items.Add("Nachrichten aufs Handy …", null, (s, e) => Dispatcher.BeginInvoke(new Action(SetupPhone)));
+            var looks = new WinForms.ToolStripMenuItem("Aussehen");
+            looks.DropDownOpening += (s, e) =>
+            {
+                looks.DropDownItems.Clear();
+                var p = progress ?? Progress.Load();
+                foreach (var skin in Progress.Skins)
+                {
+                    var sk = skin;
+                    bool unlocked = Progress.Unlocked(sk, p);
+                    var item = new WinForms.ToolStripMenuItem(sk.Name + (unlocked ? "" : "  (ab " + Progress.UnlockText(sk) + ")")) { Checked = settings.Skin == sk.Id, Enabled = unlocked };
+                    item.Click += (o, a) => { settings.Skin = sk.Id; settings.Save(); };
+                    looks.DropDownItems.Add(item);
+                }
+            };
+            looks.DropDownItems.Add("…");
+            menu.Items.Add(looks);
+            menu.Items.Add("Verlauf …", null, (s, e) => Dispatcher.BeginInvoke(new Action(ShowHistory)));
+            menu.Items.Add("Wetter-Ort festlegen …", null, (s, e) => Dispatcher.BeginInvoke(new Action(AskWeather)));
+            menu.Items.Add(Toggle("Pausen-Erinnerung (nach 90 Minuten)", () => settings.Breaks, v => settings.Breaks = v));
+            menu.Items.Add(Toggle("Nicht stören beachten (Präsentation, Ruhezeiten)", () => settings.RespectQuiet, v => { settings.RespectQuiet = v; quietCheckedAt = 0; }));
             menu.Items.Add("Geburtstag festlegen …", null, (s, e) => AskBirthday());
             menu.Items.Add("Datenordner öffnen", null, (s, e) =>
             {
@@ -2386,6 +2866,66 @@ namespace ClaudeIsland
                 Dispatcher.BeginInvoke(new Action(() => { monitorKey = ""; CheckFullscreen(); Refresh(); }));
             };
             return item;
+        }
+
+        /// <summary>Right-click on Clawd: quick commands and feeding.</summary>
+        void ShowClawdMenu()
+        {
+            var menu = new ContextMenu { Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint };
+            foreach (var q in settings.Quick)
+            {
+                var cmd = q;
+                var item = new MenuItem { Header = cmd.Label };
+                item.Click += (s, e) => { input.Text = cmd.Prompt; FocusComposer(); Send(cmd.Edits); };
+                menu.Items.Add(item);
+            }
+            menu.Items.Add(new Separator());
+            Action<string, Action> add = (text, act) => { var i = new MenuItem { Header = text }; i.Click += (s, e) => act(); menu.Items.Add(i); };
+            add("Bildschirmfoto verfüttern", TakeScreenshot);
+            add("Zwischenablage verfüttern", FeedClipboard);
+            add("Verlauf …", () => Dispatcher.BeginInvoke(new Action(ShowHistory)));
+            add(pet == null ? "Auf den Desktop schicken" : "Zurück in die Island holen", () => { if (pet == null) LetOut(false); else Recall(); });
+            menu.IsOpen = true;
+        }
+
+        // ── history ───────────────────────────────────────────────────────
+
+        void ShowHistory()
+        {
+            var all = History.Load();
+            var form = new WinForms.Form { Text = "Claude Island – Verlauf", Width = 860, Height = 560, StartPosition = WinForms.FormStartPosition.CenterScreen, TopMost = true };
+            var search = new WinForms.TextBox { Dock = WinForms.DockStyle.Top, Font = new Drawing.Font("Segoe UI", 11f) };
+            var split = new WinForms.SplitContainer { Dock = WinForms.DockStyle.Fill, SplitterDistance = 320 };
+            var list = new WinForms.ListBox { Dock = WinForms.DockStyle.Fill, Font = new Drawing.Font("Segoe UI", 10f), IntegralHeight = false };
+            var view = new WinForms.TextBox { Dock = WinForms.DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = WinForms.ScrollBars.Vertical, Font = new Drawing.Font("Segoe UI", 10.5f), BackColor = Drawing.Color.White };
+            split.Panel1.Controls.Add(list);
+            split.Panel2.Controls.Add(view);
+            form.Controls.Add(split);
+            form.Controls.Add(search);
+            var shown = new List<HistoryEntry>();
+            Action fill = () =>
+            {
+                shown = History.Search(all, search.Text);
+                list.BeginUpdate();
+                list.Items.Clear();
+                var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                foreach (var e in shown)
+                    list.Items.Add(epoch.AddMilliseconds(e.Time).ToLocalTime().ToString("dd.MM. HH:mm") + "  " + e.Project + " – " + Shorten(e.Question, 60));
+                list.EndUpdate();
+                view.Text = shown.Count == 0 ? (all.Count == 0 ? "Noch nichts im Verlauf. Hier landet alles, was du Claude in der Island fragst." : "Nichts gefunden.") : "";
+                if (shown.Count > 0) list.SelectedIndex = 0;
+            };
+            list.SelectedIndexChanged += (s, e) =>
+            {
+                if (list.SelectedIndex < 0 || list.SelectedIndex >= shown.Count) return;
+                var h = shown[list.SelectedIndex];
+                view.Text = "Frage (" + h.Project + "):\r\n" + h.Question.Replace("\n", "\r\n") + "\r\n\r\nAntwort:\r\n" + h.Answer.Replace("\r", "").Replace("\n", "\r\n");
+            };
+            search.TextChanged += (s, e) => fill();
+            fill();
+            form.Shown += (s, e) => search.Focus();
+            form.ShowDialog();
+            form.Dispose();
         }
 
         // ── Clawd on the desktop ─────────────────────────────────────────
@@ -2460,6 +3000,46 @@ namespace ClaudeIsland
                 else return;
                 settings.Save();
                 Toast(settings.PhoneTopic.Length > 0 ? "Handy-Nachrichten sind an – sobald du 2 Minuten nicht am PC bist." : "Handy-Nachrichten sind aus.", 4);
+            }
+        }
+
+        void AskWeather()
+        {
+            using (var form = new WinForms.Form { Text = "Claude Island – Wetter", Width = 400, Height = 190, FormBorderStyle = WinForms.FormBorderStyle.FixedDialog, StartPosition = WinForms.FormStartPosition.CenterScreen, MaximizeBox = false, MinimizeBox = false, TopMost = true })
+            {
+                var lbl = new WinForms.Label { Text = "Dein Ort – dann trägt Clawd bei Regen einen Schirm, bei Hitze eine Sonnenbrille, und unter der Island regnet oder schneit es (leer lassen = aus):", Left = 12, Top = 10, Width = 360, Height = 48 };
+                var box = new WinForms.TextBox { Left = 12, Top = 64, Width = 360, Text = settings.WeatherPlace };
+                var ok = new WinForms.Button { Text = "Speichern", Left = 282, Top = 100, Width = 90, DialogResult = WinForms.DialogResult.OK };
+                form.Controls.Add(lbl);
+                form.Controls.Add(box);
+                form.Controls.Add(ok);
+                form.AcceptButton = ok;
+                if (form.ShowDialog() != WinForms.DialogResult.OK) return;
+                string place = box.Text.Trim();
+                if (place.Length == 0)
+                {
+                    settings.WeatherPlace = "";
+                    settings.Save();
+                    Weather.Reset();
+                    Toast("Wetter ist aus.", 3);
+                    return;
+                }
+                System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    Tuple<string, double, double> found = null;
+                    try { found = Weather.Find(place); }
+                    catch (Exception ex) { AppPaths.LogError("weather find", ex); }
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (found == null) { Toast("Den Ort „" + place + "“ habe ich nicht gefunden (oder kein Internet).", 5); return; }
+                        settings.WeatherPlace = found.Item1;
+                        settings.WeatherLat = found.Item2;
+                        settings.WeatherLon = found.Item3;
+                        settings.Save();
+                        Weather.Reset();
+                        Toast("Wetter für " + found.Item1 + " ist an.", 4);
+                    }));
+                });
             }
         }
 

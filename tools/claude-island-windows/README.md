@@ -52,6 +52,53 @@ beim Start zeigt.
 - **Spielmodus:** Bei Vollbild-Spielen wird die Island zu einem kleinen Clawd ohne Text.
 - **Mehrere Bildschirme:** Die Island wandert auf den Bildschirm, auf dem deine Maus ist.
 
+## Noch mehr Leben
+
+- **Stimmung:** Schlagen die Tests fehl, zieht Clawd beim Weiterarbeiten finster die Brauen
+  zusammen. Werden sie wieder grün, ist er stolz und jubelt.
+- **Git-Momente:** Konfetti bei einem `git commit`, eine Pixel-Rakete bei einem `git push`.
+- **Er tanzt:** Läuft Musik (oder ein Video) und Claude hat gerade nichts zu tun, tanzt er im
+  Takt, und Noten steigen auf.
+- **Wetter:** Tray-Menü → „Wetter-Ort festlegen …“. Bei Regen trägt er einen Schirm und unter der
+  Island regnet es, bei Schnee schneit es, ab 28 °C und Sonne trägt er eine Sonnenbrille. Im
+  Dezember rieselt immer ein bisschen Schnee. Die Daten kommen kostenlos von open-meteo.com.
+- **Level, Aussehen und Abzeichen:** Jede erledigte Aufgabe bringt Erfahrung. In der geöffneten
+  Island steht z. B. „Level 5 · noch 12 Aufgaben bis Level 6“. Ab Level 5 gibt es Clawd in Gold,
+  ab 8 in Mitternacht und ab 12 in Regenbogen. Das Abzeichen „Nachteule“ schaltet den Hacker-Look
+  mit Sonnenbrille frei. Auswahl: Tray-Menü → „Aussehen“. Abzeichen gibt es für Erste Aufgabe,
+  Nachteule, Frühaufsteher, Marathon, Fleißiges Bienchen, Dranbleiber, Hundert und
+  1000 Änderungen.
+- **8-Bit-Töne:** Kleine Melodien bei Fertig, Freigabe, Commit, Push, Level-up und beim Fressen
+  (Tray-Menü → „8-Bit-Töne“, anfangs aus).
+- **High-Five:** Werden zwei Sitzungen gleichzeitig fertig, klatschen die Mini-Clawds ab.
+- **Versteckte Gags:** Tipp „clawd“ ins Eingabefeld und drück Enter. Oder klick siebenmal
+  schnell auf ihn.
+
+## Mehr Überblick
+
+- **Test-Ampel:** In der Sitzungsliste steht „● Tests grün“ oder „● Tests rot“, je nach dem
+  letzten Testlauf (npm/pnpm/yarn/bun test, pytest, jest, vitest, go/cargo/dotnet test, Gradle,
+  Maven …).
+- **Git:** Neben jeder Sitzung stehen Branch und Zahl der geänderten Dateien, z. B.
+  „main · 3 geändert“.
+- **Geänderte Dateien:** Ist Claude fertig, stehen unter der Sitzung die Dateien, die es in dieser
+  Runde geändert hat. Ein Klick öffnet sie in VS Code oder, falls das fehlt, im Standardprogramm.
+- **Verlauf:** Alles, was du in der Island fragst, landet im Verlauf („Verlauf“-Knopf oder
+  Tray-Menü) und lässt sich durchsuchen.
+
+## Schneller bedienen und Pausen
+
+- **Warteschlange:** Schick ruhig weitere Aufträge, während Claude noch antwortet. Sie werden der
+  Reihe nach abgearbeitet.
+- **Rechtsklick auf Clawd:** Schnellbefehle, Bildschirmfoto, Zwischenablage, Verlauf und „Auf den
+  Desktop schicken“.
+- **Text und Links verfüttern:** Markierten Text aus Browser, Editor oder Mail direkt auf Clawd
+  ziehen. Bei einem Link steht danach „Fasse diese Seite kurz zusammen: …“ im Eingabefeld.
+- **Pausen-Erinnerung:** Nach 90 Minuten am Stück ohne 5 Minuten Pause streckt sich Clawd und
+  schlägt eine Pause vor (Tray-Menü → „Pausen-Erinnerung“).
+- **Nicht stören:** Bei Präsentationen und Ruhezeiten des Fokus-Assistenten bleibt Clawd still:
+  keine Töne, keine Sprechblasen, keine Benachrichtigungen. Abschaltbar im Tray-Menü.
+
 ## Clawd auf dem Desktop
 
 Drück auf Clawd und zieh ihn nach unten aus der Island (oder Tray-Menü → „Clawd auf dem Desktop
@@ -167,8 +214,10 @@ Das Symbol im Infobereich der Taskleiste bietet:
 - **Island öffnen (Strg+Alt+C)** und **Bildschirmfoto verfüttern (Strg+Alt+S)**
 - **Animation vorführen** und **Claude Code öffnen**
 - **Clawd auf dem Desktop laufen lassen** und **Nachrichten aufs Handy …**
+- **Aussehen**, **Verlauf …** und **Wetter-Ort festlegen …**
+- Schalter: **Pausen-Erinnerung** und **Nicht stören beachten**
 - Schalter: **Freigaben in der Island**, **Windows-Benachrichtigungen**, **Dem Bildschirm mit der
-  Maus folgen**, **Bei Vollbild ausblenden**, **Ton bei Fertig / Freigabe**
+  Maus folgen**, **Bei Vollbild ausblenden**, **8-Bit-Töne**
 - **Geburtstag festlegen …**
 - **Datenordner öffnen**
 - **Beenden**
