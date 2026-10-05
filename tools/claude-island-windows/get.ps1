@@ -1,9 +1,11 @@
-﻿# Claude Island - Installation mit einem Befehl. In PowerShell einfuegen:
+# Claude Island - Installation mit einem Befehl. In PowerShell einfuegen:
 #
 #   irm https://raw.githubusercontent.com/Keule0071945/openclaude/claude/flat-notch-status-indicator-x3h3ds/tools/claude-island-windows/get.ps1 | iex
 #
 # Laedt die fertige ClaudeIsland.exe und die Skripte in einen Temp-Ordner und
 # fuehrt dort install.ps1 aus.
+#
+# Diese Datei muss reines ASCII ohne BOM bleiben: `irm | iex` bricht an einer BOM ab.
 
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12

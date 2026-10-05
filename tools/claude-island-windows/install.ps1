@@ -165,6 +165,13 @@ if ($NoAutostart -or -not $lnkPath) {
 # 5) Starten und einmal vorfuehren
 Step 'Starte Claude Island'
 Start-Process -FilePath $exe -ArgumentList 'demo'
+Start-Sleep -Seconds 3
+if (-not (Get-Process -Name 'ClaudeIsland' -ErrorAction SilentlyContinue)) {
+    Write-Host ''
+    Write-Host '  Claude Island laeuft nicht. Bitte schick diese Meldung und den Inhalt von' -ForegroundColor Red
+    Write-Host "  $(Join-Path $dataDir 'island.log')" -ForegroundColor Red
+    exit 1
+}
 
 Write-Host ''
 Write-Host '  Fertig! Die Island sitzt jetzt oben mittig auf deinem Hauptbildschirm.' -ForegroundColor Green

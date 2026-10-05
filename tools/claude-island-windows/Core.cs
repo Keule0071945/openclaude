@@ -291,6 +291,20 @@ namespace ClaudeIsland
             catch { return false; }
         }
 
+        /// <summary>A failed start must never be silent: log it and tell the user.</summary>
+        static void ReportCrash(Exception ex)
+        {
+            AppPaths.LogError("start", ex ?? new Exception("unknown"));
+            try
+            {
+                System.Windows.Forms.MessageBox.Show(
+                    "Claude Island konnte nicht starten:\n\n" + (ex != null ? ex.Message : "unbekannter Fehler") +
+                    "\n\nDetails stehen in:\n" + AppPaths.Log,
+                    "Claude Island", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+            }
+            catch { }
+        }
+
         [STAThread]
         static int Main(string[] args)
         {
@@ -312,16 +326,25 @@ namespace ClaudeIsland
             using (var single = new Mutex(true, "Local\\ClaudeIsland.Overlay", out createdNew))
             {
                 if (!createdNew) return 0;
-                var app = new Application();
-                app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-                app.DispatcherUnhandledException += (s, e) =>
+                AppDomain.CurrentDomain.UnhandledException += (s, e) => ReportCrash(e.ExceptionObject as Exception);
+                try
                 {
-                    AppPaths.LogError("ui", e.Exception);
-                    e.Handled = true;
-                };
-                var window = new IslandWindow(mode == "demo");
-                window.Show();
-                app.Run();
+                    var app = new Application();
+                    app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                    app.DispatcherUnhandledException += (s, e) =>
+                    {
+                        AppPaths.LogError("ui", e.Exception);
+                        e.Handled = true;
+                    };
+                    var window = new IslandWindow(mode == "demo");
+                    window.Show();
+                    app.Run();
+                }
+                catch (Exception ex)
+                {
+                    ReportCrash(ex);
+                    return 1;
+                }
             }
             return 0;
         }
