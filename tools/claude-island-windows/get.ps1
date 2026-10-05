@@ -16,7 +16,8 @@ New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 Write-Host ''
 Write-Host '  Lade Claude Island herunter ...' -ForegroundColor White
 foreach ($f in 'ClaudeIsland.exe', 'Core.cs', 'Island.cs', 'Runner.cs', 'install.ps1', 'uninstall.ps1', 'uninstall.cmd') {
-    Invoke-WebRequest -UseBasicParsing -Uri "$base/$f" -OutFile (Join-Path $tmp $f)
+    # The query string skips GitHub's CDN cache, so an update is picked up right away.
+    Invoke-WebRequest -UseBasicParsing -Uri ("$base/$f" + '?nocache=' + [Guid]::NewGuid().ToString('N')) -Headers @{ 'Cache-Control' = 'no-cache' } -OutFile (Join-Path $tmp $f)
 }
 
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $tmp 'install.ps1')
