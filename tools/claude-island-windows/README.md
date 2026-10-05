@@ -26,7 +26,9 @@ beim Start zeigt.
 - **Nutzungslimit:** 5 Stunden und Woche, jeweils mit Reset-Zeit.
 - **Sitzungen:** Projekt, Modell, aktuelle Tätigkeit („Bearbeitet · App.tsx“), Laufzeit und
   Kontext-Füllstand.
-- **Datei reinziehen:** PDF oder jede andere Datei auf die Island ziehen. Clawd hebt die Arme und fängt sie. Dann eine Frage tippen und
+- **Datei verfüttern:** Zieh eine PDF (oder jede andere Datei) zu Clawd. Je näher sie kommt,
+  desto weiter reißt er das Maul mit seinen Pixelzähnen auf. Lass los: Er beißt zu, kaut
+  zweimal, schluckt mit einem Hüpfer, und die Island öffnet sich mit der Datei. Dann eine Frage tippen und
   **Enter** drücken (oder „Fragen“). Claude liest die Datei im gewählten Projektordner und
   antwortet direkt in der Island.
 - **Befehle:** „Ausführen“ (oder **Strg+Enter**) erlaubt Claude, Dateien im Projekt zu
@@ -36,8 +38,11 @@ beim Start zeigt.
 
 Weitere Eigenschaften:
 
-- **Stört nicht:** Solange die Island zu ist, gehen Klicks durch sie hindurch. Bei
-  Vollbild (Video, Spiel) blendet es sich aus.
+- **Stört nicht:** Solange die Island zu ist, gehen Klicks durch sie hindurch.
+- **Auch beim Spielen sichtbar:** Clawd bleibt über Spielen und Vollbild-Videos. Das klappt bei
+  Spielen im Modus **„Randloses Fenster“ / „Vollbild (Fenster)“**. Im exklusiven Vollbild
+  zeichnet Windows nichts anderes über das Spiel, das ist eine Grenze von Windows. Wer ihn dort
+  nicht sehen will: Tray-Menü → „Bei Vollbild (Spiele, Videos) ausblenden“.
 - **Federphysik:** Größe und Form ändern sich mit einer echten gedämpften Feder.
 - **Mehrere Sitzungen:** Jedes Claude-Code-Fenster meldet sich.
 - **Esc-Abbruch wird erkannt**, obwohl Claude Code dafür keinen eigenen Hook auslöst.

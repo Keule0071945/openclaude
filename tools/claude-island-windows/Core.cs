@@ -930,7 +930,7 @@ namespace ClaudeIsland
             return new List<Session> { s, other };
         }
 
-        public const double Length = 20;
+        public const double Length = 23.5;
 
         public static Usage FakeUsage(long startMs)
         {
@@ -983,6 +983,7 @@ namespace ClaudeIsland
     sealed class Settings
     {
         public bool Sound;
+        public bool HideInFullscreen;
         public readonly List<string> RecentProjects = new List<string>();
 
         public static Settings Load()
@@ -995,6 +996,7 @@ namespace ClaudeIsland
                     {
                         string line = raw.Trim();
                         if (line == "sound=1") s.Sound = true;
+                        else if (line == "hideFullscreen=1") s.HideInFullscreen = true;
                         else if (line.StartsWith("project=")) s.RecentProjects.Add(line.Substring(8));
                     }
             }
@@ -1016,7 +1018,7 @@ namespace ClaudeIsland
             try
             {
                 Directory.CreateDirectory(AppPaths.Root);
-                var lines = new List<string> { "sound=" + (Sound ? "1" : "0") };
+                var lines = new List<string> { "sound=" + (Sound ? "1" : "0"), "hideFullscreen=" + (HideInFullscreen ? "1" : "0") };
                 lines.AddRange(RecentProjects.Select(p => "project=" + p));
                 File.WriteAllLines(AppPaths.Settings, lines, new UTF8Encoding(false));
             }

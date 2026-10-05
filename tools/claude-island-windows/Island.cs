@@ -75,12 +75,19 @@ namespace ClaudeIsland
     }
 
     /// <summary>
-    /// Clawd as crisp pixel art: 18 x 6 cells (row 0 is room for raised arms),
-    /// decoded from the logo Claude Code prints on start.
+    /// Clawd as crisp pixel art, decoded from the logo Claude Code prints on
+    /// start: 18 columns; row 0 is room for raised arms and the extra rows let
+    /// his jaw drop open. Cells: '#' body, 'w' tooth, 'm' mouth, 'p' paper,
+    /// 'r' the red PDF stripe.
     /// </summary>
     sealed class Clawd : Canvas
     {
-        public const int Cols = 18, Rows = 6;
+        public const int Cols = 18, Rows = 11;
+        public const int MaxMouth = 4;
+        static readonly Brush Tooth = Palette.Brush(Color.FromRgb(246, 243, 238));
+        static readonly Brush Mouth = Palette.Brush(Color.FromRgb(58, 13, 20));
+        static readonly Brush Paper = Palette.Brush(Color.FromRgb(250, 250, 250));
+        static readonly Brush Red = Palette.Brush(Color.FromRgb(229, 72, 77));
         public readonly double Px;
         readonly Rectangle[] cells = new Rectangle[Cols * Rows];
         string[] current;
@@ -121,12 +128,38 @@ namespace ClaudeIsland
         /// <summary>Build a pose. arms: side | up | down | wave.</summary>
         public static string[] Pose(string eyes, string arms, bool legsB, bool happy)
         {
+            return Pose(eyes, arms, legsB, happy, 0, false);
+        }
+
+        /// <summary>
+        /// With mouth &gt; 0 the jaw drops by that many rows: teeth on both jaws,
+        /// dark mouth between, and optionally the PDF he is about to eat.
+        /// </summary>
+        public static string[] Pose(string eyes, string arms, bool legsB, bool happy, int mouth, bool food)
+        {
             string r0 = E, r1 = Top, r2 = Eyes[eyes], r3 = Arms, r4 = Body;
             if (happy) { r1 = "...##.######.##..."; r2 = "...#.#.####.#.#..."; }
             if (arms == "up") { r0 = ".##............##."; r3 = Body; }
             else if (arms == "down") { r3 = Body; r4 = Arms; }
             else if (arms == "wave") { r0 = "................##"; r3 = ".###############.."; }
-            return new[] { r0, r1, r2, r3, r4, legsB ? LegsB : LegsA };
+            var rows = new List<string> { r0, r1, r2 };
+            mouth = Math.Max(0, Math.Min(MaxMouth, mouth));
+            if (mouth == 1) rows.Add("...#mmmmmmmmmm#...");
+            else if (mouth >= 2)
+            {
+                rows.Add("...#wmwmwmwmwm#...");
+                for (int i = 0; i < mouth - 2; i++)
+                {
+                    if (food && i == 0) rows.Add("...#mmmppppmmm#...");
+                    else if (food && i == 1) rows.Add("...#mmmprrpmmm#...");
+                    else rows.Add("...#mmmmmmmmmm#...");
+                }
+                rows.Add("...#mwmwmwmwmw#...");
+            }
+            rows.Add(r3);
+            rows.Add(r4);
+            rows.Add(legsB ? LegsB : LegsA);
+            return rows.ToArray();
         }
 
         public void Show(string[] rows, Color color)
@@ -137,9 +170,10 @@ namespace ClaudeIsland
                 for (int x = 0; x < Cols; x++)
                 {
                     var cell = cells[y * Cols + x];
-                    bool on = rows[y][x] == '#';
-                    cell.Visibility = on ? Visibility.Visible : Visibility.Hidden;
-                    if (on) cell.Fill = brush;
+                    char ch = y < rows.Length ? rows[y][x] : '.';
+                    Brush fill = ch == '#' ? brush : ch == 'w' ? Tooth : ch == 'm' ? Mouth : ch == 'p' ? Paper : ch == 'r' ? Red : null;
+                    cell.Visibility = fill != null ? Visibility.Visible : Visibility.Hidden;
+                    if (fill != null) cell.Fill = fill;
                 }
             current = rows;
             currentColor = color;
@@ -219,6 +253,14 @@ namespace ClaudeIsland
         long demoStart;
         bool hiddenForFullscreen;
         long blinkUntil, nextBlink, nextGlance, waveUntil;
+        // Eating a dropped file: the mouth opens as a file drag comes close,
+        // then he chomps, chews twice and swallows before the island opens.
+        Rectangle catcher;
+        double mouth;
+        bool fileDrag, nearDrag;
+        long chompStart, chompUntil, happyUntil;
+        const long ChompMs = 760;
+        bool demoChomped;
         string glance = "c";
         IntPtr hwnd;
         WinForms.NotifyIcon tray;
@@ -260,7 +302,7 @@ namespace ClaudeIsland
             };
             DragEnter += OnDragOver;
             DragOver += OnDragOver;
-            DragLeave += (s, e) => { dragOver = false; Refresh(); };
+            DragLeave += (s, e) => { dragOver = false; fileDrag = false; Refresh(); };
             Drop += OnDrop;
         }
 
@@ -317,7 +359,8 @@ namespace ClaudeIsland
             life.Tick += (s, a) => { CheckHover(); Animate(); };
             life.Start();
 
-            var chores = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
+            // Re-assert "topmost" often: games and video players like to claim it too.
+            var chores = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             chores.Tick += (s, a) => { KeepOnTop(); CheckFullscreen(); };
             chores.Start();
 
@@ -355,6 +398,8 @@ namespace ClaudeIsland
                 }
             }
             catch { }
+            // Stays visible over games and videos unless the user opted to hide it there.
+            if (!settings.HideInFullscreen) fullscreen = false;
             if (fullscreen == hiddenForFullscreen) return;
             hiddenForFullscreen = fullscreen;
             canvas.BeginAnimation(OpacityProperty, new DoubleAnimation(fullscreen ? 0 : 1, TimeSpan.FromMilliseconds(fullscreen ? 180 : 320)));
@@ -374,6 +419,11 @@ namespace ClaudeIsland
         {
             canvas = new Canvas { Width = WindowW, Height = WindowH };
             Content = canvas;
+
+            // Nearly invisible (alpha 1) so a file dragged near Clawd reaches this
+            // layered window; only shown while the mouse button is held nearby.
+            catcher = new Rectangle { Width = 360, Height = 240, Fill = Palette.Brush(Color.FromArgb(1, 0, 0, 0)), Visibility = Visibility.Collapsed };
+            canvas.Children.Add(catcher);
 
             // Colored glow behind, the black island with a soft drop shadow, then a hairline edge.
             glow = new DropShadowEffect { ShadowDepth = 0, BlurRadius = 30, Color = Colors.Black, Opacity = 0, RenderingBias = RenderingBias.Performance };
@@ -611,7 +661,60 @@ namespace ClaudeIsland
             string[] pose;
             Color color = Palette.Clawd;
 
-            if (dragOver) pose = Clawd.Pose("c", "up", false, false);
+            // Mouth: chomp sequence after a drop, otherwise open wider the closer a file gets.
+            bool food = false;
+            double mouthTarget = 0;
+            if (chompStart > 0)
+            {
+                long t = now - chompStart;
+                if (t < 90) { mouthTarget = Clawd.MaxMouth; food = true; }
+                else if (t < 210) mouthTarget = 0;
+                else if (t < 330) mouthTarget = 2;
+                else if (t < 450) mouthTarget = 0;
+                else if (t < 570) mouthTarget = 2;
+                else if (t < ChompMs) mouthTarget = 0;
+                else
+                {
+                    // Gulp - then show the file in the opened island.
+                    chompStart = 0;
+                    happyUntil = now + 800;
+                    hop.Velocity -= 240;
+                    StartRendering();
+                    if (attachments.Count > 0)
+                    {
+                        Activate();
+                        input.Focus();
+                    }
+                    Refresh();
+                }
+                mouth = mouthTarget; // chomps are snappy
+            }
+            else
+            {
+                // Demo: a file approaches, then gets eaten.
+                double dt = demoStart > 0 ? (now - demoStart) / 1000.0 : -1;
+                if (dt >= 20.0 && dt < 21.6) mouthTarget = 1.6 + (dt - 20.0) / 1.6 * (Clawd.MaxMouth - 1.6);
+                else if (dt >= 21.6 && !demoChomped)
+                {
+                    demoChomped = true;
+                    chompStart = now;
+                }
+                if (fileDrag)
+                {
+                    double d = DistanceToMouth();
+                    mouthTarget = Math.Max(1.6, Math.Min(Clawd.MaxMouth, (230 - d) / 160 * Clawd.MaxMouth));
+                }
+                mouth += (mouthTarget - mouth) * 0.35;
+                if (Math.Abs(mouth - mouthTarget) < 0.05) mouth = mouthTarget;
+            }
+            int mouthRows = (int)Math.Round(mouth);
+
+            bool demoDrag = demoStart > 0 && (now - demoStart) >= 20000 && (now - demoStart) < 21600;
+            if (mouthRows > 0 || fileDrag || chompStart > 0)
+                pose = Clawd.Pose("c", fileDrag || demoDrag || food ? "up" : "side", false, false, mouthRows, food);
+            else if (now < happyUntil)
+                pose = Clawd.Pose("c", "side", false, true);
+            else if (dragOver) pose = Clawd.Pose("c", "up", false, false);
             else if (now < waveUntil) pose = Clawd.Pose(blink ? "shut" : "c", (now / 180) % 2 == 1 ? "wave" : "side", false, false);
             else
             {
@@ -1119,7 +1222,10 @@ namespace ClaudeIsland
             bool files = e.Data.GetDataPresent(DataFormats.FileDrop);
             e.Effects = files ? DragDropEffects.Copy : DragDropEffects.None;
             e.Handled = true;
-            if (files && !dragOver)
+            if (!files) return;
+            fileDrag = true;
+            // Over an already open island the drop zone lights up as well.
+            if (open && !dragOver)
             {
                 dragOver = true;
                 Refresh();
@@ -1129,18 +1235,30 @@ namespace ClaudeIsland
         void OnDrop(object sender, DragEventArgs e)
         {
             dragOver = false;
+            fileDrag = false;
             var files = e.Data.GetData(DataFormats.FileDrop) as string[];
-            if (files != null)
+            if (files != null && files.Any(File.Exists))
             {
                 foreach (var f in files.Where(File.Exists))
                     if (!attachments.Contains(f, StringComparer.OrdinalIgnoreCase)) attachments.Add(f);
                 RenderChips();
-                hop.Velocity -= 200; // caught it
-                StartRendering();
-                Activate();
-                input.Focus();
+                // Chomp! The island opens once he has swallowed it (see Animate).
+                long now = Clock.NowMs();
+                chompStart = now;
+                chompUntil = now + ChompMs + 60;
             }
             Refresh();
+        }
+
+        /// <summary>Distance (DIPs) from the cursor to Clawd's mouth.</summary>
+        double DistanceToMouth()
+        {
+            POINT p;
+            if (!GetCursorPos(out p) || PresentationSource.FromVisual(canvas) == null) return double.MaxValue;
+            Point local = canvas.PointFromScreen(new Point(p.X, p.Y));
+            double mx = Canvas.GetLeft(clawd) + clawd.Width / 2;
+            double my = Canvas.GetTop(clawd) + 3.5 * ClawdPx;
+            return Math.Sqrt((local.X - mx) * (local.X - mx) + (local.Y - my) * (local.Y - my));
         }
 
         void RenderChips()
@@ -1202,12 +1320,20 @@ namespace ClaudeIsland
             if (inside) { leftSince = 0; if (hoverSince == 0) hoverSince = now; }
             else { hoverSince = 0; if (leftSince == 0) leftSince = now; }
 
-            bool want = open;
-            if (inside && now - hoverSince > (dragging ? 40 : 160)) want = true;
-            if (!inside && open && !Pinned && !dragOver && now - leftSince > 380) want = false;
-            if (Pinned) want = true;
+            // While the mouse button is held near Clawd, a file may be on its way:
+            // take drops there so his mouth can open, but don't unfold the island.
+            nearDrag = dragging && DistanceToMouth() < 240;
+            if (!dragging && fileDrag && chompStart == 0) fileDrag = false; // drag ended elsewhere
+            catcher.Visibility = nearDrag || fileDrag ? Visibility.Visible : Visibility.Collapsed;
 
-            SetInteractive(inside || want);
+            bool chewing = now < chompUntil;
+            bool want = open;
+            if (inside && !dragging && now - hoverSince > 160) want = true;
+            if (!inside && open && !Pinned && !dragOver && now - leftSince > 380) want = false;
+            if (Pinned && !chewing) want = true;
+            if (chewing && !open) want = false;
+
+            SetInteractive(inside || want || nearDrag || fileDrag);
             if (want != open)
             {
                 open = want;
@@ -1307,6 +1433,8 @@ namespace ClaudeIsland
             double cy = Math.Min(h, RowH) - 5 * ClawdPx + hop.Value;
             Canvas.SetLeft(clawd, Math.Round(x + w / 2 - clawd.Width / 2));
             Canvas.SetTop(clawd, Math.Round(cy));
+            Canvas.SetLeft(catcher, x + w / 2 - catcher.Width / 2);
+            Canvas.SetTop(catcher, 0);
             Canvas.SetLeft(zzz, x + w / 2 + clawd.Width / 2 - 6);
             Canvas.SetTop(zzz, cy + 2);
         }
@@ -1359,6 +1487,9 @@ namespace ClaudeIsland
             var sound = new WinForms.ToolStripMenuItem("Ton bei Fertig / Freigabe") { Checked = settings.Sound, CheckOnClick = true };
             sound.CheckedChanged += (s, e) => { settings.Sound = sound.Checked; settings.Save(); };
             menu.Items.Add(sound);
+            var hide = new WinForms.ToolStripMenuItem("Bei Vollbild (Spiele, Videos) ausblenden") { Checked = settings.HideInFullscreen, CheckOnClick = true };
+            hide.CheckedChanged += (s, e) => { settings.HideInFullscreen = hide.Checked; settings.Save(); Dispatcher.BeginInvoke(new Action(CheckFullscreen)); };
+            menu.Items.Add(hide);
             menu.Items.Add("Datenordner öffnen", null, (s, e) =>
             {
                 Directory.CreateDirectory(AppPaths.Root);
@@ -1377,6 +1508,7 @@ namespace ClaudeIsland
         void StartDemo()
         {
             demoStart = Clock.NowMs();
+            demoChomped = false;
             lastModes.Remove("demo");
             lastModes.Remove("demo2");
             Poll();
