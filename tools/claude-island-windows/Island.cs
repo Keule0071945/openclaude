@@ -349,7 +349,6 @@ namespace ClaudeIsland
 
         void OnLoaded(object sender, RoutedEventArgs e)
         {
-            SetupTray();
 
             var poll = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(250) };
             poll.Tick += (s, a) => Poll();
@@ -367,6 +366,10 @@ namespace ClaudeIsland
             if (demoOnStart) StartDemo();
             Poll();
             StartRendering();
+
+            // Last and guarded: a problem with the tray icon must never keep the island hidden.
+            try { SetupTray(); }
+            catch (Exception ex) { AppPaths.LogError("tray", ex); }
         }
 
         void KeepOnTop()
@@ -1524,7 +1527,7 @@ namespace ClaudeIsland
                 using (var b = new Drawing.SolidBrush(Drawing.Color.FromArgb(215, 119, 87)))
                 {
                     g.Clear(Drawing.Color.Transparent);
-                    for (int y = 1; y < Clawd.Rows; y++)
+                    for (int y = 1; y < rows.Length; y++)
                         for (int x = 0; x < Clawd.Cols; x++)
                             if (rows[y][x] == '#') g.FillRectangle(b, 2 + (x - 1) * 1.75f, 8 + (y - 1) * 3.2f, 1.75f, 3.2f);
                 }
