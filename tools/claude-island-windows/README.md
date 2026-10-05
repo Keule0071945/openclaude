@@ -52,6 +52,18 @@ beim Start zeigt.
 - **Spielmodus:** Bei Vollbild-Spielen wird die Island zu einem kleinen Clawd ohne Text.
 - **Mehrere Bildschirme:** Die Island wandert auf den Bildschirm, auf dem deine Maus ist.
 
+## Show-Effekte
+
+- **Leuchtende Kante:** Arbeitet Claude, läuft ein Farbverlauf in Claude-Farben (Orange, Gold,
+  Pink, Violett) ringsum über die Kante der Island. Braucht Claude dich, pulsiert sie gelb. Ist
+  Claude fertig, saust einmal ein grünes Leuchten herum.
+- **Rollende Zahlen:** Laufzeit und Limit-Prozent rollen wie ein Tacho, statt zu springen.
+- **Clawd atmet:** Auch in Ruhe hebt und senkt er sich ganz leicht, im Schlaf langsamer.
+- **Feuerwerk:** Schafft Claude eine große Aufgabe (ab 5 Minuten), springt Clawd vor Freude hoch,
+  und über den ganzen Bildschirm geht ein Pixel-Feuerwerk los, mit „<Projekt> ist fertig!“ in der
+  Mitte. Klicks gehen dabei durch, und bei Spielen, Präsentationen und Ruhezeiten bleibt es aus.
+  Zum Ausprobieren: Tray-Menü → „Feuerwerk zeigen“. Abschalten: „Feuerwerk bei großen Aufgaben“.
+
 ## Noch mehr Leben
 
 - **Stimmung:** Schlagen die Tests fehl, zieht Clawd beim Weiterarbeiten finster die Brauen
@@ -110,6 +122,10 @@ laufen lassen“). Dann läuft er unten über die Taskleiste:
 - Du kannst ihn packen und **werfen**. Er prallt von den Bildschirmrändern ab und landet wieder
   auf der Taskleiste.
 - **Doppelklick** (oder Rechtsklick → „Zurück in die Island“) holt ihn zurück.
+- Er **klettert auf Fenster:** Ab und zu springt er auf die Oberkante eines Fensters, spaziert
+  darauf herum und springt an der Kante auch mal wieder herunter. Ziehst du das Fenster weg, fährt
+  er mit. Minimierst du es oder schiebst ein anderes Fenster darüber, fällt er herunter.
+  Maximierte Fenster lässt er aus.
 
 Er bleibt auch nach einem Neustart draußen, bis du ihn zurückholst. Bei Vollbild-Spielen und
 -Videos versteckt er sich.
@@ -215,6 +231,7 @@ Das Symbol im Infobereich der Taskleiste bietet:
 - **Animation vorführen** und **Claude Code öffnen**
 - **Clawd auf dem Desktop laufen lassen** und **Nachrichten aufs Handy …**
 - **Aussehen**, **Verlauf …** und **Wetter-Ort festlegen …**
+- **Feuerwerk zeigen** und der Schalter **Feuerwerk bei großen Aufgaben (ab 5 Minuten)**
 - Schalter: **Pausen-Erinnerung** und **Nicht stören beachten**
 - Schalter: **Freigaben in der Island**, **Windows-Benachrichtigungen**, **Dem Bildschirm mit der
   Maus folgen**, **Bei Vollbild ausblenden**, **8-Bit-Töne**

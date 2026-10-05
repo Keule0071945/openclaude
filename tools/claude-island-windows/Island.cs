@@ -355,16 +355,20 @@ namespace ClaudeIsland
         // Visual tree
         Canvas canvas;
         Rectangle catcher;
-        Path glowShape, body, edge;
+        Path glowShape, body, edge, rim, rimGlow;
+        LinearGradientBrush rimBrush;
+        RotateTransform rimSpin;
         DropShadowEffect glow;
         Grid row;
         StackPanel left;
         Ellipse dot;
         DropShadowEffect dotGlow;
-        TextBlock label, timeLabel;
+        TextBlock label;
+        RollingText timeLabel;
         StackPanel minis;
         StackPanel usageView;
-        TextBlock usageKind, usagePct;
+        TextBlock usageKind;
+        RollingText usagePct;
         Path ringValue;
         PixelSprite clawd, prop, sweat;
         TranslateTransform clawdBob;
@@ -732,6 +736,14 @@ namespace ClaudeIsland
             canvas.Children.Add(body);
             canvas.Children.Add(edge);
 
+            // The glowing rim: a gradient that runs around the island's edge.
+            rimSpin = new RotateTransform(0, 0.5, 0.5);
+            rimBrush = new LinearGradientBrush { StartPoint = new Point(0, 0.5), EndPoint = new Point(1, 0.5), RelativeTransform = rimSpin };
+            rimGlow = new Path { Stroke = rimBrush, StrokeThickness = 7, Opacity = 0, IsHitTestVisible = false, Effect = new BlurEffect { Radius = 14, RenderingBias = RenderingBias.Performance } };
+            rim = new Path { Stroke = rimBrush, StrokeThickness = 1.8, Opacity = 0, IsHitTestVisible = false, StrokeLineJoin = PenLineJoin.Round };
+            canvas.Children.Add(rimGlow);
+            canvas.Children.Add(rim);
+
             BuildPanel();
             BuildRow();
 
@@ -798,8 +810,8 @@ namespace ClaudeIsland
             dotGlow = new DropShadowEffect { ShadowDepth = 0, BlurRadius = 10, Color = Palette.Ready, Opacity = 0.9 };
             dot = new Ellipse { Width = 8, Height = 8, Fill = Palette.Brush(Palette.Ready), Effect = dotGlow, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 9, 0), RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new ScaleTransform(1, 1) };
             label = new TextBlock { FontFamily = DisplayFont, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Palette.Brush(Palette.Text), VerticalAlignment = VerticalAlignment.Center };
-            timeLabel = new TextBlock { FontFamily = DisplayFont, FontSize = 14, FontWeight = FontWeights.Medium, Foreground = Palette.Brush(Palette.Secondary), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-            Typography.SetNumeralAlignment(timeLabel, FontNumeralAlignment.Tabular);
+            // Rolls like an odometer when the seconds tick.
+            timeLabel = new RollingText(DisplayFont, 14, FontWeights.Medium, Palette.Brush(Palette.Secondary)) { Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             // One tiny Clawd per session when more than one is open.
             minis = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 2, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             left.Children.Add(dot);
@@ -816,8 +828,7 @@ namespace ClaudeIsland
             ring.Children.Add(new Ellipse { Stroke = Palette.Brush(Color.FromRgb(38, 38, 43)), StrokeThickness = 2.6 });
             ringValue = new Path { StrokeThickness = 2.6, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Stroke = Palette.Brush(Palette.Ready) };
             ring.Children.Add(ringValue);
-            usagePct = new TextBlock { FontFamily = DisplayFont, FontSize = 13, FontWeight = FontWeights.Medium, Foreground = Palette.Brush(Color.FromRgb(201, 201, 207)), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-            Typography.SetNumeralAlignment(usagePct, FontNumeralAlignment.Tabular);
+            usagePct = new RollingText(DisplayFont, 13, FontWeights.Medium, Palette.Brush(Color.FromRgb(201, 201, 207))) { Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             usageView.Children.Add(usageKind);
             usageView.Children.Add(ring);
             usageView.Children.Add(usagePct);
@@ -1214,10 +1225,12 @@ namespace ClaudeIsland
                         break;
                     case Mode.None:
                         look.Eyes = "shut";
+                        bob = (now / 1700) % 2 == 0 ? 0 : 1; // slow sleepy breathing
                         color = Color.FromRgb(154, 90, 70);
                         break;
                     default:
                         look.Eyes = blink ? "shut" : EyesTowardMouse(now);
+                        bob = (now / 1100) % 2 == 0 ? 0 : -1; // breathing
                         // Late at night he yawns now and then.
                         if (hour < 5 && now > nextYawn) { yawnUntil = now + 900; nextYawn = now + 20000 + random.Next(15000); }
                         break;
@@ -1478,6 +1491,9 @@ namespace ClaudeIsland
                     if (s.Summary.Length > 0) Ambient(s.Project + ": " + s.Summary, 7);
                     // Two sessions done at nearly the same time: high five!
                     if (doneSince.Any(kv => kv.Key != s.Id && now - kv.Value < 4000)) HighFive();
+                    // A big task (5+ minutes; the demo always): fireworks over the whole screen.
+                    if (settings.Fireworks && (s.Duration >= 5 * 60 * 1000 || (demoStart > 0 && s.Id == "demo")))
+                        ShowFireworks(s.Project + " ist fertig!");
                     doneSince[s.Id] = now;
                     Notify("Claude ist fertig – " + s.Project, s.Summary.Length > 0 ? s.Summary : "Wartet auf deinen nächsten Befehl.");
                     ToPhone("done:" + s.Id, "Claude ist fertig – " + s.Project, s.Summary.Length > 0 ? s.Summary : "Wartet auf deinen nächsten Befehl.", "white_check_mark", 3);
@@ -1770,6 +1786,79 @@ namespace ClaudeIsland
             Phone.Send(settings.PhoneTopic, title, text, tag, priority, null);
         }
 
+        /// <summary>Busy: a Claude-coloured gradient runs round the edge. Waiting: it pulses yellow. Done: one green lap.</summary>
+        void SetRim(Mode m)
+        {
+            Color[] stops;
+            double lap;
+            switch (m)
+            {
+                case Mode.Busy: stops = new[] { Palette.Clawd, Color.FromRgb(247, 192, 74), Color.FromRgb(255, 120, 160), Color.FromRgb(150, 110, 255), Palette.Clawd }; lap = 2.6; break;
+                case Mode.Waiting: stops = new[] { Palette.Waiting, Color.FromRgb(255, 228, 140), Palette.Waiting, Color.FromRgb(255, 160, 60), Palette.Waiting }; lap = 1.8; break;
+                case Mode.Done: stops = new[] { Palette.Ready, Color.FromRgb(80, 220, 230), Colors.White, Palette.Ready }; lap = 1.1; break;
+                case Mode.Error: stops = new[] { Palette.Error, Color.FromRgb(255, 160, 120), Palette.Error }; lap = 1.4; break;
+                default: stops = null; lap = 0; break;
+            }
+            foreach (var p in new[] { rim, rimGlow }) p.BeginAnimation(OpacityProperty, null);
+            if (stops == null)
+            {
+                rim.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(450)));
+                rimGlow.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(450)));
+                return;
+            }
+            var gs = new GradientStopCollection();
+            for (int i = 0; i < stops.Length; i++) gs.Add(new GradientStop(stops[i], i / (double)(stops.Length - 1)));
+            rimBrush.GradientStops = gs;
+            rimSpin.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(0, 360, TimeSpan.FromSeconds(lap))
+            {
+                RepeatBehavior = m == Mode.Done || m == Mode.Error ? new RepeatBehavior(1) : RepeatBehavior.Forever
+            });
+            if (m == Mode.Busy)
+            {
+                rim.BeginAnimation(OpacityProperty, new DoubleAnimation(0.95, TimeSpan.FromMilliseconds(400)));
+                rimGlow.BeginAnimation(OpacityProperty, new DoubleAnimation(0.35, 0.7, TimeSpan.FromSeconds(1.3)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase() });
+            }
+            else if (m == Mode.Waiting)
+            {
+                var pulse = new DoubleAnimation(0.3, 1, TimeSpan.FromSeconds(0.65)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase() };
+                rim.BeginAnimation(OpacityProperty, pulse);
+                rimGlow.BeginAnimation(OpacityProperty, pulse);
+            }
+            else
+            {
+                // One bright lap, then it fades.
+                var flash = new DoubleAnimationUsingKeyFrames();
+                flash.KeyFrames.Add(new LinearDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(120))));
+                flash.KeyFrames.Add(new LinearDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(lap))));
+                flash.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(lap + 1.2)), new CubicEase()));
+                rim.BeginAnimation(OpacityProperty, flash);
+                rimGlow.BeginAnimation(OpacityProperty, flash);
+            }
+        }
+
+        // ── fireworks ─────────────────────────────────────────────────────
+
+        void ShowFireworks(string headline)
+        {
+            if (gameMode || hiddenForFullscreen || QuietNow() || hwnd == IntPtr.Zero) return;
+            try
+            {
+                var source = PresentationSource.FromVisual(this);
+                if (source == null) return;
+                var b = WinForms.Screen.FromHandle(hwnd).Bounds;
+                var m = source.CompositionTarget.TransformFromDevice;
+                var tl = m.Transform(new Point(b.Left, b.Top));
+                var br = m.Transform(new Point(b.Right, b.Bottom));
+                new FireworksWindow(new Rect(tl, br), headline).Show();
+                // Clawd leaps out of the island with joy.
+                hop.Velocity -= 520;
+                happyUntil = Clock.NowMs() + 2600;
+                StartRendering();
+                Sound("level");
+            }
+            catch (Exception ex) { AppPaths.LogError("fireworks", ex); }
+        }
+
         void ApplyMode(Mode next, long now)
         {
             if (next == mode) return;
@@ -1778,6 +1867,7 @@ namespace ClaudeIsland
             modeSince = now;
 
             Color c = Palette.For(next);
+            SetRim(next);
             dot.Fill = Palette.Brush(c);
             dotGlow.Color = c;
 
@@ -2737,7 +2827,8 @@ namespace ClaudeIsland
             glowShape.Data = shape;
             body.Data = shape;
             edge.Data = EdgeGeometry(w, h);
-            foreach (var p in new[] { glowShape, body, edge }) { Canvas.SetLeft(p, x - Shoulder); Canvas.SetTop(p, 0); }
+            rim.Data = rimGlow.Data = edge.Data;
+            foreach (var p in new[] { glowShape, body, edge, rim, rimGlow }) { Canvas.SetLeft(p, x - Shoulder); Canvas.SetTop(p, 0); }
 
             row.Width = Math.Max(0, w - 44);
             Canvas.SetLeft(row, x + 22);
@@ -2837,6 +2928,8 @@ namespace ClaudeIsland
             looks.DropDownItems.Add("…");
             menu.Items.Add(looks);
             menu.Items.Add("Verlauf …", null, (s, e) => Dispatcher.BeginInvoke(new Action(ShowHistory)));
+            menu.Items.Add("Feuerwerk zeigen", null, (s, e) => Dispatcher.BeginInvoke(new Action(() => ShowFireworks("Geschafft!"))));
+            menu.Items.Add(Toggle("Feuerwerk bei großen Aufgaben (ab 5 Minuten)", () => settings.Fireworks, v => settings.Fireworks = v));
             menu.Items.Add("Wetter-Ort festlegen …", null, (s, e) => Dispatcher.BeginInvoke(new Action(AskWeather)));
             menu.Items.Add(Toggle("Pausen-Erinnerung (nach 90 Minuten)", () => settings.Breaks, v => settings.Breaks = v));
             menu.Items.Add(Toggle("Nicht stören beachten (Präsentation, Ruhezeiten)", () => settings.RespectQuiet, v => { settings.RespectQuiet = v; quietCheckedAt = 0; }));

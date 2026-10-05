@@ -51,6 +51,13 @@ namespace ClaudeIsland
         double walkDir = 1;
         string activity = "walk"; // walk | idle
 
+        // Window tops he can stand on (DIPs), refreshed twice a second.
+        sealed class Platform { public IntPtr Hwnd; public double Left, Right, Top; }
+        List<Platform> platforms = new List<Platform>();
+        long platformsAt, nextClimb, lastEdgeRoll;
+        IntPtr standingOn;
+        Int32Rect standFrame;
+
         // State handed over by the island each frame.
         Mode mode = Mode.Ready;
         string hat = "";
@@ -207,8 +214,11 @@ namespace ClaudeIsland
             double minX = area.Left - Pad, maxX = area.Right - WinW + Pad;
             double floor = area.Bottom - FeetY, ceiling = area.Top - Pad;
 
+            if (now - platformsAt > 500) { platformsAt = now; RefreshPlatforms(); }
+
             if (dragging)
             {
+                standingOn = IntPtr.Zero;
                 if ((GetAsyncKeyState(0x01) & 0x8000) == 0)
                 {
                     // Let go: throw him with the speed of the last few mouse moves.
@@ -235,9 +245,28 @@ namespace ClaudeIsland
             }
             else if (!grounded)
             {
+                double feetBefore = y + FeetY;
                 vy += Gravity * dt;
                 x += vx * dt;
                 y += vy * dt;
+                // Falling past the top edge of a window: land on it.
+                if (vy > 0)
+                {
+                    double cx = x + WinW / 2, feet = y + FeetY;
+                    var hit = platforms.Where(p => cx >= p.Left && cx <= p.Right && feetBefore <= p.Top + 1 && feet >= p.Top && p.Top < area.Bottom - 30)
+                                       .OrderBy(p => p.Top).FirstOrDefault();
+                    if (hit != null)
+                    {
+                        y = hit.Top - FeetY;
+                        landedAt = now;
+                        if (vy > 900) { vy = -vy * 0.28; vx *= 0.7; }
+                        else
+                        {
+                            vy = 0; vx = 0; grounded = true; nextHop = now + 400;
+                            StandOn(hit.Hwnd);
+                        }
+                    }
+                }
                 if (x < minX) { x = minX; vx = Math.Abs(vx) * 0.6; }
                 if (x > maxX) { x = maxX; vx = -Math.Abs(vx) * 0.6; }
                 if (y < ceiling) { y = ceiling; vy = Math.Abs(vy) * 0.3; }
@@ -246,7 +275,43 @@ namespace ClaudeIsland
                     y = floor;
                     landedAt = now;
                     if (vy > 650) { vy = -vy * 0.32; vx *= 0.7; }
-                    else { vy = 0; vx = 0; grounded = true; nextHop = now + 400; }
+                    else { vy = 0; vx = 0; grounded = true; nextHop = now + 400; standingOn = IntPtr.Zero; }
+                }
+            }
+            else if (standingOn != IntPtr.Zero)
+            {
+                // On a window: ride along when it moves, fall when it goes away.
+                var f = Desktop.Frame(standingOn);
+                var dip = f == null ? (Rect?)null : ToDip(f.Value);
+                double cx = x + WinW / 2;
+                bool covered = now - platformsAt < 600 && !platforms.Any(p => p.Hwnd == standingOn && cx >= p.Left - 8 && cx <= p.Right + 8);
+                if (dip == null || covered || dip.Value.Top < area.Top + 40)
+                {
+                    standingOn = IntPtr.Zero;
+                    grounded = false;
+                    vy = 0;
+                }
+                else
+                {
+                    var before = ToDip(standFrame);
+                    x += dip.Value.Left - before.Left;
+                    standFrame = f.Value;
+                    y = dip.Value.Top - FeetY;
+                    // Walk within the window; at the edge turn round, or now and then jump down.
+                    double lo = dip.Value.Left - WinW / 2 + 10, hi = dip.Value.Right - WinW / 2 - 10;
+                    Behave(now, dt, lo, hi);
+                    if ((x <= lo || x >= hi) && now - lastEdgeRoll > 1500)
+                    {
+                        lastEdgeRoll = now;
+                        if (random.NextDouble() < 0.35 && mode != Mode.Waiting)
+                        {
+                            standingOn = IntPtr.Zero;
+                            grounded = false;
+                            vx = walkDir * 120;
+                            vy = -180;
+                            x = Math.Max(lo - 30, Math.Min(hi + 30, x + walkDir * 12));
+                        }
+                    }
                 }
             }
             else
@@ -254,10 +319,72 @@ namespace ClaudeIsland
                 y = floor;
                 Behave(now, dt, minX, maxX);
             }
+            if (grounded && !dragging) MaybeClimb(now);
 
             if (Math.Abs(Left - x) > 0.4) Left = x;
             if (Math.Abs(Top - y) > 0.4) Top = y;
             Draw(now);
+        }
+
+        void StandOn(IntPtr window)
+        {
+            standingOn = window;
+            var f = Desktop.Frame(window);
+            if (f != null) standFrame = f.Value;
+            else standingOn = IntPtr.Zero;
+        }
+
+        Rect ToDip(Int32Rect r)
+        {
+            var source = PresentationSource.FromVisual(this);
+            if (source == null) return new Rect(r.X, r.Y, r.Width, r.Height);
+            var m = source.CompositionTarget.TransformFromDevice;
+            return new Rect(m.Transform(new Point(r.X, r.Y)), m.Transform(new Point(r.X + r.Width, r.Y + r.Height)));
+        }
+
+        void RefreshPlatforms()
+        {
+            var source = PresentationSource.FromVisual(this);
+            if (source == null) return;
+            var toDevice = source.CompositionTarget.TransformToDevice;
+            var center = toDevice.Transform(new Point(x + WinW / 2, y + FeetY - 2));
+            var screen = WinForms.Screen.FromPoint(new System.Drawing.Point((int)center.X, (int)center.Y)).WorkingArea;
+            var me = toDevice.Transform(new Point(x, y));
+            var meSize = toDevice.Transform(new Point(WinW, WinH));
+            try
+            {
+                var ledges = Desktop.Ledges(new Int32Rect(screen.X, screen.Y, screen.Width, screen.Height),
+                                            new Int32Rect((int)me.X, (int)me.Y, (int)meSize.X, (int)meSize.Y));
+                platforms = ledges.Select(l =>
+                {
+                    var r = ToDip(new Int32Rect(l.Left, l.Top, Math.Max(1, l.Right - l.Left), 1));
+                    return new Platform { Hwnd = l.Hwnd, Left = r.Left, Right = r.Right, Top = r.Top };
+                }).ToList();
+            }
+            catch (Exception ex) { AppPaths.LogError("ledges", ex); platforms = new List<Platform>(); }
+        }
+
+        /// <summary>Every few seconds while idle: jump up onto a window top nearby.</summary>
+        void MaybeClimb(long now)
+        {
+            if (mode == Mode.Waiting || mode == Mode.None || mode == Mode.Error) return;
+            if (nextClimb == 0) nextClimb = now + 5000 + random.Next(6000);
+            if (now < nextClimb) return;
+            nextClimb = now + 6000 + random.Next(9000);
+            double cx = x + WinW / 2, feet = y + FeetY;
+            var targets = platforms.Where(p => p.Hwnd != standingOn && p.Top < feet - 30 && p.Top > feet - 340 && p.Right - p.Left > 70 &&
+                                               Math.Max(p.Left - cx, cx - p.Right) < 300).ToList();
+            if (targets.Count == 0) return;
+            var target = targets[random.Next(targets.Count)];
+            double tx = Math.Max(target.Left + 30, Math.Min(target.Right - 30, cx));
+            double rise = feet - target.Top + 28;
+            double v0 = Math.Sqrt(2 * Gravity * rise);
+            double time = v0 / Gravity + Math.Sqrt(2 * 28 / Gravity);
+            vx = (tx - cx) / time;
+            vy = -v0;
+            walkDir = vx < 0 ? -1 : 1;
+            grounded = false;
+            standingOn = IntPtr.Zero;
         }
 
         void Behave(long now, double dt, double minX, double maxX)
