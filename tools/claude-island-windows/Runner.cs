@@ -179,8 +179,25 @@ namespace ClaudeIsland
 
         static string FindClaudeExe()
         {
-            return FindOnPath("claude.exe")
-                ?? Existing(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin", "claude.exe"));
+            return ClaudeLocator.Find();
+        }
+
+        /// <summary>True when some Claude Code is installed on this PC (native, npm, Desktop app or editor extension).</summary>
+        public static bool Installed()
+        {
+            if (ClaudeLocator.Find() != null) return true;
+            string cmd = FindOnPath("claude.cmd") ?? Existing(System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "npm", "claude.cmd"));
+            return cmd != null;
+        }
+
+        /// <summary>Opens a PowerShell window that installs Claude Code with the official installer.</summary>
+        public static void Install()
+        {
+            Process.Start(new ProcessStartInfo("powershell.exe",
+                "-NoExit -NoProfile -ExecutionPolicy Bypass -Command \"Write-Host 'Installiere Claude Code (offizieller Installer von claude.ai) ...' -ForegroundColor Cyan; irm https://claude.ai/install.ps1 | iex; Write-Host ''; Write-Host 'Fertig. Tippe jetzt: claude   (einmal anmelden), danach kennt Clawd es.' -ForegroundColor Green\"")
+            { UseShellExecute = true });
+            ClaudeLocator.Forget();
         }
 
         static string FindOnPath(string name)
@@ -194,6 +211,7 @@ namespace ClaudeIsland
         }
 
         /// <summary>Open a terminal running interactive Claude Code, optionally resuming a session.</summary>
+        /// <remarks>Without any Claude Code on this PC the terminal shows the installer instead.</remarks>
         public static void OpenTerminal(string cwd, string resumeSessionId)
         {
             var args = new List<string>();
@@ -219,6 +237,88 @@ namespace ClaudeIsland
             sb.Append("\n\nAngehängte Dateien (lies sie mit dem Read-Tool):");
             foreach (var f in files) sb.Append("\n- ").Append(f);
             return sb.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Finds a Claude Code executable: on PATH, from the native installer (~/.local/bin), or the one
+    /// bundled with the Claude Desktop app or the VS Code / Cursor extension. Candidates outside PATH
+    /// are only used when "--version" says they are Claude Code. The result is cached.
+    /// </summary>
+    static class ClaudeLocator
+    {
+        static string found;
+        static long searchedAt;
+
+        public static void Forget() { found = null; searchedAt = 0; }
+
+        public static string Find()
+        {
+            if (found != null && File.Exists(found)) return found;
+            long now = Clock.NowMs();
+            if (searchedAt != 0 && now - searchedAt < 60000) return null;
+            searchedAt = now;
+            found = Search();
+            return found;
+        }
+
+        public static List<string> Candidates()
+        {
+            var list = new List<string>();
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            Action<string> add = p => { if (!string.IsNullOrEmpty(p) && File.Exists(p) && !list.Contains(p, StringComparer.OrdinalIgnoreCase)) list.Add(p); };
+            add(Shell.FindOnPath("claude.exe"));
+            add(System.IO.Path.Combine(home, ".local", "bin", "claude.exe"));
+            // Bundled copies (Desktop app, editor extensions): newest version first.
+            foreach (var root in new[]
+            {
+                System.IO.Path.Combine(roaming, "Claude", "claude-code"),
+                System.IO.Path.Combine(local, "Claude", "claude-code"),
+                System.IO.Path.Combine(local, "AnthropicClaude"),
+                System.IO.Path.Combine(home, ".vscode", "extensions"),
+                System.IO.Path.Combine(home, ".cursor", "extensions"),
+                System.IO.Path.Combine(home, ".windsurf", "extensions"),
+            })
+            {
+                try
+                {
+                    if (!Directory.Exists(root)) continue;
+                    foreach (var f in Directory.EnumerateFiles(root, "claude.exe", SearchOption.AllDirectories)
+                                               .Where(f => f.IndexOf("claude-code", StringComparison.OrdinalIgnoreCase) >= 0 || f.IndexOf("native-binary", StringComparison.OrdinalIgnoreCase) >= 0)
+                                               .Where(f => f.IndexOf("\\app-", StringComparison.OrdinalIgnoreCase) < 0) // the Desktop app itself is also Claude.exe
+                                               .OrderByDescending(f => File.GetLastWriteTimeUtc(f)))
+                        add(f);
+                }
+                catch { }
+            }
+            return list;
+        }
+
+        static string Search()
+        {
+            foreach (var c in Candidates())
+            {
+                bool trusted = c.IndexOf("\\.local\\bin\\", StringComparison.OrdinalIgnoreCase) >= 0 || string.Equals(c, Shell.FindOnPath("claude.exe"), StringComparison.OrdinalIgnoreCase);
+                if (trusted || IsClaudeCode(c)) return c;
+            }
+            return null;
+        }
+
+        static bool IsClaudeCode(string exe)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo(exe, "--version") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+                using (var p = Process.Start(psi))
+                {
+                    var text = p.StandardOutput.ReadToEndAsync();
+                    if (!p.WaitForExit(6000)) { try { p.Kill(); } catch { } return false; }
+                    return text.Result.IndexOf("Claude Code", StringComparison.OrdinalIgnoreCase) >= 0;
+                }
+            }
+            catch { return false; }
         }
     }
 }

@@ -327,6 +327,11 @@ namespace ClaudeIsland
                 try { return StatusLine.Run(); }
                 catch (Exception ex) { AppPaths.LogError("statusline", ex); return 0; }
             }
+            if (mode == "check")
+            {
+                try { SelfCheck.Run(); } catch (Exception ex) { AppPaths.LogError("check", ex); }
+                return 0;
+            }
             if (mode == "hook" || (mode == "" && StdinIsPipe()))
             {
                 try { return HookRecorder.Run(); }
@@ -1656,6 +1661,7 @@ namespace ClaudeIsland
         public bool RespectQuiet = true; // no sounds or pop-ups in quiet hours
         public bool Fireworks = true;    // full-screen fireworks after big tasks
         public bool Voice;               // always listen for "Hey Clawd"
+        public string Mic = "";          // recording device name; empty = pick automatically
         public readonly List<string> RecentProjects = new List<string>();
         public readonly List<QuickCommand> Quick = new List<QuickCommand>();
 
@@ -1699,6 +1705,7 @@ namespace ClaudeIsland
                             case "quiet": s.RespectQuiet = value != "0"; break;
                             case "fireworks": s.Fireworks = value != "0"; break;
                             case "voice": s.Voice = value == "1"; break;
+                            case "mic": s.Mic = value; break;
                             case "project": s.RecentProjects.Add(value); break;
                             case "quick":
                             {
@@ -1750,6 +1757,7 @@ namespace ClaudeIsland
                     "quiet=" + (RespectQuiet ? "1" : "0"),
                     "fireworks=" + (Fireworks ? "1" : "0"),
                     "voice=" + (Voice ? "1" : "0"),
+                    "mic=" + Mic,
                 };
                 lines.AddRange(RecentProjects.Select(p => "project=" + p));
                 lines.AddRange(Quick.Select(q => "quick=" + q.Label + "|" + q.Prompt + "|" + (q.Edits ? "edit" : "ask")));

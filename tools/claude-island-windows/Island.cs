@@ -615,6 +615,8 @@ namespace ClaudeIsland
             try { SetupTray(); }
             catch (Exception ex) { AppPaths.LogError("tray", ex); }
             if (settings.PetOut) Dispatcher.BeginInvoke(new Action(() => Guard("pet", () => LetOut(false))), DispatcherPriority.ApplicationIdle);
+            // Look for Claude Code in the background (it may check a few candidates with --version).
+            System.Threading.ThreadPool.QueueUserWorkItem(_ => { try { ClaudeLocator.Find(); } catch { } });
             if (settings.Voice) Dispatcher.BeginInvoke(new Action(() => Guard("voice", () => StartVoice(true))), DispatcherPriority.ApplicationIdle);
         }
 
@@ -2513,6 +2515,15 @@ namespace ClaudeIsland
             activityText.Foreground = Palette.Brush(Palette.Clawd);
             activityText.Text = (job.Edits ? "Arbeitet in " : "Liest in ") + PathText.LastSegment(job.Cwd) + " …";
             UpdateQueueText();
+            if (!ClaudeRunner.Installed())
+            {
+                currentJob = null;
+                activityText.Foreground = Palette.Brush(Palette.Error);
+                activityText.Text = "Claude Code ist auf diesem PC noch nicht installiert. Rechtsklick auf Clawd → „Claude Code installieren …“ – danach einmal „claude“ im Terminal starten und anmelden.";
+                if (job.Spoken) Say("Claude Code ist auf diesem PC noch nicht installiert. Mach einen Rechtsklick auf mich und wähle Claude Code installieren.");
+                Refresh();
+                return;
+            }
             try
             {
                 runner.Start(job.Prompt, job.Cwd, job.Edits, job.Dirs);
@@ -2918,6 +2929,7 @@ namespace ClaudeIsland
             menu.Items.Add("Island öffnen (Strg+Alt+C)", null, (s, e) => Dispatcher.BeginInvoke(new Action(FocusComposer)));
             menu.Items.Add("Bildschirmfoto verfüttern (Strg+Alt+S)", null, (s, e) => Dispatcher.BeginInvoke(new Action(TakeScreenshot)));
             menu.Items.Add("Animation vorführen", null, (s, e) => Dispatcher.BeginInvoke(new Action(StartDemo)));
+            menu.Items.Add("Claude Code installieren / aktualisieren …", null, (s, e) => Dispatcher.BeginInvoke(new Action(() => SafeRun(ClaudeRunner.Install))));
             menu.Items.Add("Claude Code öffnen", null, (s, e) => Dispatcher.BeginInvoke(new Action(() => SafeRun(() => ClaudeRunner.OpenTerminal(CurrentProject(), null)))));
             menu.Items.Add(new WinForms.ToolStripSeparator());
             menu.Items.Add(Toggle("Freigaben in der Island", () => settings.ApprovalsInIsland, v => settings.ApprovalsInIsland = v));
@@ -2930,6 +2942,7 @@ namespace ClaudeIsland
             menu.Items.Add("Nachrichten aufs Handy …", null, (s, e) => Dispatcher.BeginInvoke(new Action(SetupPhone)));
             voiceItem = Toggle("„Hey Clawd“ – immer zuhören", () => settings.Voice, v => Dispatcher.BeginInvoke(new Action(() => SetVoiceAlways(v))));
             menu.Items.Add(voiceItem);
+            menu.Items.Add(MicMenu());
             menu.Items.Add("Mit Clawd sprechen (Strg+Alt+Leertaste)", null, (s, e) => Dispatcher.BeginInvoke(new Action(() => Guard("voice", ListenNow))));
             var looks = new WinForms.ToolStripMenuItem("Aussehen");
             looks.DropDownOpening += (s, e) =>
@@ -2997,6 +3010,7 @@ namespace ClaudeIsland
             add("Bildschirmfoto verfüttern", TakeScreenshot);
             add("Zwischenablage verfüttern", FeedClipboard);
             add("Verlauf …", () => Dispatcher.BeginInvoke(new Action(ShowHistory)));
+            if (!ClaudeRunner.Installed()) add("Claude Code installieren …", () => SafeRun(ClaudeRunner.Install));
             add(pet == null ? "Auf den Desktop schicken" : "Zurück in die Island holen", () => { if (pet == null) LetOut(false); else Recall(); });
             menu.Items.Add(new Separator());
             var always = new MenuItem { Header = "„Hey Clawd“ – immer zuhören", IsCheckable = true, IsChecked = settings.Voice };

@@ -78,6 +78,10 @@ antwortet mit Stimme, und sein Maul bewegt sich dabei passend zu den Lauten.
 
 Gut zu wissen:
 
+- **Mikrofon:** Clawd hört nicht einfach auf das Windows-Standardgerät (auf Gaming-PCs oft ein
+  virtuelles „Steam Streaming Microphone“ oder Oculus-Gerät, das deine Stimme nie hört), sondern
+  sucht sich ein echtes Mikrofon, Headsets zuerst. Ändern kannst du das im Tray-Menü unter
+  **„Mikrofon für „Hey Clawd““**.
 - Spracherkennung und Stimme sind die von Windows selbst und laufen **offline** auf deinem PC.
   Nur freie Fragen gehen an Claude Code, genau so, als hättest du sie in die Island getippt.
 - Ohne „immer zuhören“ ist das Mikrofon nur nach Strg+Alt+Leertaste ein paar Sekunden offen.
@@ -229,6 +233,17 @@ Weitere Eigenschaften:
 - **Federphysik:** Größe und Form ändern sich mit einer echten gedämpften Feder.
 - **Mehrere Sitzungen:** Jedes Claude-Code-Fenster meldet sich.
 - **Esc-Abbruch wird erkannt**, obwohl Claude Code dafür keinen eigenen Hook auslöst.
+
+## Wichtig: Claude Code muss auf diesem PC laufen
+
+Die Island zeigt, was **Claude Code auf diesem Windows-PC** macht: im Terminal, in VS Code oder
+in der Claude-Desktop-App. Sitzungen, die in der Cloud laufen (z. B. auf claude.ai im Browser),
+sieht sie nicht. Für Fragen aus der Island und „Hey Clawd“ braucht sie ebenfalls ein lokales
+Claude Code.
+
+Fehlt es, steht im Tray-Menü (und per Rechtsklick auf Clawd) **„Claude Code installieren …“**.
+Das öffnet PowerShell mit dem offiziellen Installer (`irm https://claude.ai/install.ps1 | iex`).
+Danach einmal `claude` eintippen und anmelden.
 
 ## Installation (ein Befehl)
 

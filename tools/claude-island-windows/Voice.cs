@@ -31,6 +31,8 @@ namespace ClaudeIsland
     sealed partial class IslandWindow
     {
         SpeechRecognitionEngine ears;
+        MicStream micStream;
+        string micInUse = "";
         SpeechSynthesizer voice;
         Grammar gWakeCommand, gWakeAsk, gWake, gCommand, gAsk;
         string voiceState = "";       // "" | listening | thinking | speaking
@@ -84,13 +86,27 @@ namespace ClaudeIsland
                     return false;
                 }
                 ears = new SpeechRecognitionEngine(info);
-                ears.SetInputToDefaultAudioDevice();
+                // Listen on a real microphone, not on a virtual Steam/Oculus device that Windows may use as default.
+                string micName;
+                int mic = MicStream.Pick(settings.Mic, out micName);
+                if (mic >= 0)
+                {
+                    micStream = new MicStream(mic);
+                    ears.SetInputToAudioStream(micStream, new System.Speech.AudioFormat.SpeechAudioFormatInfo(MicStream.Rate, System.Speech.AudioFormat.AudioBitsPerSample.Sixteen, System.Speech.AudioFormat.AudioChannel.Mono));
+                }
+                else ears.SetInputToDefaultAudioDevice();
+                micInUse = mic >= 0 ? micName : "Windows-Standard";
                 BuildGrammars(info.Culture);
                 gWake.Enabled = gWakeCommand.Enabled = gWakeAsk.Enabled = wakeWord;
                 gCommand.Enabled = gAsk.Enabled = false;
                 ears.SpeechRecognized += (s, e) => Dispatcher.BeginInvoke(new Action(() => Guard("voice", () => OnHeard(e.Result))));
-                ears.SpeechRecognitionRejected += (s, e) => { if (e.Result != null && e.Result.Text.Length > 0) VoiceLog("verworfen", e.Result); };
-                VoiceLog("start: Erkenner " + info.Name + " (" + info.Culture.Name + "), immer zuhören=" + wakeWord, null);
+                ears.SpeechRecognitionRejected += (s, e) =>
+                {
+                    if (e.Result != null && e.Result.Text.Length > 0) VoiceLog("verworfen", e.Result);
+                    // Spoke while Clawd was listening, but it was no command: let voice typing take the question.
+                    Dispatcher.BeginInvoke(new Action(() => { if (voiceState == "listening" && Clock.NowMs() < listenUntil) StartVoiceTyping(); }));
+                };
+                VoiceLog("start: Erkenner " + info.Name + " (" + info.Culture.Name + "), Mikrofon=" + micInUse + ", immer zuhören=" + wakeWord, null);
                 ears.RecognizeAsync(RecognizeMode.Multiple);
 
                 voice = new SpeechSynthesizer();
@@ -118,9 +134,46 @@ namespace ClaudeIsland
             }
         }
 
+        /// <summary>Choose the microphone for "Hey Clawd" ("" = automatic) and restart listening on it.</summary>
+        void SetMic(string name)
+        {
+            settings.Mic = name;
+            settings.Save();
+            bool running = ears != null;
+            if (running) { StopVoice(); StartVoice(settings.Voice); }
+            string picked;
+            MicStream.Pick(name, out picked);
+            Toast("Mikrofon für „Hey Clawd“: " + (picked.Length > 0 ? picked : "Windows-Standard") + (running ? ". Sag jetzt „Hey Clawd“." : "."), 5);
+        }
+
+        WinForms.ToolStripMenuItem MicMenu()
+        {
+            var menu = new WinForms.ToolStripMenuItem("Mikrofon für „Hey Clawd“");
+            menu.DropDownOpening += (s, e) =>
+            {
+                menu.DropDownItems.Clear();
+                string auto;
+                MicStream.Pick("", out auto);
+                var a = new WinForms.ToolStripMenuItem("Automatisch (" + (auto.Length > 0 ? auto : "Windows-Standard") + ")") { Checked = settings.Mic.Length == 0 };
+                a.Click += (o, x) => Dispatcher.BeginInvoke(new Action(() => SetMic("")));
+                menu.DropDownItems.Add(a);
+                foreach (var d in MicStream.Devices())
+                {
+                    string name = d;
+                    var item = new WinForms.ToolStripMenuItem(name + (MicStream.IsVirtual(name) ? "   (virtuell)" : "")) { Checked = settings.Mic == name };
+                    item.Click += (o, x) => Dispatcher.BeginInvoke(new Action(() => SetMic(name)));
+                    menu.DropDownItems.Add(item);
+                }
+            };
+            menu.DropDownItems.Add("…");
+            return menu;
+        }
+
         void StopVoice()
         {
             try { if (ears != null) { ears.RecognizeAsyncCancel(); ears.Dispose(); } } catch { }
+            try { if (micStream != null) micStream.Dispose(); } catch { }
+            micStream = null;
             try { if (voice != null) voice.Dispose(); } catch { }
             ears = null;
             voice = null;
@@ -234,11 +287,12 @@ namespace ClaudeIsland
             if (voiceState == "typing" || voiceState == "speaking") return; // Windows voice typing or Clawd himself is talking
             string kind = r.Grammar.Name;
             bool listening = voiceState == "listening";
-            // The wake word must be heard clearly.
+            // The wake word must be heard. (Windows' confidence values are low by nature: 0.2-0.4 is a normal "yes".)
             if (kind.StartsWith("wake"))
             {
                 var first = r.Words.Take(2).ToList();
-                if (first.Count == 0 || first.Average(w => w.Confidence) < 0.6) return;
+                if (first.Count == 0 || first.Average(w => w.Confidence) < 0.15) return;
+                if (kind == "wake+ask" && r.Confidence < 0.04) return; // pure noise
             }
 
             string text = r.Text.ToLowerInvariant().Trim();
@@ -248,7 +302,7 @@ namespace ClaudeIsland
             if (kind == "wake") { ListenNow(); return; }
 
             bool command = kind == "wake+cmd" || kind == "cmd";
-            if (command && r.Confidence < 0.5)
+            if (command && r.Confidence < (kind == "cmd" ? 0.2 : 0.12))
             {
                 // Not sure what was said: while Clawd is listening anyway, let Windows voice typing take over.
                 if (listening) StartVoiceTyping();
@@ -264,9 +318,7 @@ namespace ClaudeIsland
             string intent = VoiceIntent.Match(text);
             if (intent != null) { Toast("„" + text + "“", 3); RunCommand(intent); return; }
 
-            // A real question only when Windows is reasonably sure of the words; never send gibberish to Claude.
-            int words = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
-            if (words >= 3 && r.Confidence >= 0.55) { Toast("„" + text + "“", 3); AskClaude(text); return; }
+            // Free questions: the old Windows dictation is too unreliable, so Windows voice typing takes them.
             StartVoiceTyping();
         }
 
@@ -283,6 +335,7 @@ namespace ClaudeIsland
         /// </summary>
         void StartVoiceTyping()
         {
+            if (voiceState == "typing") return;
             if (listenTimer != null) listenTimer.Stop();
             if (gCommand != null) gCommand.Enabled = gAsk.Enabled = false;
             SetVoiceState("typing");

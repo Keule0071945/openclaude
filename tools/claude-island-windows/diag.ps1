@@ -56,7 +56,7 @@ $settings = Join-Path $env:USERPROFILE '.claude\settings.json'
 Add-Line ("settings.json vorhanden=" + (Test-Path $settings))
 if (Test-Path $settings) {
     $raw = [IO.File]::ReadAllText($settings)
-    Add-Line ("  Hooks mit ClaudeIsland: " + ([regex]::Matches($raw, 'ClaudeIsland\.exe')).Count + "  (erwartet: 14)")
+    Add-Line ("  Eintraege mit ClaudeIsland: " + ([regex]::Matches($raw, 'ClaudeIsland\.exe')).Count + "  (erwartet: 15 = 14 Hooks + Statuszeile)")
     Add-Line ("  Statuszeile mit ClaudeIsland: " + ($raw -match 'ClaudeIsland\.exe.{0,6}statusline'))
     try { $null = ConvertFrom-Json $raw; Add-Line '  JSON gueltig: True' } catch { Add-Line ('  JSON gueltig: FALSE ' + $_.Exception.Message) }
 }
@@ -90,22 +90,6 @@ try {
     $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
     foreach ($v in $synth.GetInstalledVoices()) { Add-Line ("Stimme: " + $v.VoiceInfo.Culture.Name + "  " + $v.VoiceInfo.Name + "  aktiv=" + $v.Enabled) }
     $synth.Dispose()
-    $de = $recs | Where-Object { $_.Culture.TwoLetterISOLanguageName -eq 'de' } | Select-Object -First 1
-    if ($de) {
-        try {
-            $eng = New-Object System.Speech.Recognition.SpeechRecognitionEngine($de)
-            $eng.SetInputToDefaultAudioDevice()
-            $gb = New-Object System.Speech.Recognition.GrammarBuilder('hey clawd')
-            $gb.Culture = $de.Culture
-            $eng.LoadGrammar((New-Object System.Speech.Recognition.Grammar($gb)))
-            Add-Line 'Mikrofon-Test: deutscher Erkenner + Standard-Mikrofon + Grammatik OK'
-            Write-Host ''
-            Write-Host 'Sag jetzt innerhalb von 5 Sekunden deutlich: "Hey Clawd"' -ForegroundColor Cyan
-            $res = $eng.Recognize([TimeSpan]::FromSeconds(5))
-            if ($res) { Add-Line ("  Gehoert: '" + $res.Text + "' Sicherheit=" + [math]::Round($res.Confidence, 2)) } else { Add-Line '  Nichts erkannt (zu leise, falsches Mikrofon oder anders ausgesprochen)' }
-            $eng.Dispose()
-        } catch { Add-Line ('Mikrofon-Test: FEHLER ' + $_.Exception.GetType().Name + ': ' + $_.Exception.Message) }
-    }
 } catch { Add-Line ('System.Speech: FEHLER ' + $_.Exception.Message) }
 foreach ($key in 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone', 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone\NonPackaged') {
     try { Add-Line ("Mikrofon-Freigabe " + (Split-Path -Leaf $key) + ": " + (Get-ItemProperty $key -ErrorAction Stop).Value) } catch { Add-Line ("Mikrofon-Freigabe " + (Split-Path -Leaf $key) + ": ?") }
@@ -114,13 +98,23 @@ try {
     $mics = Get-CimInstance Win32_PnPEntity -Filter "PNPClass='AudioEndpoint'" -ErrorAction Stop | Where-Object { $_.Name -match 'Mikro|Micro|Headset|Mic' } | ForEach-Object { $_.Name + ' [' + $_.Status + ']' }
     Add-Line ("Mikrofone: " + ($(if ($mics) { $mics -join ' | ' } else { 'keins gefunden' })))
 } catch { Add-Line 'Mikrofone: ?' }
+if (Test-Path $exe) {
+    Write-Host ''
+    Write-Host 'Mikrofon-Test: Sag in den naechsten 6 Sekunden deutlich "Hey Clawd"' -ForegroundColor Cyan
+    $check = Join-Path $data 'check.txt'
+    Remove-Item $check -ErrorAction SilentlyContinue
+    try {
+        Start-Process -FilePath $exe -ArgumentList 'check' -Wait -WindowStyle Hidden
+        if (Test-Path $check) { Get-Content $check -Encoding UTF8 | ForEach-Object { Add-Line $_ } } else { Add-Line 'Selbsttest: keine Ausgabe' }
+    } catch { Add-Line ('Selbsttest: FEHLER ' + $_.Exception.Message) }
+}
 $voiceLog = Join-Path $data 'voice.log'
-if (Test-Path $voiceLog) { Add-Line 'voice.log (letzte 25):'; Get-Content $voiceLog -Tail 25 | ForEach-Object { Add-Line ("  " + $_) } } else { Add-Line 'voice.log: fehlt (Hey Clawd noch nie gestartet)' }
+if (Test-Path $voiceLog) { Add-Line 'voice.log (letzte 25):'; Get-Content $voiceLog -Tail 25 -Encoding UTF8 | ForEach-Object { Add-Line ("  " + $_) } } else { Add-Line 'voice.log: fehlt (Hey Clawd noch nie gestartet)' }
 
 Section 'Fehlerprotokoll'
 $log = Join-Path $data 'island.log'
 Add-Line ("island.log vorhanden=" + (Test-Path $log))
-if (Test-Path $log) { Get-Content $log -Tail 40 | ForEach-Object { Add-Line ("  " + $_) } }
+if (Test-Path $log) { Get-Content $log -Tail 40 -Encoding UTF8 | ForEach-Object { Add-Line ("  " + $_) } }
 
 $text = $out -join "`r`n"
 try {
