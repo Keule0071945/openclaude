@@ -442,6 +442,66 @@ main { flex: 1; width: 100%; max-width: 1360px; margin: 0 auto; padding-inline: 
 .refbtns { display: flex; gap: 8px; justify-content: flex-end; }
 .refempty { grid-column: 1 / -1; color: var(--muted); text-align: center; padding: 30px; }
 
+
+/* ── buddy ── */
+.buddy-wrap { position: fixed; right: 18px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 40; display: grid; justify-items: end; gap: 6px; pointer-events: none; }
+.buddy { pointer-events: auto; border: 0; padding: 6px 8px 4px; border-radius: 20px; background: var(--surface); box-shadow: 0 10px 30px -10px rgba(27, 31, 59, .4), inset 0 0 0 1px var(--line); cursor: pointer; transition: transform .2s; animation: buddyin .8s 1s cubic-bezier(.3, 1.5, .5, 1) backwards; }
+.buddy:hover { transform: translateY(-3px) rotate(-3deg); }
+.buddy canvas { display: block; width: 60px; height: 50px; image-rendering: pixelated; }
+.buddy-bub { pointer-events: auto; max-width: min(300px, calc(100vw - 40px)); padding: 10px 14px; border-radius: 16px 16px 4px 16px; background: var(--ink); color: var(--surface); font: 500 14px/1.45 var(--font-body); box-shadow: var(--shadow); opacity: 0; transform: translateY(8px) scale(.92); transform-origin: bottom right; transition: opacity .25s, transform .35s cubic-bezier(.3, 1.5, .5, 1); visibility: hidden; }
+.buddy-bub.show { opacity: 1; transform: none; visibility: visible; }
+.buddy-bub code { font: 600 12px var(--font-code); background: rgba(255, 255, 255, .14); padding: 1px 5px; border-radius: 5px; }
+@keyframes buddyin { from { transform: translateY(80px) scale(.6); opacity: 0; } }
+
+/* ── toasts ── */
+.toasts { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 70px); right: 18px; z-index: 70; display: grid; gap: 10px; justify-items: end; }
+.toast { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; align-items: center; width: min(340px, calc(100vw - 36px)); padding: 12px 16px 12px 12px; border-radius: 20px; background: var(--surface); box-shadow: 0 20px 50px -14px rgba(27, 31, 59, .45), inset 0 0 0 2px color-mix(in srgb, var(--sun) 60%, transparent); cursor: pointer; animation: toastin .7s cubic-bezier(.3, 1.4, .5, 1); }
+.toast.out { animation: toastout .45s forwards; }
+.toast .medal { width: 56px; height: 56px; font-size: 30px; animation: medalspin 1s .25s cubic-bezier(.3, 1.4, .5, 1) backwards; }
+.ttx { display: grid; min-width: 0; }
+.ttx small { font: 700 11px var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.ttx b { font: 700 18px var(--font-display); }
+.ttx span { font-size: 13px; color: var(--muted); }
+@keyframes toastin { from { transform: translateX(120%) rotate(6deg); opacity: 0; } }
+@keyframes toastout { to { transform: translateX(120%); opacity: 0; } }
+@keyframes medalspin { from { transform: rotateY(180deg) scale(.3); } }
+.medal { display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff6d6, var(--sun) 60%, #c98a12); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .15), 0 6px 14px -6px #c98a12; }
+
+/* ── badge shelf ── */
+.shelf { margin-top: 36px; }
+.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.badge-item { display: grid; justify-items: center; align-content: start; text-align: center; gap: 4px; padding: 14px 10px 12px; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); animation: rise .5s calc(var(--i) * 30ms) backwards cubic-bezier(.2, .8, .2, 1); transition: transform .2s; }
+.badge-item:hover { transform: translateY(-3px); }
+.badge-item .medal { width: 58px; height: 58px; font-size: 28px; margin-bottom: 4px; }
+.badge-item:not(.on) .medal { background: var(--surface-2); box-shadow: inset 0 0 0 2px var(--line); filter: grayscale(1); opacity: .6; font-size: 20px; }
+.badge-item.on .medal { animation: shine 3.2s calc(var(--i) * 150ms) ease-in-out infinite; }
+.badge-item b { font: 700 14px var(--font-display); }
+.badge-item span { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.badge-item:not(.on) b { color: var(--muted); }
+@keyframes shine { 0%, 85%, 100% { transform: none; } 90% { transform: rotate(-8deg) scale(1.08); } 95% { transform: rotate(6deg) scale(1.04); } }
+
+/* ── motion details ── */
+.pill.streak { color: #c2410c; background: color-mix(in srgb, #fb923c 14%, var(--surface)); }
+.hero { position: relative; isolation: isolate; }
+.glyphs { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+.btn, .qopt, .chip, .navbtn { position: relative; overflow: hidden; }
+.ripple { position: absolute; border-radius: 50%; background: currentColor; opacity: .22; transform: scale(0); animation: ripple .65s ease-out forwards; pointer-events: none; }
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+.ldot { animation: dotin .45s calc(var(--i, 0) * 45ms + .2s) backwards cubic-bezier(.3, 1.6, .5, 1); }
+.ldot.next { animation: dotin .45s calc(var(--i, 0) * 45ms + .2s) backwards cubic-bezier(.3, 1.6, .5, 1), bob 1.6s 1s ease-in-out infinite; }
+@keyframes dotin { from { transform: scale(0) rotate(-20deg); opacity: 0; } }
+.wprog i { animation: growbar 1.2s .3s cubic-bezier(.2, .8, .2, 1) backwards; }
+@keyframes growbar { from { width: 0; } }
+.tiernum { animation: pop .6s cubic-bezier(.3, 1.6, .5, 1) backwards; }
+.tierhead { animation: rise .6s cubic-bezier(.2, .8, .2, 1) backwards; }
+.btn.go.busy { background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .22) 0 10px, transparent 10px 20px); background-size: 28px 28px; animation: stripes .6s linear infinite; }
+@keyframes stripes { to { background-position: 28px 0; } }
+.fact { animation: rise .6s backwards cubic-bezier(.2, .8, .2, 1); }
+.fact:nth-child(2) { animation-delay: .32s; } .fact:nth-child(3) { animation-delay: .4s; } .fact:nth-child(4) { animation-delay: .48s; }
+.card.task { animation: rise .5s .1s backwards cubic-bezier(.2, .8, .2, 1); }
+.stagecard { animation: rise .5s .05s backwards cubic-bezier(.2, .8, .2, 1); }
+.editorcard { animation: rise .5s .15s backwards cubic-bezier(.2, .8, .2, 1); }
+
 @media (max-width: 980px) {
   .reflist { grid-template-columns: minmax(0, 1fr); }
   .worlds { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -449,6 +509,9 @@ main { flex: 1; width: 100%; max-width: 1360px; margin: 0 auto; padding-inline: 
   .tutor { position: static; }
 }
 @media (max-width: 680px) {
+  .buddy canvas { width: 42px; height: 35px; }
+  .buddy-wrap { right: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .badges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .navbtn span { display: none; }
   .xp { display: none; }
   .brand b .bx { display: none; }
@@ -470,6 +533,11 @@ main { flex: 1; width: 100%; max-width: 1360px; margin: 0 auto; padding-inline: 
   .stage { aspect-ratio: 1 / 1; }
   .speed { margin-left: 0; }
 }
+@media (max-width: 460px) {
+  .brand b { display: none; }
+  .top { gap: 6px; }
+  .pill { padding: 4px 9px; }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 </style>
 
@@ -485,6 +553,7 @@ main { flex: 1; width: 100%; max-width: 1360px; margin: 0 auto; padding-inline: 
       <span class="lvl"><span>Level </span><b id="lvlNum">1</b> · <span id="lvlName">Code-Küken</span></span>
       <div class="xpbar"><i id="xpFill"></i></div>
     </div>
+    <span class="pill streak" id="streakPill" hidden>🔥 <b>0</b></span>
     <span class="pill" title="Gesammelte Sterne"><span class="star">★</span><span id="starCount">0</span></span>
     <button class="iconbtn" id="soundBtn" type="button" aria-label="Ton"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path class="w1" d="M15.5 9a4 4 0 0 1 0 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="w2" d="M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="x" d="M16 9.5l5 5M21 9.5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   </header>
@@ -2489,6 +2558,352 @@ knopf.addEventListener("click", async () => {
     },
   },
 );
+// ── Grundpfeiler: more foundation lessons woven into the existing worlds ──
+// Lessons are inserted by title, so old progress (stored by index) is remapped once at boot.
+const OLD_ORDER = LESSONS.slice();
+WORLDS.forEach((w, i) => { if (w.tier == null) w.tier = i < 5 ? 0 : 1; });
+function addWorld(afterName, world) {
+  const at = WORLDS.findIndex(w => w.name === afterName) + 1;
+  for (const L of LESSONS) if (L.w >= at) L.w++;
+  WORLDS.splice(at, 0, world);
+  return at;
+}
+function insertAfter(title, ...ls) {
+  const at = LESSONS.findIndex(L => L.title === title);
+  if (at < 0) throw new Error("insertAfter: " + title);
+  LESSONS.splice(at + 1, 0, ...ls);
+}
+const W = name => WORLDS.findIndex(w => w.name === name);
+const lines = r => r.output.map(s => String(s).trim());
+
+const WLOGIK = addWorld("Variablen", { name: "Logik & Vergleiche", desc: "Wahr oder falsch? Vergleichen, verknüpfen, entscheiden.", color: "#c026d3", icon: "fork", tier: 0 });
+const WDENK = addWorld("Algorithmen", { name: "Denken wie ein Programmierer", desc: "Probleme zerlegen: FizzBuzz, Primzahlen, Münzen, Muster.", color: "#65a30d", icon: "bars", tier: 1 });
+
+// ── Schleifen ──
+insertAfter("Die echte for-Schleife", {
+  w: W("Schleifen"), title: "Schleife in Schleife", type: "grid",
+  intro: [
+    { t: "Eine Schleife darf eine andere Schleife enthalten. Die <b>innere</b> Schleife läuft bei jeder Runde der <b>äußeren</b> Schleife komplett durch.", v: "loop" },
+    { t: "3 × 3 = 9: Die äußere Schleife läuft 3-mal, die innere jedes Mal 3-mal. Das ist das Geheimnis hinter Rastern, Mustern und Spielfeldern.", v: "code", code: "wiederhole(3, () => {\n  wiederhole(3, () => {\n    geh();\n  });\n  rechts();\n});" },
+  ],
+  task: "Sammle alle 9 Juwelen auf der Juwelen-Treppe und erreiche die Fahne. Jede Stufe hat 3 Juwelen – benutze eine Schleife in einer Schleife.",
+  start: "wiederhole(3, () => {\n  geh();\n  sammle();\n});\n",
+  sol: "wiederhole(3, () => {\n  wiederhole(3, () => {\n    geh();\n    sammle();\n  });\n  rechts();\n  geh();\n  links();\n});\n", par: 9,
+  needs: /wiederhole[\s\S]*wiederhole|for[\s\S]*for/, needsMsg: "Für 3 Sterne: Schleife in Schleife!",
+  palette: ["geh();", "sammle();", "rechts();", "links();", "wiederhole(3, () => {\n  \n});"],
+  hints: ["Eine Stufe ist: 3-mal (geh + sammle), dann rechts, geh, links.", "Pack die ganze Stufe in eine äußere <code>wiederhole(3, …)</code>."],
+  maps: [["~~~~~~~~~~~~", "~>GGG~~~~~~~", "~~~~.GGG~~~~", "~~~~~~~.GGG~", "~~~~~~~~~~F~", "~~~~~~~~~~~~"]],
+});
+
+// ── Variablen ──
+insertAfter("Texte zusammenbauen",
+  {
+    w: W("Variablen"), title: "Datentypen", type: "console",
+    intro: [
+      { t: "Jeder Wert hat einen <b>Typ</b>. Die drei wichtigsten: <b>number</b> (Zahlen), <b>string</b> (Texte) und <b>boolean</b> (wahr oder falsch: <code>true</code> / <code>false</code>).", v: "box" },
+      { t: "Mit <code>typeof</code> fragst du JavaScript nach dem Typ. Achtung: <code>\"7\"</code> mit Anführungszeichen ist ein Text, keine Zahl!", v: "code", code: "typeof 42        // \"number\"\ntypeof \"Hallo\"   // \"string\"\ntypeof true      // \"boolean\"\ntypeof \"7\"       // \"string\" !" },
+    ],
+    task: "Leg drei Variablen an: <code>alter</code> (eine Zahl), <code>spitzname</code> (ein Text) und <code>magtPizza</code> (true oder false). Gib den Typ von allen dreien mit <code>typeof</code> aus.",
+    start: "let alter = 10;\n", sol: "let alter = 10;\nlet spitzname = \"Flitzer\";\nlet magtPizza = true;\nsag(typeof alter);\nsag(typeof spitzname);\nsag(typeof magtPizza);\n", par: 6,
+    palette: ["let spitzname = \"Flitzer\";", "let magtPizza = true;", "sag(typeof alter);"],
+    hints: ["true und false schreibt man <b>ohne</b> Anführungszeichen.", "<code>sag(typeof spitzname);</code>"],
+    check: r => typeof r.vars.alter !== "number" ? fail("alter soll eine Zahl sein – ohne Anführungszeichen.") : typeof r.vars.spitzname !== "string" ? fail("spitzname soll ein Text sein.") : typeof r.vars.magtPizza !== "boolean" ? fail("magtPizza soll true oder false sein – ohne Anführungszeichen.") : ["number", "string", "boolean"].every(t => r.output.includes(t)) ? ok() : fail("Gib alle drei Typen mit sag(typeof …) aus."),
+  },
+  {
+    w: W("Variablen"), title: "Werte verändern", type: "console",
+    intro: [
+      { t: "Programmierer sind faul – im besten Sinne! Statt <code>punkte = punkte + 10</code> schreiben sie <code>punkte += 10</code>.", v: "math" },
+      { t: "Die Kurzschreibweisen auf einen Blick. <code>++</code> heißt „eins mehr“, <code>--</code> „eins weniger“.", v: "code", code: "let punkte = 0;\npunkte += 10;   // 10\npunkte *= 3;    // 30\npunkte -= 5;    // 25\npunkte++;       // 26\npunkte--;       // 25" },
+    ],
+    task: "Starte mit <code>let punkte = 0;</code>. Dann: +10, mal 2, −5 und zum Schluss eins mehr mit <code>++</code>. Benutze nur Kurzschreibweisen und gib <code>punkte</code> aus.",
+    start: "let punkte = 0;\n", sol: "let punkte = 0;\npunkte += 10;\npunkte *= 2;\npunkte -= 5;\npunkte++;\nsag(punkte);\n", par: 6,
+    palette: ["punkte += 10;", "punkte *= 2;", "punkte -= 5;", "punkte++;", "sag(punkte);"],
+    hints: ["Rechne mit: 0 → 10 → 20 → 15 → 16.", "Mal ist <code>*=</code>."],
+    check: r => r.vars.punkte !== 16 ? fail("punkte soll am Ende 16 sein (0 → 10 → 20 → 15 → 16).") : !["+=", "*=", "-=", "++"].every(op => r.code.includes(op)) ? fail("Benutze +=, *=, -= und ++.") : r.output.includes("16") ? ok() : fail("Gib punkte noch aus."),
+  },
+  {
+    w: W("Variablen"), title: "let oder const?", type: "console",
+    intro: [
+      { t: "Es gibt zwei Arten von Kisten: <code>let</code> darf man später neu befüllen, <code>const</code> ist <b>verschlossen</b> – der Wert bleibt für immer.", v: "box" },
+      { t: "Profi-Regel: Nimm immer <code>const</code>, außer der Wert muss sich ändern. So passieren weniger Fehler.", v: "code", code: "const name = \"Clawd\";   // ändert sich nie\nlet leben = 3;           // ändert sich im Spiel\nleben = leben - 1;       // ✔ geht\nname = \"Bob\";            // ✘ Fehler!" },
+    ],
+    task: "Der Code stürzt ab! Reparier ihn: <code>name</code> soll unveränderlich bleiben, <code>leben</code> soll sich ändern dürfen. Am Ende sollen 2 Leben ausgegeben werden.",
+    start: "const name = \"Clawd\";\nconst leben = 3;\nleben = leben - 1;\nsag(name + \" hat noch \" + leben + \" Leben\");\n",
+    sol: "const name = \"Clawd\";\nlet leben = 3;\nleben = leben - 1;\nsag(name + \" hat noch \" + leben + \" Leben\");\n", par: 4,
+    palette: ["let leben = 3;"],
+    hints: ["Lies die Fehlermeldung: Welche Kiste ist verschlossen, muss sich aber ändern?", "Aus <code>const leben</code> wird <code>let leben</code>."],
+    check: r => !/const\s+name/.test(r.code) ? fail("name soll eine const bleiben.") : !/let\s+leben/.test(r.code) ? fail("leben muss sich ändern – also let.") : r.vars.leben === 2 && r.output.some(l => l.includes("2 Leben")) ? ok() : fail("Am Ende sollen „2 Leben“ ausgegeben werden."),
+  });
+
+// ── Logik & Vergleiche (neue Welt) ──
+insertAfter("Der Juwelen-Zähler",
+  {
+    w: WLOGIK, title: "Vergleichen", type: "console",
+    intro: [
+      { t: "Ein Vergleich ergibt immer <code>true</code> oder <code>false</code>. Damit trifft dein Programm Entscheidungen.", v: "if" },
+      { t: "Wichtig: <code>=</code> legt etwas in eine Kiste. <code>===</code> vergleicht! Profis benutzen immer drei Gleichheitszeichen.", v: "code", code: "5 === 5     // true   gleich\n5 !== 3     // true   ungleich\n7 > 3       // true   größer\n2 < 1       // false  kleiner\n10 >= 10    // true   größer oder gleich\n\"5\" === 5   // false  Text ist keine Zahl!" },
+    ],
+    task: "Mia ist 9, Ben ist 11. Speichere in <code>benAelter</code>, ob Ben älter ist, in <code>gleichAlt</code>, ob beide gleich alt sind, und in <code>miaDarfMitfahren</code>, ob Mia mindestens 10 ist (so alt muss man für die Achterbahn sein).",
+    start: "let alterMia = 9;\nlet alterBen = 11;\n",
+    sol: "let alterMia = 9;\nlet alterBen = 11;\nlet benAelter = alterBen > alterMia;\nlet gleichAlt = alterMia === alterBen;\nlet miaDarfMitfahren = alterMia >= 10;\nsag(benAelter);\nsag(gleichAlt);\nsag(miaDarfMitfahren);\n", par: 8,
+    palette: ["let benAelter = alterBen > alterMia;", "let gleichAlt = alterMia === alterBen;", "let miaDarfMitfahren = alterMia >= 10;", "sag(benAelter);"],
+    hints: ["„Mindestens 10“ heißt <code>>= 10</code>.", "Vergleiche immer mit <code>===</code>, nicht mit <code>=</code>."],
+    check: r => r.vars.benAelter !== true ? fail("benAelter soll true sein – vergleiche alterBen > alterMia.") : r.vars.gleichAlt !== false ? fail("gleichAlt soll false sein – benutze ===.") : r.vars.miaDarfMitfahren !== false ? fail("miaDarfMitfahren soll false sein – Mia ist erst 9.") : /alter(Mia|Ben)\s*(===|>=|>|<|<=)/.test(r.code) ? ok() : fail("Rechne die Werte mit Vergleichen aus, nicht von Hand."),
+  },
+  {
+    w: WLOGIK, title: "Und, oder, nicht", type: "console",
+    intro: [
+      { t: "Mehrere Bedingungen verknüpfst du mit <b>Logik</b>: <code>&&</code> heißt UND (beides muss stimmen), <code>||</code> heißt ODER (eins reicht), <code>!</code> heißt NICHT (dreht um).", v: "if" },
+      { t: "Die Wahrheitstabelle im Kopf behalten:", v: "code", code: "true && true    // true\ntrue && false   // false\ntrue || false   // true\nfalse || false  // false\n!true           // false" },
+    ],
+    task: "Schreib zwei Funktionen: <code>darfRein(alter, mitEltern)</code> – ins Kino darf, wer mindestens 12 ist <b>oder</b> mit Eltern kommt. <code>bekommtRabatt(istSchueler, istWochenende)</code> – Rabatt gibt es für Schüler, aber <b>nicht</b> am Wochenende.",
+    start: "function darfRein(alter, mitEltern) {\n  \n}\n\nfunction bekommtRabatt(istSchueler, istWochenende) {\n  \n}\n",
+    sol: "function darfRein(alter, mitEltern) {\n  return alter >= 12 || mitEltern;\n}\n\nfunction bekommtRabatt(istSchueler, istWochenende) {\n  return istSchueler && !istWochenende;\n}\nsag(darfRein(10, true));\n", par: 8,
+    palette: ["return alter >= 12 || mitEltern;", "return istSchueler && !istWochenende;"],
+    hints: ["Kino: <code>alter >= 12 || mitEltern</code>", "Rabatt: Schüler UND NICHT Wochenende."],
+    check: r => tests(r, "darfRein", [[[12, false], true], [[10, true], true], [[10, false], false], [[15, true], true]]) || tests(r, "bekommtRabatt", [[[true, false], true], [[true, true], false], [[false, false], false]]) || ok("Alle 7 Tests bestanden!"),
+  },
+  {
+    w: WLOGIK, title: "if, else if, else", type: "console",
+    intro: [
+      { t: "Bei mehr als zwei Möglichkeiten hängst du <code>else if</code> an. JavaScript prüft von oben nach unten und nimmt den <b>ersten</b> Zweig, der passt.", v: "if" },
+      { t: "Die Reihenfolge ist entscheidend: Prüf immer zuerst den strengsten Fall.", v: "code", code: "function wetter(grad) {\n  if (grad >= 30) {\n    return \"heiß\";\n  } else if (grad >= 15) {\n    return \"angenehm\";\n  } else {\n    return \"kalt\";\n  }\n}" },
+    ],
+    task: "Schreib <code>bewertung(punkte)</code>: ab 90 <code>\"sehr gut\"</code>, ab 75 <code>\"gut\"</code>, ab 50 <code>\"bestanden\"</code>, sonst <code>\"nicht bestanden\"</code>.",
+    start: "function bewertung(punkte) {\n  \n}\n",
+    sol: "function bewertung(punkte) {\n  if (punkte >= 90) {\n    return \"sehr gut\";\n  } else if (punkte >= 75) {\n    return \"gut\";\n  } else if (punkte >= 50) {\n    return \"bestanden\";\n  } else {\n    return \"nicht bestanden\";\n  }\n}\nsag(bewertung(80));\n", par: 12,
+    palette: ["if (punkte >= 90) {\n  return \"sehr gut\";\n}", "else if (punkte >= 75) {\n  \n}", "else {\n  \n}"],
+    hints: ["Fang mit dem höchsten Wert an: zuerst <code>>= 90</code>.", "Grenzwerte zählen mit: 90 ist schon „sehr gut“."],
+    check: r => tests(r, "bewertung", [[[100], "sehr gut"], [[90], "sehr gut"], [[89], "gut"], [[75], "gut"], [[60], "bestanden"], [[50], "bestanden"], [[49], "nicht bestanden"], [[0], "nicht bestanden"]]) || ok("Alle 8 Tests – auch die Grenzwerte – bestanden!"),
+  },
+  {
+    w: WLOGIK, title: "switch", type: "console",
+    intro: [
+      { t: "Wenn du einen Wert mit vielen festen Möglichkeiten vergleichst, ist <code>switch</code> übersichtlicher als eine lange if-Kette.", v: "if" },
+      { t: "Jeder Fall beginnt mit <code>case</code>. Mit <code>return</code> (oder <code>break</code>) ist der Fall zu Ende. <code>default</code> fängt alles andere auf.", v: "code", code: "function tierlaut(tier) {\n  switch (tier) {\n    case \"Hund\":\n      return \"Wuff\";\n    case \"Katze\":\n      return \"Miau\";\n    default:\n      return \"???\";\n  }\n}" },
+    ],
+    task: "Schreib <code>wochentag(nummer)</code> mit <code>switch</code>: 1 → <code>\"Montag\"</code> bis 7 → <code>\"Sonntag\"</code>, jede andere Zahl → <code>\"unbekannt\"</code>.",
+    start: "function wochentag(nummer) {\n  switch (nummer) {\n    case 1:\n      return \"Montag\";\n  }\n}\n",
+    sol: "function wochentag(nummer) {\n  switch (nummer) {\n    case 1: return \"Montag\";\n    case 2: return \"Dienstag\";\n    case 3: return \"Mittwoch\";\n    case 4: return \"Donnerstag\";\n    case 5: return \"Freitag\";\n    case 6: return \"Samstag\";\n    case 7: return \"Sonntag\";\n    default: return \"unbekannt\";\n  }\n}\nsag(wochentag(5));\n", par: 14,
+    needs: /switch/, needsMsg: "Benutze switch.",
+    palette: ["case 2:\n  return \"Dienstag\";", "default:\n  return \"unbekannt\";"],
+    hints: ["Für jeden Tag ein eigenes <code>case</code>.", "Ganz unten: <code>default: return \"unbekannt\";</code>"],
+    check: r => tests(r, "wochentag", [[[1], "Montag"], [[3], "Mittwoch"], [[5], "Freitag"], [[7], "Sonntag"], [[0], "unbekannt"], [[8], "unbekannt"]]) || ok("Alle Tests bestanden!"),
+  },
+  {
+    w: WLOGIK, title: "Die Kurz-Entscheidung", type: "console",
+    intro: [
+      { t: "Für kleine Entscheidungen gibt es eine Kurzform: <code>bedingung ? wennJa : wennNein</code>. Sie heißt <b>ternärer Operator</b>.", v: "if" },
+      { t: "Der Rest-Operator <code>%</code> gibt den Rest beim Teilen: <code>7 % 2</code> ist 1, <code>8 % 2</code> ist 0. Gerade Zahlen haben Rest 0.", v: "code", code: "let alter = 15;\nlet gruppe = alter >= 13 ? \"Teenie\" : \"Kind\";\n// \"Teenie\"\n\n10 % 3   // 1\n12 % 4   // 0" },
+    ],
+    task: "Schreib mit dem <code>?</code>-Operator: <code>geradeOderUngerade(n)</code> liefert <code>\"gerade\"</code> oder <code>\"ungerade\"</code>, und <code>groessere(a, b)</code> liefert die größere Zahl.",
+    start: "function geradeOderUngerade(n) {\n  \n}\n\nfunction groessere(a, b) {\n  \n}\n",
+    sol: "function geradeOderUngerade(n) {\n  return n % 2 === 0 ? \"gerade\" : \"ungerade\";\n}\n\nfunction groessere(a, b) {\n  return a > b ? a : b;\n}\nsag(geradeOderUngerade(7));\n", par: 8,
+    needs: /\?[^.]/, needsMsg: "Für 3 Sterne: Benutze den ?-Operator.",
+    palette: ["return n % 2 === 0 ? \"gerade\" : \"ungerade\";", "return a > b ? a : b;"],
+    hints: ["Gerade heißt: <code>n % 2 === 0</code>.", "<code>return a > b ? a : b;</code>"],
+    check: r => tests(r, "geradeOderUngerade", [[[4], "gerade"], [[7], "ungerade"], [[0], "gerade"], [[13], "ungerade"]]) || tests(r, "groessere", [[[3, 9], 9], [[9, 3], 9], [[-2, -5], -2], [[4, 4], 4]]) || ok("Alle 8 Tests bestanden!"),
+  });
+
+// ── Zeichnen & Funktionen ──
+insertAfter("Ergebnisse zurückgeben", {
+  w: W("Zeichnen & Funktionen"), title: "Wo Variablen leben", type: "console",
+  intro: [
+    { t: "Eine Variable, die <b>in</b> einer Funktion mit <code>let</code> entsteht, lebt nur dort. Nach der Funktion ist sie weg. Das nennt man <b>Gültigkeitsbereich</b> (Scope).", v: "box" },
+    { t: "Soll sich eine Funktion etwas merken, muss die Variable <b>außerhalb</b> stehen.", v: "code", code: "let draussen = 0;\n\nfunction test() {\n  let drinnen = 5;   // lebt nur hier\n  draussen = draussen + 1;\n}\n\ntest();\nsag(draussen);   // 1\nsag(drinnen);    // Fehler: kenne ich nicht!" },
+  ],
+  task: "Der Zähler funktioniert nicht – er fängt bei jedem Aufruf neu bei 0 an und ist danach verschwunden. Reparier ihn, sodass nach drei Aufrufen <code>3</code> ausgegeben wird.",
+  start: "function klick() {\n  let zaehler = 0;\n  zaehler = zaehler + 1;\n}\n\nklick();\nklick();\nklick();\nsag(zaehler);\n",
+  sol: "let zaehler = 0;\n\nfunction klick() {\n  zaehler = zaehler + 1;\n}\n\nklick();\nklick();\nklick();\nsag(zaehler);\n", par: 9,
+  palette: ["let zaehler = 0;"],
+  hints: ["Die Zeile <code>let zaehler = 0;</code> muss aus der Funktion heraus – nach ganz oben.", "In der Funktion bleibt nur <code>zaehler = zaehler + 1;</code>"],
+  check: r => r.vars.zaehler === 3 && r.output.includes("3") ? ok() : fail("Nach drei Klicks soll 3 ausgegeben werden."),
+});
+insertAfter("Muster-Magie", {
+  w: W("Zeichnen & Funktionen"), title: "Raster mit Schleifen", type: "draw",
+  intro: [
+    { t: "Mit zwei verschachtelten <code>for</code>-Schleifen zeichnest du ganze Raster: Die äußere geht die <b>Zeilen</b> durch, die innere die <b>Spalten</b>.", v: "coords" },
+    { t: "Aus der Zeilen- und Spaltennummer rechnest du die Position aus. So entstehen Schachbretter, Pixel-Bilder und Spielfelder.", v: "code", code: "for (let zeile = 0; zeile < 3; zeile++) {\n  for (let spalte = 0; spalte < 3; spalte++) {\n    kreis(50 + spalte * 100, 50 + zeile * 100, 30, \"blau\");\n  }\n}" },
+  ],
+  task: "Zeichne ein Raster aus <b>5 × 5 = 25</b> Kreisen mit zwei verschachtelten <code>for</code>-Schleifen. Bonus: Färbe jeden zweiten Kreis anders!",
+  start: "hintergrund(\"nacht\");\n",
+  sol: "hintergrund(\"nacht\");\nfor (let zeile = 0; zeile < 5; zeile++) {\n  for (let spalte = 0; spalte < 5; spalte++) {\n    let farbe = (zeile + spalte) % 2 === 0 ? \"gelb\" : \"pink\";\n    kreis(40 + spalte * 80, 40 + zeile * 80, 30, farbe);\n  }\n}\n", par: 8,
+  needs: /for[\s\S]*for/, needsMsg: "Für 3 Sterne: zwei verschachtelte for-Schleifen.",
+  palette: ["for (let zeile = 0; zeile < 5; zeile++) {\n  \n}", "for (let spalte = 0; spalte < 5; spalte++) {\n  \n}", "kreis(40 + spalte * 80, 40 + zeile * 80, 30, \"gelb\");"],
+  hints: ["Die innere Schleife steht <b>in</b> der äußeren.", "Abstand 80: <code>40 + spalte * 80</code> und <code>40 + zeile * 80</code>."],
+  check: r => count(r.ops, "kreis") >= 25 ? ok() : fail("Es sollen mindestens 25 Kreise sein – es sind " + count(r.ops, "kreis") + "."),
+});
+
+// ── Listen ──
+insertAfter("Listen (Arrays)",
+  {
+    w: W("Listen"), title: "Listen verändern", type: "console",
+    intro: [
+      { t: "Listen können wachsen und schrumpfen. Stell dir eine Warteschlange vor: Hinten stellt sich jemand an, vorne kommt jemand dran.", v: "array" },
+      { t: "Die vier wichtigsten Werkzeuge:", v: "code", code: "let schlange = [\"Mia\", \"Ben\"];\nschlange.push(\"Lea\");     // hinten dran  → Mia, Ben, Lea\nschlange.shift();         // vorne weg    → Ben, Lea\nschlange.unshift(\"Ida\");  // vorne dran   → Ida, Ben, Lea\nschlange.pop();           // hinten weg   → Ida, Ben\nschlange.length           // 2" },
+    ],
+    task: "In der Eisdiele: <code>Lea</code> stellt sich hinten an, <code>Mia</code> (vorne) bekommt ihr Eis und geht, und <code>VIP</code> darf sich ganz vorne anstellen. Speichere danach die Länge in <code>wieViele</code>.",
+    start: "let schlange = [\"Mia\", \"Ben\"];\n",
+    sol: "let schlange = [\"Mia\", \"Ben\"];\nschlange.push(\"Lea\");\nschlange.shift();\nschlange.unshift(\"VIP\");\nlet wieViele = schlange.length;\nsag(schlange);\nsag(wieViele);\n", par: 7,
+    palette: ["schlange.push(\"Lea\");", "schlange.shift();", "schlange.unshift(\"VIP\");", "let wieViele = schlange.length;"],
+    hints: ["Die Reihenfolge der Befehle ist wichtig: erst push, dann shift, dann unshift.", "Am Ende: <code>[\"VIP\", \"Ben\", \"Lea\"]</code>"],
+    check: r => same(r.vars.schlange, ["VIP", "Ben", "Lea"]) ? (r.vars.wieViele === 3 ? ok() : fail("wieViele soll die Länge sein: 3.")) : fail("Die Schlange soll am Ende VIP, Ben, Lea sein – sie ist " + show(r.vars.schlange) + "."),
+  });
+insertAfter("Listen durchlaufen", {
+  w: W("Listen"), title: "Zählen & Summieren", type: "console",
+  intro: [
+    { t: "Ein Muster, das du dein ganzes Programmierer-Leben brauchst: Eine Variable startet bei 0, eine Schleife geht die Liste durch und <b>sammelt</b> dabei.", v: "array" },
+    { t: "<code>for (const x of liste)</code> gibt dir jedes Element nacheinander.", v: "code", code: "let summe = 0;\nfor (const zahl of [4, 8, 15]) {\n  summe += zahl;\n}\nsag(summe);   // 27" },
+  ],
+  task: "Schreib zwei Funktionen: <code>summe(liste)</code> addiert alle Zahlen, <code>zaehleUeber(liste, grenze)</code> zählt, wie viele Zahlen größer als die Grenze sind.",
+  start: "function summe(liste) {\n  let ergebnis = 0;\n  \n  return ergebnis;\n}\n\nfunction zaehleUeber(liste, grenze) {\n  \n}\n",
+  sol: "function summe(liste) {\n  let ergebnis = 0;\n  for (const x of liste) {\n    ergebnis += x;\n  }\n  return ergebnis;\n}\n\nfunction zaehleUeber(liste, grenze) {\n  let anzahlDrueber = 0;\n  for (const x of liste) {\n    if (x > grenze) anzahlDrueber++;\n  }\n  return anzahlDrueber;\n}\nsag(summe([4, 8, 15]));\n", par: 16,
+  palette: ["for (const x of liste) {\n  \n}", "ergebnis += x;", "if (x > grenze) treffer++;", "let treffer = 0;", "return treffer;"],
+  hints: ["summe: in der Schleife <code>ergebnis += x;</code>", "zaehleUeber: eigener Zähler, der nur bei <code>x > grenze</code> wächst."],
+  check: r => tests(r, "summe", [[[[4, 8, 15]], 27], [[[]], 0], [[[-3, 3]], 0]]) || tests(r, "zaehleUeber", [[[[1, 5, 10, 20], 4], 3], [[[1, 2], 5], 0], [[[7, 7, 8], 7], 1]]) || ok("Alle 6 Tests bestanden!"),
+});
+insertAfter("map & filter", {
+  w: W("Listen"), title: "Suchen & Finden", type: "console",
+  intro: [
+    { t: "Ist etwas in der Liste? Wo genau? Und welches Element passt? Dafür gibt es eigene Werkzeuge.", v: "array" },
+    { t: "<code>includes</code> sagt ja/nein, <code>indexOf</code> die Nummer (oder -1), <code>find</code> das erste passende Element.", v: "code", code: "let tiere = [\"Hund\", \"Katze\", \"Maus\"];\ntiere.includes(\"Katze\")   // true\ntiere.indexOf(\"Maus\")     // 2\ntiere.indexOf(\"Kuh\")      // -1 (nicht da)\n\nlet zahlen = [3, 8, 12, 5];\nzahlen.find(z => z > 10)   // 12" },
+  ],
+  task: "Im Rucksack: Speichere in <code>hatSchluessel</code>, ob ein <code>\"Schlüssel\"</code> drin ist, in <code>platzKarte</code> die Position der <code>\"Karte\"</code>, und in <code>ersterSchwerer</code> das erste Gewicht über 5 kg.",
+  start: "let rucksack = [\"Apfel\", \"Karte\", \"Schlüssel\", \"Seil\"];\nlet gewichte = [1, 3, 7, 2, 9];\n",
+  sol: "let rucksack = [\"Apfel\", \"Karte\", \"Schlüssel\", \"Seil\"];\nlet gewichte = [1, 3, 7, 2, 9];\nlet hatSchluessel = rucksack.includes(\"Schlüssel\");\nlet platzKarte = rucksack.indexOf(\"Karte\");\nlet ersterSchwerer = gewichte.find(g => g > 5);\nsag(hatSchluessel);\nsag(platzKarte);\nsag(ersterSchwerer);\n", par: 8,
+  palette: ["let hatSchluessel = rucksack.includes(\"Schlüssel\");", "let platzKarte = rucksack.indexOf(\"Karte\");", "let ersterSchwerer = gewichte.find(g => g > 5);"],
+  hints: ["Positionen beginnen bei 0 – die Karte liegt auf Platz 1.", "find mit Pfeilfunktion: <code>gewichte.find(g => g > 5)</code>"],
+  check: r => r.vars.hatSchluessel !== true ? fail("hatSchluessel soll true sein.") : r.vars.platzKarte !== 1 ? fail("platzKarte soll 1 sein (gezählt ab 0).") : r.vars.ersterSchwerer !== 7 ? fail("ersterSchwerer soll 7 sein – das erste Gewicht über 5.") : /includes|indexOf/.test(r.code) && /find/.test(r.code) ? ok() : fail("Benutze includes/indexOf und find."),
+});
+
+// ── Objekte & Klassen ──
+insertAfter("Objekte", {
+  w: W("Objekte & Klassen"), title: "Objekte durchlaufen", type: "console",
+  intro: [
+    { t: "Auch Objekte kann man in einer Schleife durchgehen. <code>Object.entries</code> macht aus einem Objekt eine Liste von Paaren <code>[schlüssel, wert]</code>.", v: "object" },
+    { t: "Mit <code>for…of</code> und eckigen Klammern packst du jedes Paar direkt aus:", v: "code", code: "let preise = { Apfel: 0.5, Brot: 2.2 };\nfor (const [ware, preis] of Object.entries(preise)) {\n  sag(ware + \" kostet \" + preis);\n}\nObject.keys(preise)     // [\"Apfel\", \"Brot\"]\nObject.values(preise)   // [0.5, 2.2]" },
+  ],
+  task: "Berechne aus <code>preise</code> die Summe aller Preise in <code>gesamt</code> und sammle in der Liste <code>teuer</code> die Namen aller Waren, die mehr als 2 € kosten.",
+  start: "let preise = { Apfel: 0.5, Brot: 2.2, Käse: 3.5, Milch: 1.1, Honig: 4 };\n",
+  sol: "let preise = { Apfel: 0.5, Brot: 2.2, Käse: 3.5, Milch: 1.1, Honig: 4 };\nlet gesamt = 0;\nlet teuer = [];\nfor (const [ware, preis] of Object.entries(preise)) {\n  gesamt += preis;\n  if (preis > 2) teuer.push(ware);\n}\nsag(gesamt);\nsag(teuer);\n", par: 10,
+  palette: ["let gesamt = 0;", "let teuer = [];", "for (const [ware, preis] of Object.entries(preise)) {\n  \n}", "gesamt += preis;", "if (preis > 2) teuer.push(ware);"],
+  hints: ["Leg vor der Schleife <code>gesamt = 0</code> und eine leere Liste <code>teuer</code> an.", "In der Schleife: addieren und bei Bedarf <code>teuer.push(ware)</code>."],
+  check: r => typeof r.vars.gesamt !== "number" || Math.abs(r.vars.gesamt - 11.3) > 1e-6 ? fail("gesamt soll 11.3 sein.") : same(r.vars.teuer, ["Brot", "Käse", "Honig"]) ? ok() : fail("teuer soll [\"Brot\", \"Käse\", \"Honig\"] sein."),
+});
+insertAfter("Klassen – Baupläne", {
+  w: W("Objekte & Klassen"), title: "Vererbung", type: "console",
+  intro: [
+    { t: "Klassen können von anderen Klassen <b>erben</b>. Ein Hund ist ein Tier: Er kann alles, was ein Tier kann – und noch mehr. Das schreibt man mit <code>extends</code>.", v: "class" },
+    { t: "<code>super(…)</code> ruft den constructor der Eltern-Klasse auf. So musst du nichts doppelt schreiben.", v: "code", code: "class Tier {\n  constructor(name) {\n    this.name = name;\n  }\n  vorstellen() {\n    return \"Ich bin \" + this.name;\n  }\n}\nclass Katze extends Tier {\n  miauen() {\n    return \"Miau!\";\n  }\n}\nlet mimi = new Katze(\"Mimi\");\nmimi.vorstellen();   // \"Ich bin Mimi\" – geerbt!" },
+  ],
+  task: "Die Klasse <code>Tier</code> ist fertig. Schreib <code>Hund extends Tier</code> mit einer Methode <code>bellen()</code>, die <code>\"Wuff!\"</code> zurückgibt. Erzeuge <code>bello</code> und gib <code>bello.vorstellen()</code> und <code>bello.bellen()</code> aus.",
+  start: "class Tier {\n  constructor(name) {\n    this.name = name;\n  }\n  vorstellen() {\n    return \"Ich bin \" + this.name;\n  }\n}\n",
+  sol: "class Tier {\n  constructor(name) {\n    this.name = name;\n  }\n  vorstellen() {\n    return \"Ich bin \" + this.name;\n  }\n}\n\nclass Hund extends Tier {\n  bellen() {\n    return \"Wuff!\";\n  }\n}\n\nlet bello = new Hund(\"Bello\");\nsag(bello.vorstellen());\nsag(bello.bellen());\n", par: 17,
+  needs: /extends/, needsMsg: "Benutze extends.",
+  palette: ["class Hund extends Tier {\n  \n}", "bellen() {\n  return \"Wuff!\";\n}", "let bello = new Hund(\"Bello\");", "sag(bello.vorstellen());"],
+  hints: ["Hund braucht keinen eigenen constructor – er erbt den von Tier.", "<code>class Hund extends Tier { bellen() { return \"Wuff!\"; } }</code>"],
+  check: r => {
+    const Hund = r.vars.Hund, Tier = r.vars.Tier;
+    if (typeof Hund !== "function") return fail("Die Klasse Hund fehlt.");
+    let d; try { d = new Hund("Rex"); } catch (e) { return fail("new Hund(\"Rex\") stürzt ab: " + friendly(e)); }
+    if (!(d instanceof Tier)) return fail("Hund soll von Tier erben (extends Tier).");
+    if (d.vorstellen() !== "Ich bin Rex") return fail("Ein Hund soll vorstellen() von Tier erben.");
+    if (typeof d.bellen !== "function" || d.bellen() !== "Wuff!") return fail("bellen() soll \"Wuff!\" zurückgeben.");
+    return r.output.includes("Wuff!") ? ok("Getestet mit new Hund(\"Rex\") – Vererbung klappt!") : fail("Gib bello.bellen() noch aus.");
+  },
+});
+
+// ── Denken wie ein Programmierer (neue Welt) ──
+insertAfter("Zahlen raten wie ein Profi",
+  {
+    w: WDENK, title: "Probleme zerlegen", type: "console",
+    intro: [
+      { t: "Das wichtigste Werkzeug von Profis ist kein Befehl, sondern eine Denkweise: <b>Große Probleme in kleine Schritte zerlegen</b>. Schreib die Schritte erst auf Deutsch auf – das nennt man Pseudocode.", v: "clawd" },
+      { t: "Beispiel Quersumme von 4721 = 4 + 7 + 2 + 1 = 14. Schritte: Letzte Ziffer holen (<code>% 10</code>), dazuzählen, Zahl kürzen (<code>Math.floor(n / 10)</code>), wiederholen bis 0.", v: "code", code: "// Pseudocode:\n// summe = 0\n// solange n > 0:\n//   letzte Ziffer = n % 10\n//   summe += letzte Ziffer\n//   n = n ohne letzte Ziffer\n\n4721 % 10              // 1\nMath.floor(4721 / 10)  // 472" },
+    ],
+    task: "Schreib <code>quersumme(n)</code> nach dem Pseudocode. <code>quersumme(4721)</code> soll 14 liefern.",
+    start: "function quersumme(n) {\n  let summe = 0;\n  \n  return summe;\n}\n",
+    sol: "function quersumme(n) {\n  let summe = 0;\n  while (n > 0) {\n    summe += n % 10;\n    n = Math.floor(n / 10);\n  }\n  return summe;\n}\nsag(quersumme(4721));\n", par: 9,
+    palette: ["while (n > 0) {\n  \n}", "summe += n % 10;", "n = Math.floor(n / 10);"],
+    hints: ["Eine while-Schleife, die läuft, solange <code>n > 0</code> ist.", "In der Schleife: <code>summe += n % 10;</code> und <code>n = Math.floor(n / 10);</code>"],
+    check: r => tests(r, "quersumme", [[[4721], 14], [[0], 0], [[9], 9], [[1000], 1], [[99999], 45]]) || ok("Alle 5 Tests bestanden!"),
+  },
+  {
+    w: WDENK, title: "FizzBuzz", type: "console",
+    intro: [
+      { t: "<b>FizzBuzz</b> ist die berühmteste Programmier-Aufgabe der Welt – sie wird sogar in Bewerbungsgesprächen gestellt! Zähl von 1 bis 30. Ist die Zahl durch 3 teilbar, sag „Fizz“, durch 5 „Buzz“, durch beides „FizzBuzz“.", v: "math" },
+      { t: "Der Trick: Prüf den Fall „durch beides teilbar“ <b>zuerst</b>. Teilbar heißt: <code>zahl % 3 === 0</code>.", v: "code", code: "1, 2, Fizz, 4, Buzz, Fizz, 7, 8, Fizz, Buzz,\n11, Fizz, 13, 14, FizzBuzz, 16 …" },
+    ],
+    task: "Gib die Zahlen von 1 bis 30 aus – jede in einer eigenen Zeile, mit Fizz, Buzz und FizzBuzz.",
+    start: "for (let i = 1; i <= 30; i++) {\n  sag(i);\n}\n",
+    sol: "for (let i = 1; i <= 30; i++) {\n  if (i % 15 === 0) {\n    sag(\"FizzBuzz\");\n  } else if (i % 3 === 0) {\n    sag(\"Fizz\");\n  } else if (i % 5 === 0) {\n    sag(\"Buzz\");\n  } else {\n    sag(i);\n  }\n}\n", par: 11,
+    palette: ["if (i % 15 === 0) {\n  sag(\"FizzBuzz\");\n}", "else if (i % 3 === 0) {\n  sag(\"Fizz\");\n}", "else if (i % 5 === 0) {\n  sag(\"Buzz\");\n}", "else {\n  sag(i);\n}"],
+    hints: ["Durch 3 und 5 teilbar heißt: durch 15 teilbar.", "Reihenfolge: erst 15, dann 3, dann 5, sonst die Zahl."],
+    check: r => {
+      const want = Array.from({ length: 30 }, (_, k) => { const i = k + 1; return i % 15 === 0 ? "FizzBuzz" : i % 3 === 0 ? "Fizz" : i % 5 === 0 ? "Buzz" : String(i); });
+      const got = lines(r);
+      if (got.length !== 30) return fail("Es sollen genau 30 Zeilen sein – es sind " + got.length + ".");
+      const bad = got.findIndex((g, i) => g !== want[i]);
+      return bad < 0 ? ok("Perfektes FizzBuzz – damit bestehst du sogar Bewerbungsgespräche!") : fail("Zeile " + (bad + 1) + " soll „" + want[bad] + "“ sein, ist aber „" + got[bad] + "“.");
+    },
+  },
+  {
+    w: WDENK, title: "Primzahlen", type: "console",
+    intro: [
+      { t: "Eine <b>Primzahl</b> ist nur durch 1 und sich selbst teilbar: 2, 3, 5, 7, 11, 13 … Die 1 ist keine Primzahl. Primzahlen schützen heute jede verschlüsselte Nachricht im Internet!", v: "math" },
+      { t: "Idee: Probier alle Teiler von 2 bis zur Zahl. Findest du einen, ist es keine Primzahl. Mit <code>return</code> kannst du sofort aufhören.", v: "code", code: "function hatTeiler(n, t) {\n  return n % t === 0;\n}\nhatTeiler(12, 4)   // true\nhatTeiler(13, 4)   // false" },
+    ],
+    task: "Schreib <code>istPrimzahl(n)</code>. Sammle dann alle Primzahlen bis 50 in der Liste <code>primzahlen</code>.",
+    start: "function istPrimzahl(n) {\n  if (n < 2) return false;\n  \n}\n\nlet primzahlen = [];\n",
+    sol: "function istPrimzahl(n) {\n  if (n < 2) return false;\n  for (let t = 2; t * t <= n; t++) {\n    if (n % t === 0) return false;\n  }\n  return true;\n}\n\nlet primzahlen = [];\nfor (let i = 1; i <= 50; i++) {\n  if (istPrimzahl(i)) primzahlen.push(i);\n}\nsag(primzahlen);\n", par: 13,
+    palette: ["for (let t = 2; t < n; t++) {\n  \n}", "if (n % t === 0) return false;", "return true;", "for (let i = 1; i <= 50; i++) {\n  \n}", "if (istPrimzahl(i)) primzahlen.push(i);"],
+    hints: ["Schleife über alle möglichen Teiler; findest du einen: <code>return false</code>. Nach der Schleife: <code>return true</code>.", "Profi-Trick: Es reicht, bis zur Wurzel zu prüfen: <code>t * t <= n</code>."],
+    check: r => tests(r, "istPrimzahl", [[[1], false], [[2], true], [[9], false], [[13], true], [[49], false], [[97], true]]) || (same(r.vars.primzahlen, [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]) ? ok("Alle 15 Primzahlen bis 50 gefunden!") : fail("primzahlen soll alle 15 Primzahlen bis 50 enthalten.")),
+  },
+  {
+    w: WDENK, title: "Muster drucken", type: "console",
+    intro: [
+      { t: "Muster aus Zeichen trainieren das Denken in Schleifen. Jede Zeile hat eine bestimmte Anzahl Zeichen – die hängt von der Zeilennummer ab.", v: "loop" },
+      { t: "<code>\"*\".repeat(3)</code> ergibt <code>\"***\"</code>. Oder du baust den Text in einer inneren Schleife zusammen.", v: "code", code: "\"*\".repeat(3)      // \"***\"\n\"ab\".repeat(2)     // \"abab\"\n\" \".repeat(2) + \"*\" // \"  *\"" },
+    ],
+    task: "Schreib <code>treppe(n)</code>, die eine Sternen-Treppe mit <code>n</code> Stufen ausgibt. Ruf sie mit 5 auf. Bonus: Zeichne darunter einen Tannenbaum!",
+    start: "function treppe(n) {\n  \n}\n\ntreppe(5);\n",
+    sol: "function treppe(n) {\n  for (let i = 1; i <= n; i++) {\n    sag(\"*\".repeat(i));\n  }\n}\n\ntreppe(5);\n", par: 6,
+    palette: ["for (let i = 1; i <= n; i++) {\n  \n}", "sag(\"*\".repeat(i));", "sag(\" \".repeat(n - i) + \"*\".repeat(2 * i - 1));"],
+    hints: ["Zeile 1 hat 1 Stern, Zeile 2 hat 2 Sterne …", "<code>sag(\"*\".repeat(i));</code>"],
+    check: r => {
+      const f = r.vars.treppe;
+      if (typeof f !== "function") return fail("Die Funktion treppe fehlt.");
+      const got = lines(r).slice(0, 5);
+      return eq(got, ["*", "**", "***", "****", "*****"]) ? ok() : fail("Die ersten 5 Zeilen sollen *, **, ***, ****, ***** sein.");
+    },
+  },
+  {
+    w: WDENK, title: "Münzen-Automat", type: "console",
+    intro: [
+      { t: "Ein Automat soll Wechselgeld mit <b>möglichst wenigen Münzen</b> herausgeben. Die Idee („gierig“): Nimm immer die größte Münze, die noch passt.", v: "math" },
+      { t: "68 Cent: 50 passt → Rest 18. 20 passt nicht, 10 passt → Rest 8. 5 → Rest 3. 2 → Rest 1. 1 → fertig. Ergebnis: [50, 10, 5, 2, 1].", v: "code", code: "const muenzwerte = [200, 100, 50, 20, 10, 5, 2, 1];\n// für jede Münze:\n//   solange sie in den Rest passt:\n//     Münze merken, Rest verkleinern" },
+    ],
+    task: "Schreib <code>wechselgeld(cent)</code>, die eine Liste der Münzen zurückgibt – größte zuerst.",
+    start: "const muenzwerte = [200, 100, 50, 20, 10, 5, 2, 1];\n\nfunction wechselgeld(cent) {\n  let muenzen = [];\n  \n  return muenzen;\n}\n",
+    sol: "const muenzwerte = [200, 100, 50, 20, 10, 5, 2, 1];\n\nfunction wechselgeld(cent) {\n  let muenzen = [];\n  for (const m of muenzwerte) {\n    while (cent >= m) {\n      muenzen.push(m);\n      cent -= m;\n    }\n  }\n  return muenzen;\n}\nsag(wechselgeld(68));\n", par: 13,
+    palette: ["for (const m of muenzwerte) {\n  \n}", "while (cent >= m) {\n  \n}", "muenzen.push(m);", "cent -= m;"],
+    hints: ["Außen eine for…of-Schleife über die Münzwerte, innen eine while-Schleife.", "In der while-Schleife: Münze in die Liste und vom Rest abziehen."],
+    check: r => tests(r, "wechselgeld", [[[68], [50, 10, 5, 2, 1]], [[0], []], [[400], [200, 200]], [[3], [2, 1]], [[188], [100, 50, 20, 10, 5, 2, 1]]]) || ok("Alle 5 Tests bestanden – dein Automat ist fertig!"),
+  },
+  {
+    w: WDENK, title: "Simulation", type: "console",
+    intro: [
+      { t: "Manche Fragen beantwortet man am besten, indem man sie <b>Schritt für Schritt nachspielt</b>. Das nennt man Simulation – so berechnen Wissenschaftler Wetter, Planeten und Pandemien.", v: "loop" },
+      { t: "Wie lange dauert es, bis sich Geld auf dem Sparbuch verdoppelt? Spiel es Jahr für Jahr durch, solange das Ziel nicht erreicht ist:", v: "code", code: "let geld = 100;\nlet jahre = 0;\nwhile (geld < 200) {\n  geld = geld * 1.1;   // 10 % Zinsen\n  jahre++;\n}\nsag(jahre);" },
+    ],
+    task: "Schreib <code>jahreBisVerdoppelt(prozent)</code>: Wie viele Jahre dauert es, bis sich ein Betrag bei diesem Zinssatz verdoppelt hat?",
+    start: "function jahreBisVerdoppelt(prozent) {\n  let geld = 100;\n  let jahre = 0;\n  \n  return jahre;\n}\n",
+    sol: "function jahreBisVerdoppelt(prozent) {\n  let geld = 100;\n  let jahre = 0;\n  while (geld < 200) {\n    geld = geld * (1 + prozent / 100);\n    jahre++;\n  }\n  return jahre;\n}\nsag(jahreBisVerdoppelt(10));\n", par: 9,
+    palette: ["while (geld < 200) {\n  \n}", "geld = geld * (1 + prozent / 100);", "jahre++;"],
+    hints: ["10 % Zinsen heißt: mal 1.1. Allgemein: <code>1 + prozent / 100</code>.", "Zähl in der Schleife die Jahre mit <code>jahre++</code>."],
+    check: r => tests(r, "jahreBisVerdoppelt", [[[10], 8], [[5], 15], [[100], 1], [[50], 2]]) || ok("Alle 4 Tests bestanden!"),
+  });
 // ── basics ────────────────────────────────────────────────────────────
 const $ = s => document.querySelector(s);
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -3538,6 +3953,223 @@ function viewPlay(code) {
   if (typeof code === "string") { store.data.code.play = code; store.save(); }
   viewLesson(PLAY);
 }
+// ── life & motion: Clawd buddy, badges, streak, hero glyphs, ripples ──
+(function migrateProgress() {
+  const d = store.data;
+  if ((d.v || 1) >= 2) return;
+  const remap = obj => {
+    const out = {};
+    for (const k in obj || {}) {
+      if (!/^\d+$/.test(k)) { out[k] = obj[k]; continue; }
+      const ni = OLD_ORDER[+k] ? LESSONS.indexOf(OLD_ORDER[+k]) : -1;
+      if (ni >= 0) out[ni] = obj[k];
+    }
+    return out;
+  };
+  d.done = remap(d.done); d.code = remap(d.code); d.v = 2; store.save();
+})();
+
+const dayKey = (t = new Date()) => t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+function streak() {
+  const days = new Set(store.data.days || []);
+  const t = new Date();
+  if (!days.has(dayKey(t))) t.setDate(t.getDate() - 1);
+  let n = 0;
+  while (days.has(dayKey(t))) { n++; t.setDate(t.getDate() - 1); }
+  return n;
+}
+function markToday() {
+  const days = store.data.days || (store.data.days = []);
+  const k = dayKey();
+  if (!days.includes(k)) { days.push(k); if (days.length > 400) days.splice(0, days.length - 400); store.save(); }
+}
+
+// ── buddy ──
+const TIPS = [
+  "Tipp: Mit <b>Strg + Enter</b> führst du deinen Code aus.",
+  "Fehler sind ganz normal! Die Meldung verrät dir fast immer die Zeile.",
+  "Groß- und Kleinschreibung zählt: <code>Geh()</code> ist nicht <code>geh()</code>.",
+  "Listen zählen ab <b>0</b>, nicht ab 1!",
+  "Klammern kommen immer paarweise: ( ) { } [ ].",
+  "Im <b>Spickzettel</b> findest du jedes Beispiel wieder.",
+  "Profi-Trick: kleine Änderung → ausführen → nächste Änderung.",
+  "Gute Namen sind Gold wert: <code>punkte</code> statt <code>p</code>.",
+  "Mit <code>console.log</code> siehst du, was in deinen Variablen steckt.",
+  "Jeden Tag eine Lektion – so wächst deine 🔥-Serie!",
+  "Nimm <code>const</code>, außer der Wert muss sich ändern.",
+  "Steckst du fest? Erklär dein Problem laut – Profis nennen das Quietscheentchen-Debugging.",
+];
+const CHEERS = ["Juhu! Das war stark!", "Wow, du wirst immer besser!", "Ich bin so stolz auf dich!", "Genau so macht man das!", "Hammer! Weiter so!", "Programmier-Power! ⚡"];
+const OOPS = ["Hoppla! Fehler sind normal – schau auf die markierte Zeile.", "Nicht aufgeben! Lies die Meldung ganz genau.", "Fast! Was sagt die Meldung? Ich glaub an dich.", "Profis machen jeden Tag Fehler. Probier's nochmal!"];
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const Buddy = (() => {
+  const cv = h("canvas", { width: 72, height: 60 });
+  const bub = h("div", { class: "buddy-bub", role: "status", "aria-live": "polite" });
+  const btn = h("button", { class: "buddy", type: "button", "aria-label": "Clawd – klick für einen Tipp" }, cv);
+  document.body.append(h("div", { class: "buddy-wrap" }, bub, btn));
+  const ctx = cv.getContext("2d");
+  let mood = "idle", f = 0, hideT = 0, moodUntil = 0, lastAct = Date.now(), jump = 0;
+  function draw() {
+    f++;
+    if (moodUntil && Date.now() > moodUntil) { mood = "idle"; moodUntil = 0; }
+    if (mood === "idle" && Date.now() - lastAct > 70000) mood = "sleep";
+    ctx.clearRect(0, 0, 72, 60);
+    let p, dy = 0;
+    if (mood === "happy") { p = { happy: true, arms: f % 4 < 2 ? "up" : "wave", legs: f % 2 ? "b" : "a" }; dy = -Math.abs(Math.sin(f / 1.6)) * 8; }
+    else if (mood === "sad") p = { eyes: "shut", arms: "down" };
+    else if (mood === "think") p = { eyes: f % 8 < 4 ? "l" : "r", arms: "wave", mouth: f % 2 };
+    else if (mood === "sleep") p = { eyes: "shut", arms: "down" };
+    else p = { eyes: f % 36 === 0 ? "shut" : f % 80 < 40 ? "c" : f % 80 < 60 ? "r" : "l", arms: f % 50 < 3 ? "wave" : "side" };
+    if (jump > 0) { dy = -Math.sin((jump / 8) * Math.PI) * 12; jump--; }
+    const rows = pose(p);
+    drawRows(ctx, rows, 0, 60 - rows.length * 4 - 2 + dy, 4, mood === "sad" ? "#c0674a" : "#d77757");
+    if (mood === "sleep") { ctx.fillStyle = "rgba(130,140,180,.9)"; ctx.font = "bold 13px Fredoka, sans-serif"; ctx.fillText("z", 58, 16 - (f % 12)); ctx.fillText("z", 64, 8 - (f % 12) / 2); }
+  }
+  if (!reduceMotion) setInterval(draw, 110);
+  draw();
+  function say(text, ms, m) {
+    lastAct = Date.now();
+    if (m) { mood = m; moodUntil = Date.now() + Math.min(ms || 4000, 3200); } else if (mood === "sleep") mood = "idle";
+    bub.innerHTML = text;
+    bub.classList.remove("show"); void bub.offsetWidth; bub.classList.add("show");
+    clearTimeout(hideT); hideT = setTimeout(() => bub.classList.remove("show"), ms || 4200);
+  }
+  btn.addEventListener("click", () => { jump = 8; say(pick(TIPS), 6500, "happy"); SFX.pop(); });
+  ["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => { lastAct = Date.now(); if (mood === "sleep") mood = "idle"; }, { passive: true }));
+  return {
+    say,
+    cheer: t => { jump = 8; say(t || pick(CHEERS), 4000, "happy"); },
+    oops: t => say(t || pick(OOPS), 5200, "sad"),
+    think: t => say(t, 1400, "think"),
+  };
+})();
+
+// ── badges ──
+const BADGES = [
+  { id: "first", icon: "🚀", name: "Abgehoben", desc: "Deine erste Lektion geschafft", test: s => s.done >= 1 },
+  { id: "perfect", icon: "⭐", name: "Glanzleistung", desc: "Eine Lektion mit 3 Sternen", test: s => s.three >= 1 },
+  { id: "five", icon: "🖐️", name: "Fünf auf einen Streich", desc: "5 Lektionen geschafft", test: s => s.done >= 5 },
+  { id: "world", icon: "🏝️", name: "Welten-Bezwinger", desc: "Eine ganze Welt gemeistert", test: s => s.worlds >= 1 },
+  { id: "loop2", icon: "🌀", name: "Schleifen-Schlinge", desc: "Schleife in Schleife gemeistert", test: s => s.titles.has("Schleife in Schleife") },
+  { id: "logic", icon: "⚖️", name: "Logiker", desc: "Die Welt „Logik & Vergleiche“ gemeistert", test: s => s.worldNames.has("Logik & Vergleiche") },
+  { id: "twenty", icon: "🎯", name: "Dranbleiber", desc: "20 Lektionen geschafft", test: s => s.done >= 20 },
+  { id: "tier0", icon: "🧱", name: "Grundpfeiler", desc: "Stufe 1 „Grundlagen“ komplett", test: s => s.tiers[0] },
+  { id: "perfect10", icon: "💎", name: "Perfektionist", desc: "10 Lektionen mit 3 Sternen", test: s => s.three >= 10 },
+  { id: "game", icon: "🎮", name: "Spiele-Macher", desc: "Dein erstes Spiel programmiert", test: s => s.titles.has("Bewegung!") },
+  { id: "fizz", icon: "🧠", name: "FizzBuzz-Profi", desc: "Die berühmteste Programmier-Aufgabe gelöst", test: s => s.titles.has("FizzBuzz") },
+  { id: "tier1", icon: "🗼", name: "Fortgeschritten", desc: "Stufe 2 komplett", test: s => s.tiers[1] },
+  { id: "fifty", icon: "🏅", name: "Halbzeit-Held", desc: "50 Lektionen geschafft", test: s => s.done >= 50 },
+  { id: "tests", icon: "🧪", name: "Qualitäts-Prüfer", desc: "Eigene Tests geschrieben", test: s => s.titles.has("Eigene Tests schreiben") },
+  { id: "async", icon: "⏳", name: "Zeitreisender", desc: "async & await gemeistert", test: s => s.titles.has("async & await") },
+  { id: "web", icon: "🌐", name: "Web-Baumeister", desc: "Deine erste Webseite gebaut", test: s => s.titles.has("Deine erste Webseite") },
+  { id: "final", icon: "👑", name: "Clawd-Code-Profi", desc: "Das Abschlussprojekt geschafft", test: s => s.titles.has("Abschlussprojekt: Wetter-App") },
+  { id: "streak3", icon: "🔥", name: "Feuer und Flamme", desc: "3 Tage hintereinander gelernt", test: s => s.streak >= 3 },
+  { id: "streak7", icon: "☄️", name: "Unaufhaltsam", desc: "7 Tage hintereinander gelernt", test: s => s.streak >= 7 },
+  { id: "play", icon: "🛠️", name: "Erfinder", desc: "Eigenen Code in der Spielwiese gestartet", test: s => s.flags.play },
+  { id: "all", icon: "🏆", name: "Legende", desc: "Alle Lektionen geschafft", test: s => s.done >= LESSONS.length },
+];
+function progressStats() {
+  const done = LESSONS.map((_, i) => store.data.done[i] || 0);
+  const titles = new Set(LESSONS.filter((_, i) => done[i]).map(L => L.title));
+  const worldDone = WORLDS.map((w, wi) => { const ids = LESSONS.map((L, i) => L.w === wi ? i : -1).filter(i => i >= 0); return ids.length && ids.every(i => done[i]); });
+  return {
+    done: done.filter(Boolean).length, three: done.filter(s => s >= 3).length, titles,
+    worlds: worldDone.filter(Boolean).length, worldNames: new Set(WORLDS.filter((w, i) => worldDone[i]).map(w => w.name)),
+    tiers: TIERS.map((_, ti) => WORLDS.every((w, wi) => w.tier !== ti || worldDone[wi])),
+    streak: streak(), flags: store.data.flags || {},
+  };
+}
+function checkBadges(silent) {
+  const got = store.data.badges || (store.data.badges = {});
+  const s = progressStats(), fresh = [];
+  for (const b of BADGES) if (!got[b.id] && b.test(s)) { got[b.id] = dayKey(); fresh.push(b); }
+  if (fresh.length) store.save();
+  if (!silent) fresh.forEach((b, k) => setTimeout(() => toast(b), 1400 + k * 900));
+  return fresh;
+}
+function toast(b) {
+  let host = document.getElementById("toasts");
+  if (!host) { host = h("div", { id: "toasts", class: "toasts", "aria-live": "polite" }); document.body.append(host); }
+  const t = h("div", { class: "toast", role: "status" }, h("div", { class: "medal" }, b.icon), h("div", { class: "ttx" }, h("small", null, "Abzeichen freigeschaltet!"), h("b", null, b.name), h("span", null, b.desc)));
+  host.append(t);
+  SFX.star(2); setTimeout(() => SFX.star(1), 120);
+  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 450); }, 5200);
+  t.addEventListener("click", () => t.remove());
+}
+function setFlag(k) { const f = store.data.flags || (store.data.flags = {}); if (!f[k]) { f[k] = true; store.save(); checkBadges(); } }
+function badgeShelf() {
+  const got = store.data.badges || {};
+  const n = BADGES.filter(b => got[b.id]).length;
+  const grid = h("div", { class: "badges" });
+  BADGES.forEach((b, k) => {
+    const on = !!got[b.id];
+    const el = h("div", { class: "badge-item" + (on ? " on" : ""), title: b.desc + (on ? " – erhalten am " + got[b.id].split("-").reverse().join(".") : " – noch nicht erhalten") },
+      h("div", { class: "medal" }, on ? b.icon : "🔒"), h("b", null, b.name), h("span", null, b.desc));
+    el.style.setProperty("--i", k);
+    grid.append(el);
+  });
+  return h("section", { class: "shelf" }, h("div", { class: "journey-head" }, h("div", null, h("h2", null, "Deine Abzeichen"), h("p", null, n + " von " + BADGES.length + " gesammelt. Klick auf Clawd unten rechts für Tipps!"))), grid);
+}
+
+// ── hero glyph field ──
+function glyphField(host) {
+  if (reduceMotion) return () => { };
+  const c = h("canvas", { class: "glyphs", "aria-hidden": "true" });
+  host.prepend(c);
+  const ctx = c.getContext("2d");
+  const G = ["{ }", "( )", ";", "=>", "[ ]", "let", "if", "</>", "++", "===", "for", "&&", "0", "1", "const", "fn()", "?", "//"];
+  const cols = ["#d77757", "#3d7ff5", "#7b5cf5", "#22a96a", "#e9a92a", "#e05a8a", "#16a3b5"];
+  const parts = Array.from({ length: 30 }, () => ({ x: Math.random(), y: Math.random(), z: .4 + Math.random() * .8, g: pick(G), c: pick(cols), r: (Math.random() - .5) * .6, vr: (Math.random() - .5) * .002, ph: Math.random() * 6 }));
+  let raf = 0, mx = 0, my = 0, W = 0, H = 0;
+  const size = () => { const r = c.getBoundingClientRect(), d = dpr(); W = c.width = Math.round(r.width * d); H = c.height = Math.round(r.height * d); };
+  const ro = new ResizeObserver(size); ro.observe(c); size();
+  const onMove = e => { mx = e.clientX / innerWidth - .5; my = e.clientY / innerHeight - .5; };
+  addEventListener("pointermove", onMove, { passive: true });
+  function loop(t) {
+    ctx.clearRect(0, 0, W, H);
+    const d = dpr();
+    for (const p of parts) {
+      p.y -= .00012 * p.z; p.r += p.vr;
+      if (p.y < -.08) { p.y = 1.08; p.x = Math.random(); }
+      const x = (p.x + Math.sin(t / 4000 + p.ph) * .015 - mx * .03 * p.z) * W, y = (p.y - my * .03 * p.z) * H;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(p.r);
+      ctx.globalAlpha = .06 + p.z * .08;
+      ctx.fillStyle = p.c; ctx.font = `700 ${Math.round((12 + p.z * 16) * d)}px "JetBrains Mono", monospace`; ctx.textAlign = "center";
+      ctx.fillText(p.g, 0, 0); ctx.restore();
+    }
+    raf = requestAnimationFrame(loop);
+  }
+  raf = requestAnimationFrame(loop);
+  return () => { cancelAnimationFrame(raf); ro.disconnect(); removeEventListener("pointermove", onMove); };
+}
+function countUp(root) {
+  root.querySelectorAll("[data-count]").forEach(el => {
+    const to = +el.dataset.count;
+    if (reduceMotion || !to) { el.textContent = to; return; }
+    const t0 = performance.now();
+    const f = t => { const k = Math.min(1, (t - t0) / 1100); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(f); };
+    el.textContent = "0"; requestAnimationFrame(f);
+  });
+}
+
+// ── ripple on buttons ──
+document.addEventListener("pointerdown", e => {
+  const b = e.target.closest(".btn, .qopt, .chip, .navbtn");
+  if (!b || reduceMotion) return;
+  const r = b.getBoundingClientRect(), s = Math.max(r.width, r.height) * 2.2;
+  const rp = h("span", { class: "ripple" });
+  rp.style.cssText = `width:${s}px;height:${s}px;left:${e.clientX - r.left - s / 2}px;top:${e.clientY - r.top - s / 2}px`;
+  b.append(rp); setTimeout(() => rp.remove(), 650);
+}, { passive: true });
+
+// top bar streak
+const _renderTop = renderTop;
+renderTop = function () {
+  _renderTop();
+  const p = document.getElementById("streakPill"), n = streak();
+  if (p) { p.hidden = n < 1; p.querySelector("b").textContent = n; p.title = n + (n === 1 ? " Tag" : " Tage") + " in Folge gelernt"; }
+};
+if (!store.data.badgesInit) { checkBadges(true); store.data.badgesInit = true; store.save(); }
 // ── sound (tiny synth, no files) ──────────────────────────────────────
 const SFX = (() => {
   let ac = null, out = null, on = store.data.sound !== false, last = {};
@@ -3894,7 +4526,9 @@ function viewHome() {
 
   const doneAll = LESSONS.filter((_, i) => isDone(i)).length;
   hero.firstChild.append(h("div", { class: "facts" },
-    [[LESSONS.length, "Lektionen"], [WORLDS.length, "Welten"], [TIERS.length, "Stufen"], [doneAll, "geschafft"]].map(([n, t]) => h("div", { class: "fact" }, h("b", null, String(n)), h("span", null, t)))));
+    [[LESSONS.length, "Lektionen"], [WORLDS.length, "Welten"], [doneAll, "geschafft"], streak() ? [streak(), "Tage in Folge 🔥"] : [TIERS.length, "Stufen"]].map(([n, t]) => h("div", { class: "fact" }, h("b", { "data-count": n }, String(n)), h("span", null, t)))));
+  countUp(hero);
+  cleanup.push(glyphField(hero));
   const head = h("div", { class: "journey-head", id: "weltkarte" },
     h("div", null, h("h2", null, "Deine Reise"), h("p", null, "Drei Stufen, " + WORLDS.length + " Welten. Jede Welt baut auf der vorherigen auf – Sterne gibt's für saubere Lösungen.")),
     store.data.unlockAll ? null : h("button", { class: "linkbtn", type: "button", onclick: () => { store.data.unlockAll = true; store.save(); viewHome(); } }, "Ich kann schon was – alle Lektionen freischalten"));
@@ -3912,11 +4546,12 @@ function viewHome() {
       const anyOpen = ids.some(unlocked);
       const badge = h("canvas"); drawIcon(badge, w.icon, w.color);
       const lessons = h("div", { class: "lessons" });
-      ids.forEach(i => {
+      ids.forEach((i, k) => {
         const st = store.data.done[i] || 0, isNext = i === next && unlocked(i), open = unlocked(i);
         const kind = LESSONS[i].type === "quiz" ? " quizdot" : LESSONS[i].type === "web" ? " webdot" : "";
         const b = h("button", { class: "ldot" + kind + (st ? " done" : "") + (isNext ? " next" : "") + (open ? "" : " lock"), type: "button", title: LESSONS[i].title + (open ? "" : " (noch gesperrt)"), "aria-label": "Lektion " + (i + 1) + ": " + LESSONS[i].title, onclick: () => open ? viewLesson(i) : toastLocked(b) }, open ? String(i + 1) : "🔒");
         if (st) b.append(h("span", { class: "st" }, "★".repeat(st)));
+        b.style.setProperty("--i", k + Math.min(wi % 3, 2) * 2);
         lessons.append(b);
       });
       const card = h("article", { class: "world" + (anyOpen ? "" : " locked") + (doneN === ids.length ? " complete" : "") },
@@ -3935,8 +4570,11 @@ function viewHome() {
         h("div", { class: "tierprog" }, h("b", null, tdone + " / " + tids.length), h("span", null, "Lektionen geschafft"), h("div", { class: "wprog" }, h("i", { style: "width:" + Math.round(tdone / tids.length * 100) + "%;background:var(--tc)" })))),
       grid));
   });
+  main.append(badgeShelf());
   renderTop();
   enterView();
+  const hr = new Date().getHours(), greet = hr < 11 ? "Guten Morgen!" : hr < 18 ? "Hallo!" : "Guten Abend!";
+  setTimeout(() => Buddy.say(greet + " " + (started ? "Weiter geht's mit <b>" + LESSONS[next].title + "</b>." : "Ich bin Clawd. Lass uns zusammen programmieren lernen!"), 5200), 900);
 }
 function toastLocked(b) { b.animate([{ transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "none" }], { duration: 250 }); }
 
@@ -4010,13 +4648,15 @@ function viewLesson(i) {
   const dots = h("div", { class: "dots" }, L.intro.map(() => h("i")));
   const back = h("button", { class: "btn small", type: "button" }, "Zurück");
   const fwd = h("button", { class: "btn small primary", type: "button" }, "Weiter");
-  let step = 0;
+  let step = 0, prevStep = 0;
   function showStep() {
+    const dir = step >= prevStep ? 1 : -1; prevStep = step;
     clearVis();
     const c = L.intro[step];
     typewrite(bubble, c.t, () => { talking = 3; SFX.talk(); });
     const tt = setInterval(() => { if (talking > 0) talking--; }, 120); visTimers.push(tt);
     visSlot.innerHTML = ""; visSlot.append(buildVis(c));
+    if (!reduceMotion) visSlot.animate([{ opacity: 0, transform: `translateX(${24 * dir}px) scale(.98)` }, { opacity: 1, transform: "none" }], { duration: 380, easing: "cubic-bezier(.2,.8,.2,1)" });
     [...dots.children].forEach((d, k) => d.classList.toggle("on", k === step));
     back.disabled = step === 0;
     fwd.textContent = step === L.intro.length - 1 ? "Verstanden!" : "Weiter";
@@ -4060,7 +4700,7 @@ function viewLesson(i) {
   main.append(wrap);
   showStep();
   setupStage(stage, stageBar);
-  runBtn.onclick = () => { SFX.start(); run(stage, stageBar); };
+  runBtn.onclick = async () => { SFX.start(); runBtn.classList.add("busy"); try { await run(stage, stageBar); } finally { runBtn.classList.remove("busy"); } };
   stopBtn.onclick = () => { stopRun(); setupStage(stage, stageBar); };
   editor.onRun = () => run(stage, stageBar);
   editor.onChange = code => { store.data.code[codeKey] = code; store.save(); };
@@ -4115,7 +4755,7 @@ function stopRun() { runToken++; running = false; if (game) { game.stop(); game 
 function stageMsg(stage, text, info) {
   stage.querySelectorAll(".msg").forEach(m => m.remove());
   if (!text) return;
-  if (!info) SFX.err();
+  if (!info) { SFX.err(); Buddy.oops(); }
   const m = h("div", { class: "msg" + (info ? " info" : "") }, text);
   stage.append(m);
 }
@@ -4129,6 +4769,7 @@ async function run(stage, bar) {
   editor.mark(0);
   const alive = () => token === runToken;
   const r = { code, vars: {}, output: [], ops: [] };
+  if (L.play) setFlag("play"); else if (L.type !== "game") Buddy.think("Ich führe deinen Code aus …");
   let verdict = null;
 
   if (L.type === "grid") {
@@ -4475,6 +5116,9 @@ function finish(verdict) {
   stars = Math.min(3, stars);
   const before = totals(), prev = store.data.done[LI] || 0;
   store.data.done[LI] = Math.max(prev, stars); store.save();
+  markToday();
+  Buddy.cheer();
+  checkBadges();
   const after = totals(), gain = after.xp - before.xp;
   renderTop();
   confetti();
