@@ -54,8 +54,9 @@ beim Start zeigt.
 
 ## „Hey Clawd“ – mit Clawd sprechen
 
-Drück **Strg+Alt+Leertaste** (oder schalte im Tray-Menü „„Hey Clawd“ – immer zuhören“ ein und
-sag **„Hey Clawd“**). Die Island leuchtet blau, Clawd hält die Hand ans Ohr, und du sprichst. Er
+Drück **Strg+Alt+Leertaste**, oder schalte **„Hey Clawd“ – immer zuhören** ein und sag
+**„Hey Clawd“**. Den Schalter findest du per Rechtsklick auf Clawd oben in der Island oder per
+Rechtsklick auf das Clawd-Symbol in der Taskleiste. Die Island leuchtet blau, Clawd hält die Hand ans Ohr, und du sprichst. Er
 antwortet mit Stimme, und sein Maul bewegt sich dabei passend zu den Lauten.
 
 | Sag zum Beispiel | Clawd … |
@@ -136,8 +137,8 @@ Gut zu wissen:
 
 - **Warteschlange:** Schick ruhig weitere Aufträge, während Claude noch antwortet. Sie werden der
   Reihe nach abgearbeitet.
-- **Rechtsklick auf Clawd:** Schnellbefehle, Bildschirmfoto, Zwischenablage, Verlauf und „Auf den
-  Desktop schicken“.
+- **Rechtsklick auf Clawd:** Schnellbefehle, Bildschirmfoto, Zwischenablage, Verlauf, „Auf den
+  Desktop schicken“, „Hey Clawd“ – immer zuhören und „Jetzt mit Clawd sprechen“.
 - **Text und Links verfüttern:** Markierten Text aus Browser, Editor oder Mail direkt auf Clawd
   ziehen. Bei einem Link steht danach „Fasse diese Seite kurz zusammen: …“ im Eingabefeld.
 - **Pausen-Erinnerung:** Nach 90 Minuten am Stück ohne 5 Minuten Pause streckt sich Clawd und

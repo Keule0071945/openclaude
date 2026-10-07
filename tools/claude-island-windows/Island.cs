@@ -2928,16 +2928,8 @@ namespace ClaudeIsland
             petItem = Toggle("Clawd auf dem Desktop laufen lassen", () => pet != null, v => Dispatcher.BeginInvoke(new Action(() => { if (v) LetOut(false); else Recall(); })));
             menu.Items.Add(petItem);
             menu.Items.Add("Nachrichten aufs Handy …", null, (s, e) => Dispatcher.BeginInvoke(new Action(SetupPhone)));
-            menu.Items.Add(Toggle("„Hey Clawd“ – immer zuhören", () => settings.Voice, v => Dispatcher.BeginInvoke(new Action(() =>
-            {
-                settings.Voice = v;
-                settings.Save();
-                if (v)
-                {
-                    if (StartVoice(true)) Toast("Sag „Hey Clawd“ und dann z. B. „wie spät ist es“ oder eine Frage. Alles außer freien Fragen bleibt auf deinem PC.", 8);
-                }
-                else StopVoice();
-            }))));
+            voiceItem = Toggle("„Hey Clawd“ – immer zuhören", () => settings.Voice, v => Dispatcher.BeginInvoke(new Action(() => SetVoiceAlways(v))));
+            menu.Items.Add(voiceItem);
             menu.Items.Add("Mit Clawd sprechen (Strg+Alt+Leertaste)", null, (s, e) => Dispatcher.BeginInvoke(new Action(() => Guard("voice", ListenNow))));
             var looks = new WinForms.ToolStripMenuItem("Aussehen");
             looks.DropDownOpening += (s, e) =>
@@ -3006,6 +2998,11 @@ namespace ClaudeIsland
             add("Zwischenablage verfüttern", FeedClipboard);
             add("Verlauf …", () => Dispatcher.BeginInvoke(new Action(ShowHistory)));
             add(pet == null ? "Auf den Desktop schicken" : "Zurück in die Island holen", () => { if (pet == null) LetOut(false); else Recall(); });
+            menu.Items.Add(new Separator());
+            var always = new MenuItem { Header = "„Hey Clawd“ – immer zuhören", IsCheckable = true, IsChecked = settings.Voice };
+            always.Click += (s, e) => SetVoiceAlways(always.IsChecked);
+            menu.Items.Add(always);
+            add("Jetzt mit Clawd sprechen (Strg+Alt+Leertaste)", () => Guard("voice", ListenNow));
             menu.IsOpen = true;
         }
 

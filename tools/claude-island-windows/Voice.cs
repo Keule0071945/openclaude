@@ -24,6 +24,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using WinForms = System.Windows.Forms;
 
 namespace ClaudeIsland
 {
@@ -59,6 +60,27 @@ namespace ClaudeIsland
         };
 
         // ── setup ─────────────────────────────────────────────────────────
+
+        WinForms.ToolStripMenuItem voiceItem;
+        bool syncingVoiceItem;
+
+        /// <summary>The "always listen" switch, shared by the tray menu and the right-click menu on Clawd.</summary>
+        void SetVoiceAlways(bool on)
+        {
+            if (syncingVoiceItem) return;
+            if (on == settings.Voice && (!on || ears != null)) return; // already like this (e.g. the tray tick being synced)
+            if (on && !StartVoice(true)) on = false; // no German recognizer or no microphone: stay off
+            if (!on) StopVoice();
+            else Toast("Ich höre zu. Sag „Hey Clawd“ und dann z. B. „wie spät ist es“ oder eine Frage. Alles außer freien Fragen bleibt auf deinem PC.", 8);
+            settings.Voice = on;
+            settings.Save();
+            if (voiceItem != null && voiceItem.Checked != on)
+            {
+                syncingVoiceItem = true;
+                voiceItem.Checked = on;
+                syncingVoiceItem = false;
+            }
+        }
 
         /// <summary>Start listening for "Hey Clawd". Returns false (with a toast) when Windows has no German recognizer.</summary>
         bool StartVoice(bool wakeWord)
