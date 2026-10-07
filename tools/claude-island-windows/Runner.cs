@@ -194,8 +194,16 @@ namespace ClaudeIsland
         /// <summary>Opens a PowerShell window that installs Claude Code with the official installer.</summary>
         public static void Install()
         {
-            Process.Start(new ProcessStartInfo("powershell.exe",
-                "-NoExit -NoProfile -ExecutionPolicy Bypass -Command \"Write-Host 'Installiere Claude Code (offizieller Installer von claude.ai) ...' -ForegroundColor Cyan; irm https://claude.ai/install.ps1 | iex; Write-Host ''; Write-Host 'Fertig. Tippe jetzt: claude   (einmal anmelden), danach kennt Clawd es.' -ForegroundColor Green\"")
+            // After installing: reload PATH in this window (plus ~/.local/bin), so "claude" works right away.
+            string script =
+                "Write-Host 'Installiere Claude Code (offizieller Installer von claude.ai) ...' -ForegroundColor Cyan; " +
+                "irm https://claude.ai/install.ps1 | iex; " +
+                "$bin = Join-Path $env:USERPROFILE '.local\\bin'; " +
+                "$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + $bin; " +
+                "Write-Host ''; " +
+                "if (Get-Command claude -ErrorAction SilentlyContinue) { Write-Host 'Fertig! Starte jetzt Claude Code zum Anmelden ...' -ForegroundColor Green; claude } " +
+                "else { Write-Host 'Claude Code wurde nicht gefunden. Bitte schick Clawds Entwickler diesen Fensterinhalt.' -ForegroundColor Yellow }";
+            Process.Start(new ProcessStartInfo("powershell.exe", "-NoExit -NoProfile -ExecutionPolicy Bypass -Command \"" + script.Replace("\"", "\\\"") + "\"")
             { UseShellExecute = true });
             ClaudeLocator.Forget();
         }
