@@ -1655,6 +1655,7 @@ namespace ClaudeIsland
         public bool Breaks = true;       // stretch reminder after 90 minutes
         public bool RespectQuiet = true; // no sounds or pop-ups in quiet hours
         public bool Fireworks = true;    // full-screen fireworks after big tasks
+        public bool Voice;               // always listen for "Hey Clawd"
         public readonly List<string> RecentProjects = new List<string>();
         public readonly List<QuickCommand> Quick = new List<QuickCommand>();
 
@@ -1697,6 +1698,7 @@ namespace ClaudeIsland
                             case "breaks": s.Breaks = value != "0"; break;
                             case "quiet": s.RespectQuiet = value != "0"; break;
                             case "fireworks": s.Fireworks = value != "0"; break;
+                            case "voice": s.Voice = value == "1"; break;
                             case "project": s.RecentProjects.Add(value); break;
                             case "quick":
                             {
@@ -1747,6 +1749,7 @@ namespace ClaudeIsland
                     "breaks=" + (Breaks ? "1" : "0"),
                     "quiet=" + (RespectQuiet ? "1" : "0"),
                     "fireworks=" + (Fireworks ? "1" : "0"),
+                    "voice=" + (Voice ? "1" : "0"),
                 };
                 lines.AddRange(RecentProjects.Select(p => "project=" + p));
                 lines.AddRange(Quick.Select(q => "quick=" + q.Label + "|" + q.Prompt + "|" + (q.Edits ? "edit" : "ask")));

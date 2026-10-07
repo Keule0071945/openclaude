@@ -324,7 +324,7 @@ namespace ClaudeIsland
         }
     }
 
-    sealed class IslandWindow : Window
+    sealed partial class IslandWindow : Window
     {
         // Geometry (DIPs)
         const double WindowW = 960, WindowH = 860;
@@ -464,7 +464,7 @@ namespace ClaudeIsland
         ProgressState progress;
         long lastProgressLoad;
         TextBlock progressText, queueText;
-        sealed class Job { public string Prompt, Cwd, Question; public bool Edits; public List<string> Dirs; }
+        sealed class Job { public string Prompt, Cwd, Question; public bool Edits, Spoken; public List<string> Dirs; }
         readonly List<Job> queue = new List<Job>();
         Job currentJob;
         bool quietNow;
@@ -527,7 +527,7 @@ namespace ClaudeIsland
         const int WS_EX_TRANSPARENT = 0x20, WS_EX_TOOLWINDOW = 0x80, WS_EX_LAYERED = 0x80000, WS_EX_NOACTIVATE = 0x8000000;
         static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
         const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10;
-        const int WM_HOTKEY = 0x0312, HotkeyOpen = 1, HotkeyShot = 2, HotkeyAllow = 3, HotkeyDeny = 4;
+        const int WM_HOTKEY = 0x0312, HotkeyOpen = 1, HotkeyShot = 2, HotkeyAllow = 3, HotkeyDeny = 4, HotkeyVoice = 5;
         const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_NOREPEAT = 0x4000;
 
         void OnSourceInitialized(object sender, EventArgs e)
@@ -542,7 +542,8 @@ namespace ClaudeIsland
                 if (source != null) source.AddHook(WndProc);
                 RegisterHotKey(hwnd, HotkeyOpen, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x43);
                 RegisterHotKey(hwnd, HotkeyShot, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x53);
-                Closed += (s, a) => { UnregisterHotKey(hwnd, HotkeyOpen); UnregisterHotKey(hwnd, HotkeyShot); SetApprovalKeys(false); };
+                RegisterHotKey(hwnd, HotkeyVoice, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x20); // Ctrl+Alt+Space: talk to Clawd
+                Closed += (s, a) => { UnregisterHotKey(hwnd, HotkeyOpen); UnregisterHotKey(hwnd, HotkeyShot); UnregisterHotKey(hwnd, HotkeyVoice); SetApprovalKeys(false); StopVoice(); };
             }
             catch (Exception ex2) { AppPaths.LogError("hotkeys", ex2); }
         }
@@ -557,6 +558,7 @@ namespace ClaudeIsland
                 else if (id == HotkeyShot) Dispatcher.BeginInvoke(new Action(TakeScreenshot));
                 else if (id == HotkeyAllow) Dispatcher.BeginInvoke(new Action(() => AnswerApproval("allow")));
                 else if (id == HotkeyDeny) Dispatcher.BeginInvoke(new Action(() => AnswerApproval("deny")));
+                else if (id == HotkeyVoice) Dispatcher.BeginInvoke(new Action(() => Guard("voice", ListenNow)));
             }
             return IntPtr.Zero;
         }
@@ -613,6 +615,7 @@ namespace ClaudeIsland
             try { SetupTray(); }
             catch (Exception ex) { AppPaths.LogError("tray", ex); }
             if (settings.PetOut) Dispatcher.BeginInvoke(new Action(() => Guard("pet", () => LetOut(false))), DispatcherPriority.ApplicationIdle);
+            if (settings.Voice) Dispatcher.BeginInvoke(new Action(() => Guard("voice", () => StartVoice(true))), DispatcherPriority.ApplicationIdle);
         }
 
         /// <summary>Runs a timer step; a failure is logged once per kind, never fatal.</summary>
@@ -1154,6 +1157,7 @@ namespace ClaudeIsland
                 else if (dt >= 21.6 && !demoChomped) { demoChomped = true; chompStart = now; }
                 if (fileDrag) mouthTarget = Math.Max(1.6, Math.Min(ClawdArt.MaxMouth, (230 - DistanceToMouth()) / 160 * ClawdArt.MaxMouth));
                 if (now < yawnUntil) mouthTarget = 2;
+                if (voiceState == "speaking") mouthTarget = speakMouth; // lip sync with the voice
                 mouth += (mouthTarget - mouth) * 0.35;
                 if (Math.Abs(mouth - mouthTarget) < 0.05) mouth = mouthTarget;
             }
@@ -1166,6 +1170,7 @@ namespace ClaudeIsland
                 look.Arms = fileDrag || demoDrag || look.Food ? "up" : "side";
                 look.Eyes = now < yawnUntil ? "shut" : "c";
             }
+            else if (voiceState == "listening") { look.Arms = (now / 400) % 2 == 0 ? "wave" : "side"; look.Eyes = blink ? "shut" : "c"; bob = -Math.Abs(Math.Sin(now / 300.0)) * 2; }
             else if (now < petUntil) { look.Happy = true; look.Blush = true; }
             else if (now < dizzyUntil) { look.Eyes = (now / 110) % 2 == 0 ? "l" : "r"; bob = Math.Sin(now / 90.0) * 2; }
             else if (now < trickUntil) { look.Happy = true; look.Arms = (now / 150) % 2 == 0 ? "up" : "wave"; if ((now / 600) % 2 == 0 && hop.Settled) { hop.Velocity -= 220; StartRendering(); } }
@@ -1582,6 +1587,12 @@ namespace ClaudeIsland
             timeLabel.Text = time;
             timeLabel.Visibility = time.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             label.Foreground = overall == Mode.Busy ? ShimmerBrush() : Palette.Brush(limited ? Palette.Error : Palette.Text);
+            if (voiceState == "listening" || voiceState == "speaking")
+            {
+                label.Text = voiceState == "listening" ? "Hört zu …" : "Spricht …";
+                label.Foreground = Palette.Brush(Color.FromRgb(110, 198, 255));
+                timeLabel.Visibility = Visibility.Collapsed;
+            }
 
             UpdateMinis(sessions, now);
             UpdateApproval(request);
@@ -2472,7 +2483,8 @@ namespace ClaudeIsland
             settings.RememberProject(cwd);
             var job = new Job
             {
-                Prompt = ClaudeRunner.BuildPrompt(text, attachments), Cwd = cwd, Edits = allowEdits,
+                Prompt = (voiceAsk ? "Die Frage wurde gesprochen, deine Antwort wird vorgelesen: Antworte kurz in zwei bis drei Sätzen, ohne Markdown, Listen oder Code. Frage: " : "") + ClaudeRunner.BuildPrompt(text, attachments),
+                Cwd = cwd, Edits = allowEdits, Spoken = voiceAsk,
                 Question = text.Length > 0 ? text : string.Join(", ", attachments.Select(PathText.LastSegment)),
                 Dirs = attachments.Select(f => System.IO.Path.GetDirectoryName(f)).Where(d => !string.IsNullOrEmpty(d)).ToList()
             };
@@ -2545,6 +2557,11 @@ namespace ClaudeIsland
                 activityText.Text = ok ? "Fertig. Du kannst im Terminal weitermachen." : message;
                 continueButton.Visibility = answerSessionId != null ? Visibility.Visible : Visibility.Collapsed;
                 if (ok) Celebrate();
+                if (currentJob != null && currentJob.Spoken)
+                {
+                    if (ok) SpeakAnswer(answerBox.Text);
+                    else Say("Das hat leider nicht geklappt.");
+                }
                 if (ok && currentJob != null)
                 {
                     var entry = new HistoryEntry { Time = Clock.NowMs(), Project = PathText.LastSegment(currentJob.Cwd), Question = currentJob.Question, Answer = answerBox.Text };
@@ -2911,6 +2928,17 @@ namespace ClaudeIsland
             petItem = Toggle("Clawd auf dem Desktop laufen lassen", () => pet != null, v => Dispatcher.BeginInvoke(new Action(() => { if (v) LetOut(false); else Recall(); })));
             menu.Items.Add(petItem);
             menu.Items.Add("Nachrichten aufs Handy …", null, (s, e) => Dispatcher.BeginInvoke(new Action(SetupPhone)));
+            menu.Items.Add(Toggle("„Hey Clawd“ – immer zuhören", () => settings.Voice, v => Dispatcher.BeginInvoke(new Action(() =>
+            {
+                settings.Voice = v;
+                settings.Save();
+                if (v)
+                {
+                    if (StartVoice(true)) Toast("Sag „Hey Clawd“ und dann z. B. „wie spät ist es“ oder eine Frage. Alles außer freien Fragen bleibt auf deinem PC.", 8);
+                }
+                else StopVoice();
+            }))));
+            menu.Items.Add("Mit Clawd sprechen (Strg+Alt+Leertaste)", null, (s, e) => Dispatcher.BeginInvoke(new Action(() => Guard("voice", ListenNow))));
             var looks = new WinForms.ToolStripMenuItem("Aussehen");
             looks.DropDownOpening += (s, e) =>
             {

@@ -571,7 +571,7 @@ namespace ClaudeIsland
             return true;
         }
 
-        static string FindCode()
+        public static string FindCode()
         {
             var candidates = new List<string>();
             string cmd = Shell.FindOnPath("code.cmd");

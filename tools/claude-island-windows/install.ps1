@@ -64,7 +64,15 @@ if ((Test-Path $prebuilt) -and -not $Rebuild) {
         (Join-Path $fw 'System.Windows.Forms.dll'),
         (Join-Path $fw 'System.Drawing.dll'),
         (Join-Path $fw 'System.Core.dll')
-    ) | ForEach-Object { "/reference:$_" }
+    )
+    # System.Speech (for "Hey Clawd") lives in the GAC on most systems.
+    $speech = @(
+        (Join-Path $fw 'System.Speech.dll'),
+        (Join-Path $fw 'WPF\System.Speech.dll'),
+        (Join-Path $env:WINDIR 'Microsoft.NET\assembly\GAC_MSIL\System.Speech\v4.0_4.0.0.0__31bf3856ad364e35\System.Speech.dll')
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if ($speech) { $refs += $speech } else { throw 'System.Speech.dll nicht gefunden.' }
+    $refs = $refs | ForEach-Object { "/reference:$_" }
 
     # Keine eingebetteten Anfuehrungszeichen: PowerShell setzt Argumente mit
     # Leerzeichen (z. B. "C:\Users\Max Mustermann") selbst korrekt in Quotes.

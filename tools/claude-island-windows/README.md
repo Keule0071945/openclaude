@@ -52,6 +52,40 @@ beim Start zeigt.
 - **Spielmodus:** Bei Vollbild-Spielen wird die Island zu einem kleinen Clawd ohne Text.
 - **Mehrere Bildschirme:** Die Island wandert auf den Bildschirm, auf dem deine Maus ist.
 
+## „Hey Clawd“ – mit Clawd sprechen
+
+Drück **Strg+Alt+Leertaste** (oder schalte im Tray-Menü „„Hey Clawd“ – immer zuhören“ ein und
+sag **„Hey Clawd“**). Die Island leuchtet blau, Clawd hält die Hand ans Ohr, und du sprichst. Er
+antwortet mit Stimme, und sein Maul bewegt sich dabei passend zu den Lauten.
+
+| Sag zum Beispiel | Clawd … |
+| --- | --- |
+| „wie spät ist es“, „welcher Tag ist heute“ | sagt Uhrzeit oder Datum |
+| „wie ist das Wetter“ | liest das Wetter für deinen Ort vor (Tray → Wetter-Ort) |
+| „wie ist mein Limit“ | sagt Verbrauch, Reset und die Vorhersage |
+| „was macht Claude“ | erzählt, woran Claude gerade arbeitet oder wo es dich braucht |
+| „Musik pause“, „weiter“, „nächster Titel“, „lauter“, „leiser“, „stumm“ | steuert Musik und Lautstärke (wie die Medientasten) |
+| „öffne Spotify“ (Rechner, Editor, Explorer, Browser, Discord, Steam, Einstellungen, Task Manager, Terminal, Mail, VS Code, Downloads) | öffnet die App |
+| „öffne Projekt mein projekt“, „öffne mein projekt in VS Code“ | startet Claude Code (oder VS Code) in dem Projektordner |
+| „starte Claude Code“ | öffnet Claude Code im aktuellen Projekt |
+| „Timer zehn Minuten“ | stellt einen Timer, Clawd ruft dich, wenn er abläuft |
+| „mach einen Screenshot“, „Bildschirm sperren“, „Feuerwerk“ | tut genau das |
+| „erlauben“, „ablehnen“ | beantwortet eine wartende Freigabe |
+| „komm raus“, „komm zurück“ | schickt ihn auf den Desktop und holt ihn wieder |
+| „was kannst du“, „danke“, „stopp“ | … |
+| **alles andere**, z. B. „Hey Clawd, was ist der Unterschied zwischen let und const“ | fragt Claude Code und liest die kurze Antwort vor (die ganze Antwort steht in der Island und im Verlauf) |
+
+Gut zu wissen:
+
+- Spracherkennung und Stimme sind die von Windows selbst und laufen **offline** auf deinem PC.
+  Nur freie Fragen gehen an Claude Code, genau so, als hättest du sie in die Island getippt.
+- Ohne „immer zuhören“ ist das Mikrofon nur nach Strg+Alt+Leertaste ein paar Sekunden offen.
+- Nötig ist die **deutsche Spracherkennung von Windows**: Einstellungen → Zeit und Sprache →
+  Sprache → Deutsch → Optionen → „Spracherkennung“. Fehlt sie, sagt Clawd dir das. Eine deutsche
+  Stimme (z. B. „Hedda“ oder „Katja“) ist bei deutschem Windows schon dabei.
+- Befehle versteht Windows sehr zuverlässig. Freie Fragen (Diktat) klappen ordentlich, aber nicht
+  so gut wie moderne Online-Erkennung. Sprich deutlich und nicht zu schnell.
+
 ## Show-Effekte
 
 - **Leuchtende Kante:** Arbeitet Claude, läuft ein Farbverlauf in Claude-Farben (Orange, Gold,
@@ -232,6 +266,7 @@ Das Symbol im Infobereich der Taskleiste bietet:
 - **Clawd auf dem Desktop laufen lassen** und **Nachrichten aufs Handy …**
 - **Aussehen**, **Verlauf …** und **Wetter-Ort festlegen …**
 - **Feuerwerk zeigen** und der Schalter **Feuerwerk bei großen Aufgaben (ab 5 Minuten)**
+- **„Hey Clawd“ – immer zuhören** und **Mit Clawd sprechen (Strg+Alt+Leertaste)**
 - Schalter: **Pausen-Erinnerung** und **Nicht stören beachten**
 - Schalter: **Freigaben in der Island**, **Windows-Benachrichtigungen**, **Dem Bildschirm mit der
   Maus folgen**, **Bei Vollbild ausblenden**, **8-Bit-Töne**
