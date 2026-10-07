@@ -1,0 +1,2151 @@
+<title>Clawd Code Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a learning adventure. Home = hero with Clawd + a winding map of 9 worlds.
+   Lesson = tutor column (story + task) beside a live stage (pixel world / drawing board / bars / game) over a code editor. */
+:root {
+  --bg: #edf0f9;
+  --surface: #ffffff;
+  --surface-2: #f5f7fd;
+  --ink: #1b1f3b;
+  --muted: #5a6186;
+  --line: #d9def0;
+  --accent: #d77757;
+  --accent-deep: #b85d3f;
+  --accent-ink: #ffffff;
+  --mint: #22a96a;
+  --sky: #3d7ff5;
+  --grape: #7b5cf5;
+  --sun: #e9a92a;
+  --danger: #d8434a;
+  --shadow: 0 1px 2px rgba(27, 31, 59, .06), 0 8px 24px rgba(27, 31, 59, .08);
+  --code-bg: #1b1f3b;
+  --code-fg: #e8eaff;
+  --code-muted: #7d84ad;
+  --code-line: rgba(255, 255, 255, .06);
+  --code-active: rgba(215, 119, 87, .22);
+  --tok-key: #c9a4ff;
+  --tok-fn: #ffb08f;
+  --tok-str: #8fe3b4;
+  --tok-num: #ffd479;
+  --tok-com: #7d84ad;
+  --font-display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Lexend", "Segoe UI", system-ui, sans-serif;
+  --font-code: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  --r: 18px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1224; --surface: #181c34; --surface-2: #1f2442; --ink: #eceeff; --muted: #a0a6cc; --line: #2b3157;
+    --accent: #e8896a; --accent-deep: #d77757; --accent-ink: #1b1f3b; --mint: #3ddc97; --sky: #6aa8ff; --grape: #a08aff;
+    --sun: #f7c04a; --danger: #ff6b6b; --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .35);
+    --code-bg: #0b0e1c; --code-fg: #e8eaff; --code-muted: #6d749e; --code-line: rgba(255, 255, 255, .05); --code-active: rgba(232, 137, 106, .2);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1224; --surface: #181c34; --surface-2: #1f2442; --ink: #eceeff; --muted: #a0a6cc; --line: #2b3157;
+  --accent: #e8896a; --accent-deep: #d77757; --accent-ink: #1b1f3b; --mint: #3ddc97; --sky: #6aa8ff; --grape: #a08aff;
+  --sun: #f7c04a; --danger: #ff6b6b; --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .35);
+  --code-bg: #0b0e1c; --code-fg: #e8eaff; --code-muted: #6d749e; --code-line: rgba(255, 255, 255, .05); --code-active: rgba(232, 137, 106, .2);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+.app { min-height: 100%; display: flex; flex-direction: column; }
+
+/* ── top bar ── */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; align-items: center; gap: 14px; padding: 10px 20px; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 4px 6px; border-radius: 12px; }
+.brand canvas { width: 36px; height: 24px; image-rendering: pixelated; }
+.brand b { font: 700 19px var(--font-display); letter-spacing: -.01em; }
+.brand b span { color: var(--accent); }
+.spacer { flex: 1; }
+.xp { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.xp .lvl { font: 600 13px var(--font-display); color: var(--muted); white-space: nowrap; }
+.xp .lvl b { color: var(--ink); }
+.xpbar { width: 150px; height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.xpbar i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--sun), var(--accent)); transition: width .8s cubic-bezier(.2, .8, .2, 1); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); font: 600 13px var(--font-display); white-space: nowrap; }
+.pill .star { color: var(--sun); }
+
+main { flex: 1; width: 100%; max-width: 1360px; margin: 0 auto; padding-inline: 20px; padding-block: 22px 40px; }
+
+/* ── home ── */
+.hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 28px; align-items: center; padding-block: 8px 26px; }
+.hero h1 { font-size: clamp(34px, 5vw, 58px); }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p { color: var(--muted); font-size: 17px; max-width: 34em; margin: 14px 0 22px; }
+.hero .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 14px; padding: 12px 20px; font: 600 16px var(--font-display); background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); transition: transform .15s, box-shadow .15s, background .15s; }
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 0 var(--accent-deep); }
+.btn.primary:active { box-shadow: 0 1px 0 var(--accent-deep); transform: translateY(3px); }
+.btn.go { background: var(--mint); color: #fff; box-shadow: 0 4px 0 color-mix(in srgb, var(--mint) 70%, #000); }
+.btn.go:active { box-shadow: 0 1px 0 color-mix(in srgb, var(--mint) 70%, #000); transform: translateY(3px); }
+.btn.small { padding: 8px 13px; font-size: 14px; border-radius: 11px; }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+.hero-stage { position: relative; aspect-ratio: 16 / 11; max-width: 100%; border-radius: 26px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); }
+.hero-stage canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.hero-code { position: absolute; left: 14px; bottom: 14px; padding: 10px 14px; border-radius: 12px; background: var(--code-bg); color: var(--code-fg); font: 13px/1.6 var(--font-code); box-shadow: var(--shadow); min-width: 0; max-width: calc(100% - 28px); }
+.hero-code .on { background: var(--code-active); border-radius: 4px; }
+
+.journey-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 6px 0 16px; }
+.journey-head h2 { font-size: 28px; }
+.journey-head p { margin: 0; color: var(--muted); }
+.linkbtn { background: none; border: 0; color: var(--sky); font: 500 14px var(--font-body); padding: 4px; text-decoration: underline; text-underline-offset: 3px; }
+.worlds { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.world { position: relative; padding: 18px 18px 16px; border-radius: var(--r); background: var(--surface); box-shadow: var(--shadow); display: grid; gap: 12px; align-content: start; transition: transform .25s; animation: rise .6s backwards cubic-bezier(.2, .8, .2, 1); }
+.world:hover { transform: translateY(-3px); }
+.world.locked { opacity: .62; }
+.world .wh { display: flex; gap: 12px; align-items: center; }
+.world .badge { flex: none; width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; background: color-mix(in srgb, var(--wc) 16%, var(--surface)); }
+.world .badge canvas { width: 40px; height: 40px; image-rendering: pixelated; }
+.world .num { font: 600 12px var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--wc); }
+.world h3 { font-size: 20px; }
+.world p { margin: 0; color: var(--muted); font-size: 14px; }
+.lessons { display: flex; flex-wrap: wrap; gap: 8px; }
+.ldot { position: relative; width: 44px; height: 44px; border-radius: 14px; border: 0; background: var(--surface-2); box-shadow: inset 0 0 0 1.5px var(--line); font: 700 15px var(--font-display); display: grid; place-items: center; transition: transform .15s, background .2s; }
+.ldot:hover { transform: scale(1.08); }
+.ldot.done { background: color-mix(in srgb, var(--wc) 22%, var(--surface)); box-shadow: inset 0 0 0 2px var(--wc); }
+.ldot.next { background: var(--wc); color: #fff; box-shadow: 0 4px 0 color-mix(in srgb, var(--wc) 70%, #000); animation: bob 1.6s ease-in-out infinite; }
+.ldot.lock { color: var(--muted); }
+.ldot .st { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: -1px; color: var(--sun); white-space: nowrap; text-shadow: 0 1px 0 var(--surface); }
+.wprog { height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.wprog i { display: block; height: 100%; background: var(--wc); border-radius: 99px; }
+
+/* ── lesson ── */
+.lesson { display: grid; grid-template-columns: minmax(300px, 410px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.crumbs { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.crumbs .wname { font: 600 13px var(--font-display); color: var(--wc); text-transform: uppercase; letter-spacing: .08em; }
+.crumbs h2 { font-size: 26px; width: 100%; }
+.tutor { position: sticky; top: 76px; display: grid; gap: 14px; }
+.card { background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow); padding: 16px; min-width: 0; }
+.talk { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: start; }
+.talk canvas { width: 64px; height: 48px; image-rendering: pixelated; }
+.bubble { position: relative; background: var(--surface-2); border-radius: 14px; padding: 12px 14px; font-size: 15px; min-height: 64px; }
+.bubble::before { content: ""; position: absolute; left: -7px; top: 18px; border: 7px solid transparent; border-left: 0; border-right-color: var(--surface-2); }
+.bubble code, .task code, .hint code { font: 600 13px var(--font-code); background: var(--code-bg); color: var(--tok-fn); padding: 1px 6px; border-radius: 6px; white-space: nowrap; }
+.vis { margin-top: 12px; min-height: 150px; border-radius: 14px; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; position: relative; padding: 12px; }
+.vis pre { margin: 0; font: 13px/1.65 var(--font-code); background: var(--code-bg); color: var(--code-fg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; max-width: 100%; white-space: pre; }
+.stepnav { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.dots { display: flex; gap: 5px; flex: 1; }
+.dots i { width: 8px; height: 8px; border-radius: 99px; background: var(--line); transition: width .3s, background .3s; }
+.dots i.on { width: 22px; background: var(--accent); }
+.task h3 { font-size: 18px; display: flex; align-items: center; gap: 8px; }
+.task h3::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--accent); transform: rotate(45deg); }
+.task p { margin: 8px 0 0; }
+.task .row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.hint { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--sun) 16%, var(--surface)); font-size: 14px; animation: rise .35s backwards; }
+
+.work { display: grid; gap: 14px; min-width: 0; }
+.stagecard { padding: 12px; }
+.stagebar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.stagebar .title { font: 600 14px var(--font-display); color: var(--muted); }
+.tabs { display: flex; gap: 6px; }
+.tab { border: 0; background: var(--surface-2); border-radius: 10px; padding: 5px 10px; font: 600 13px var(--font-display); color: var(--muted); }
+.tab.on { background: var(--ink); color: var(--surface); }
+.tab.ok { box-shadow: inset 0 0 0 2px var(--mint); }
+.tab.bad { box-shadow: inset 0 0 0 2px var(--danger); }
+.stage { position: relative; border-radius: 14px; overflow: hidden; background: var(--surface-2); aspect-ratio: 16 / 10; max-width: 100%; }
+.stage.square { aspect-ratio: 1 / 1; max-height: 520px; margin-inline: auto; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.stage .msg { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); padding: 8px 14px; border-radius: 12px; background: var(--danger); color: #fff; font: 600 14px var(--font-display); box-shadow: var(--shadow); animation: shake .4s; max-width: 90%; text-align: center; }
+.stage .msg.info { background: var(--ink); color: var(--surface); animation: rise .3s; }
+.console { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; height: 100%; padding: 12px; position: absolute; inset: 0; }
+.panel { background: var(--surface); border-radius: 12px; padding: 12px; overflow: auto; min-width: 0; }
+.panel h4 { margin: 0 0 8px; font: 600 12px var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.out { font: 14px/1.7 var(--font-code); }
+.out div { animation: typein .3s backwards; border-bottom: 1px dashed var(--line); padding: 2px 0; overflow-wrap: anywhere; }
+.out .err { color: var(--danger); }
+.mem { display: flex; flex-wrap: wrap; gap: 10px; align-content: start; }
+.vbox { display: grid; gap: 4px; animation: drop .5s backwards cubic-bezier(.3, 1.5, .5, 1); min-width: 0; max-width: 100%; }
+.vbox .vn { font: 600 12px var(--font-code); color: var(--muted); }
+.vbox .vv { padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--sky) 14%, var(--surface)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--sky) 50%, transparent); font: 600 15px var(--font-code); overflow-wrap: anywhere; }
+.vbox .vv.str { background: color-mix(in srgb, var(--mint) 14%, var(--surface)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--mint) 50%, transparent); }
+.vbox .vv.bool { background: color-mix(in srgb, var(--grape) 14%, var(--surface)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--grape) 50%, transparent); }
+.vbox .arr { display: flex; gap: 4px; flex-wrap: wrap; }
+.vbox .arr span { display: grid; gap: 2px; text-align: center; }
+.vbox .arr small { font: 10px var(--font-code); color: var(--muted); }
+.vbox .arr b { padding: 6px 9px; border-radius: 8px; background: color-mix(in srgb, var(--sun) 18%, var(--surface)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--sun) 55%, transparent); font: 600 13px var(--font-code); }
+.vbox .obj { padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--grape) 12%, var(--surface)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--grape) 45%, transparent); font: 13px/1.6 var(--font-code); }
+.vbox .obj i { font-style: normal; color: var(--muted); }
+
+.controls { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.speed { display: flex; align-items: center; gap: 6px; margin-left: auto; font: 600 12px var(--font-display); color: var(--muted); }
+.speed input { width: 110px; accent-color: var(--accent); }
+.pad { display: none; gap: 6px; }
+.pad.on { display: flex; }
+.pad button { width: 42px; height: 42px; border-radius: 12px; border: 0; background: var(--surface-2); box-shadow: inset 0 0 0 1.5px var(--line); font: 700 16px var(--font-display); }
+
+.editorcard { padding: 0; overflow: hidden; background: var(--code-bg); }
+.palette { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--code-line); }
+.chip { border: 0; border-radius: 9px; padding: 6px 10px; background: rgba(255, 255, 255, .07); color: var(--tok-fn); font: 600 13px var(--font-code); transition: background .15s, transform .15s; }
+.chip:hover { background: rgba(255, 255, 255, .14); transform: translateY(-1px); }
+.chip.k { color: var(--tok-key); }
+.palette .lbl { font: 600 11px var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--code-muted); align-self: center; margin-right: 4px; }
+.editor { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); font: 15px/24px var(--font-code); min-height: 260px; max-height: 460px; overflow: auto; }
+.gutter { padding: 12px 8px 12px 0; text-align: right; color: var(--code-muted); user-select: none; position: relative; z-index: 1; }
+.gutter div { height: 24px; }
+.gutter .err { color: var(--danger); font-weight: 700; }
+.codewrap { position: relative; min-width: 0; }
+.codewrap pre, .codewrap textarea { margin: 0; padding: 12px 14px 12px 6px; font: inherit; white-space: pre; tab-size: 2; overflow: hidden; border: 0; min-height: 100%; }
+.codewrap pre { position: absolute; inset: 0; color: var(--code-fg); pointer-events: none; }
+.codewrap textarea { position: relative; display: block; width: 100%; resize: none; background: transparent; color: transparent; caret-color: var(--tok-fn); outline: none; min-height: 236px; }
+.codewrap textarea::selection { background: rgba(255, 255, 255, .18); color: transparent; }
+.lineglow { position: absolute; left: 0; right: 0; height: 24px; background: var(--code-active); border-left: 3px solid var(--accent); transition: top .18s cubic-bezier(.2, .8, .2, 1); pointer-events: none; display: none; }
+.lineglow.err { background: rgba(255, 107, 107, .18); border-left-color: var(--danger); }
+.t-key { color: var(--tok-key); } .t-fn { color: var(--tok-fn); } .t-str { color: var(--tok-str); } .t-num { color: var(--tok-num); } .t-com { color: var(--tok-com); font-style: italic; }
+.edfoot { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--code-line); color: var(--code-muted); font: 12px var(--font-body); flex-wrap: wrap; }
+.edfoot kbd { font: 11px var(--font-code); background: rgba(255, 255, 255, .08); border-radius: 5px; padding: 1px 5px; color: var(--code-fg); }
+
+/* ── win dialog ── */
+.overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(15, 18, 36, .45); backdrop-filter: blur(4px); padding: 16px; animation: fade .25s; }
+.win { width: min(440px, 100%); background: var(--surface); border-radius: 26px; padding: 26px 24px 22px; text-align: center; box-shadow: var(--shadow); animation: pop .5s cubic-bezier(.3, 1.5, .5, 1); }
+.win canvas { width: 126px; height: 84px; image-rendering: pixelated; }
+.win h2 { font-size: 34px; margin-top: 4px; }
+.win p { color: var(--muted); margin: 8px 0 0; }
+.stars { display: flex; justify-content: center; gap: 10px; margin: 14px 0 6px; }
+.stars svg { width: 54px; height: 54px; transform: scale(0); animation: starpop .6s forwards cubic-bezier(.3, 1.6, .5, 1); }
+.stars svg:nth-child(2) { animation-delay: .25s; } .stars svg:nth-child(3) { animation-delay: .5s; }
+.win .gain { font: 700 18px var(--font-display); color: var(--accent); margin-top: 6px; }
+.win .row { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 60; }
+
+/* ── intro visuals ── */
+.v-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.v-chip { font: 600 14px var(--font-code); padding: 8px 12px; border-radius: 10px; background: var(--code-bg); color: var(--tok-fn); animation: slidein .5s backwards cubic-bezier(.3, 1.4, .5, 1); }
+.v-box { display: grid; justify-items: center; gap: 6px; }
+.v-crate { width: 96px; height: 74px; border-radius: 12px; background: color-mix(in srgb, var(--sky) 16%, var(--surface)); box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--sky) 60%, transparent); display: grid; place-items: center; font: 700 24px var(--font-code); position: relative; overflow: hidden; }
+.v-crate b { animation: dropin 2.6s infinite cubic-bezier(.3, 1.4, .5, 1); }
+.v-label { font: 600 13px var(--font-code); color: var(--muted); }
+.v-ring { width: 110px; height: 110px; position: relative; display: grid; place-items: center; }
+.v-ring svg { position: absolute; inset: 0; animation: spin 2.4s linear infinite; }
+.v-ring b { font: 700 34px var(--font-display); color: var(--accent); }
+.v-cells { display: flex; gap: 6px; }
+.v-cells span { display: grid; gap: 3px; justify-items: center; animation: slidein .5s backwards; }
+.v-cells b { width: 46px; height: 40px; display: grid; place-items: center; border-radius: 9px; background: color-mix(in srgb, var(--sun) 20%, var(--surface)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--sun) 60%, transparent); font: 600 13px var(--font-code); }
+.v-cells small { font: 11px var(--font-code); color: var(--muted); }
+.v-obj { padding: 12px 16px; border-radius: 14px; background: color-mix(in srgb, var(--grape) 12%, var(--surface)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--grape) 50%, transparent); font: 14px/1.8 var(--font-code); }
+.v-obj div { animation: slidein .45s backwards; }
+.v-machine { display: flex; align-items: center; gap: 10px; }
+.v-machine .m { width: 110px; height: 76px; border-radius: 14px; background: var(--ink); color: var(--surface); display: grid; place-items: center; font: 600 13px var(--font-code); position: relative; }
+.v-machine .m::after { content: ""; position: absolute; top: -8px; left: 20px; width: 14px; height: 8px; background: var(--accent); border-radius: 4px 4px 0 0; animation: blink 1s infinite; }
+.v-ball { font: 700 16px var(--font-code); padding: 8px 12px; border-radius: 99px; background: var(--surface); box-shadow: inset 0 0 0 2px var(--line); }
+.v-ball.in { animation: feed 2.4s infinite; }
+.v-ball.outb { animation: spit 2.4s infinite; color: var(--accent); }
+.v-keys { display: grid; grid-template-columns: repeat(3, 44px); gap: 6px; }
+.v-keys b { height: 40px; border-radius: 9px; display: grid; place-items: center; background: var(--surface); box-shadow: inset 0 -3px 0 var(--line), inset 0 0 0 1.5px var(--line); font: 700 16px var(--font-display); }
+.v-keys b.p { animation: press 1.6s infinite; }
+.v-flip { display: flex; gap: 6px; }
+.v-flip span { width: 50px; height: 50px; border-radius: 10px; background: var(--surface); box-shadow: inset 0 0 0 2px var(--line); position: relative; overflow: hidden; }
+.v-flip span i { position: absolute; top: 18px; width: 14px; height: 14px; border-radius: 99px; background: var(--accent); }
+.v-fork { width: 100%; max-width: 280px; height: auto; }
+.v-bars { display: flex; align-items: end; gap: 6px; height: 110px; }
+.v-bars i { width: 22px; border-radius: 6px 6px 3px 3px; background: var(--sky); transition: height .5s cubic-bezier(.3, 1.3, .5, 1), background .3s; }
+.v-bars i.hot { background: var(--accent); }
+.v-line { width: 100%; max-width: 300px; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes pop { from { opacity: 0; transform: scale(.7); } }
+@keyframes starpop { to { transform: scale(1); } }
+@keyframes bob { 50% { transform: translateY(-4px); } }
+@keyframes shake { 20%, 60% { transform: translateX(calc(-50% - 6px)); } 40%, 80% { transform: translateX(calc(-50% + 6px)); } }
+@keyframes typein { from { opacity: 0; transform: translateX(-8px); } }
+@keyframes drop { from { opacity: 0; transform: translateY(-20px) scale(.8); } }
+@keyframes slidein { from { opacity: 0; transform: translateY(10px) scale(.9); } }
+@keyframes dropin { 0% { transform: translateY(-60px); opacity: 0; } 25%, 80% { transform: none; opacity: 1; } 100% { opacity: 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes blink { 50% { opacity: .3; } }
+@keyframes feed { 0% { transform: translateX(-20px); opacity: 0; } 30%, 50% { transform: none; opacity: 1; } 70%, 100% { transform: translateX(40px); opacity: 0; } }
+@keyframes spit { 0%, 50% { transform: translateX(-30px); opacity: 0; } 75% { transform: none; opacity: 1; } 100% { opacity: 1; } }
+@keyframes press { 0%, 40%, 100% { transform: none; background: var(--surface); } 20% { transform: translateY(2px); background: var(--accent); color: #fff; } }
+
+@media (max-width: 980px) {
+  .worlds { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lesson { grid-template-columns: minmax(0, 1fr); }
+  .tutor { position: static; }
+}
+@media (max-width: 680px) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .worlds { grid-template-columns: minmax(0, 1fr); }
+  .xpbar { width: 70px; }
+  .top { padding: 8px 16px; gap: 8px; }
+  .brand b { font-size: 16px; }
+  .xp .lvl span { display: none; }
+  main { padding-inline: 16px; }
+  .console { grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr 1fr; }
+  .stage { aspect-ratio: 1 / 1; }
+  .speed { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <button class="brand" id="homeBtn" type="button" aria-label="Zur Übersicht"><canvas id="logo" width="18" height="12"></canvas><b>Clawd <span>Code</span> Academy</b></button>
+    <div class="spacer"></div>
+    <div class="xp" title="Erfahrungspunkte">
+      <span class="lvl"><span>Level </span><b id="lvlNum">1</b> · <span id="lvlName">Code-Küken</span></span>
+      <div class="xpbar"><i id="xpFill"></i></div>
+    </div>
+    <span class="pill" title="Gesammelte Sterne"><span class="star">★</span><span id="starCount">0</span></span>
+  </header>
+  <main id="main"></main>
+</div>
+<canvas id="confetti"></canvas>
+<script>
+// ── curriculum ────────────────────────────────────────────────────────
+// Every lesson: what Clawd explains (intro cards with a visual), the task, starter code,
+// hints, a model solution, and how success is checked.
+const WORLDS = [
+  { name: "Erste Schritte", desc: "Befehle geben: Clawd macht genau, was du schreibst.", color: "#d77757", icon: "walk" },
+  { name: "Schleifen", desc: "Wiederholen statt zehnmal tippen.", color: "#3d7ff5", icon: "loop" },
+  { name: "Entscheidungen", desc: "Wenn, sonst und solange: Clawd denkt mit.", color: "#7b5cf5", icon: "fork" },
+  { name: "Variablen", desc: "Kisten für Zahlen und Texte.", color: "#22a96a", icon: "box" },
+  { name: "Zeichnen & Funktionen", desc: "Malen mit Code und eigene Befehle erfinden.", color: "#e9a92a", icon: "brush" },
+  { name: "Listen", desc: "Viele Werte in einer Reihe.", color: "#e05a8a", icon: "list" },
+  { name: "Objekte & Klassen", desc: "Dinge mit Eigenschaften – wie echte Profis.", color: "#16a3b5", icon: "obj" },
+  { name: "Algorithmen", desc: "Suchen, sortieren, clever raten.", color: "#8a6a3d", icon: "bars" },
+  { name: "Spiele bauen", desc: "Animation, Tasten, Kollision – dein eigenes Spiel.", color: "#d8434a", icon: "game" },
+];
+
+const G = {
+  walk: ["geh();", "links();", "rechts();"],
+  gem: ["geh();", "links();", "rechts();", "sammle();"],
+};
+
+const LESSONS = [
+  // ── Welt 1: Erste Schritte ──
+  {
+    w: 0, title: "Hallo Clawd!", type: "grid",
+    intro: [
+      { t: "Hi, ich bin <b>Clawd</b>! Ich bin ein kleiner Roboter und mache <b>genau</b> das, was du mir sagst – nicht mehr und nicht weniger.", v: "clawd" },
+      { t: "Ein <b>Programm</b> ist eine Liste von Befehlen. Der Computer liest sie <b>von oben nach unten</b>, einen nach dem anderen.", v: "cmd" },
+      { t: "Mit <code>geh();</code> gehe ich einen Schritt nach vorne. Die Klammern <code>()</code> heißen „mach jetzt!“, das Semikolon <code>;</code> beendet den Befehl.", v: "code", code: "geh();" },
+    ],
+    task: "Bring Clawd zur Fahne! Er muss <b>3 Schritte</b> gehen. Tipp auf <code>geh();</code> oben im Code-Feld, um Befehle einzufügen.",
+    start: "geh();\n", sol: "geh();\ngeh();\ngeh();\n", par: 3, palette: ["geh();"],
+    hints: ["Jede Zeile <code>geh();</code> ist genau ein Schritt.", "Du brauchst <code>geh();</code> dreimal untereinander."],
+    maps: [["~~~~~~~", "~>..F~~", "~~~~~~~"]],
+  },
+  {
+    w: 0, title: "Um die Ecke", type: "grid",
+    intro: [
+      { t: "Ich kann mich auch drehen: <code>rechts();</code> dreht mich nach rechts, <code>links();</code> nach links. Ich bleibe dabei auf meinem Feld stehen.", v: "turn" },
+      { t: "Wichtig: <b>rechts</b> und <b>links</b> ist immer aus <b>meiner</b> Sicht – so als würdest du in meinen Pixelschuhen stecken.", v: "code", code: "geh();\nrechts();\ngeh();" },
+    ],
+    task: "Geh bis zur Ecke, dreh dich und lauf zur Fahne.",
+    start: "geh();\ngeh();\n", sol: "geh();\ngeh();\nrechts();\ngeh();\ngeh();\n", par: 5, palette: G.walk,
+    hints: ["Zuerst zwei Schritte nach vorne.", "An der Ecke: <code>rechts();</code> und dann noch zwei Schritte."],
+    maps: [["~~~~~~", "~>..~~", "~~~.~~", "~~~F~~", "~~~~~~"]],
+  },
+  {
+    w: 0, title: "Juwelen sammeln", type: "grid",
+    intro: [
+      { t: "Siehst du die funkelnden Juwelen? Mit <code>sammle();</code> hebe ich ein Juwel auf – aber nur, wenn ich direkt <b>darauf</b> stehe.", v: "code", code: "geh();\nsammle();" },
+      { t: "Ein Level ist erst geschafft, wenn <b>alle</b> Juwelen eingesammelt sind und ich auf der Fahne stehe.", v: "clawd" },
+    ],
+    task: "Sammle beide Juwelen und geh dann zur Fahne.",
+    start: "geh();\nsammle();\n", sol: "geh();\nsammle();\ngeh();\ngeh();\nsammle();\ngeh();\ngeh();\n", par: 7, palette: G.gem,
+    hints: ["Nach dem ersten Schritt stehst du auf einem Juwel.", "Zähle die Felder bis zum zweiten Juwel: es sind 2 Schritte."],
+    maps: [["~~~~~~~~", "~>G.G.F~", "~~~~~~~~"]],
+  },
+  {
+    w: 0, title: "Der Zickzack-Weg", type: "grid",
+    intro: [
+      { t: "Längere Wege brauchen längere Programme. Wenn etwas schiefgeht, ist das ganz normal – Programmierer nennen Fehler <b>Bugs</b> 🐞 und das Suchen danach <b>Debuggen</b>.", v: "cmd" },
+      { t: "Trick der Profis: Probier es aus, schau wo ich hängen bleibe, und verbessere dann <b>genau diese Stelle</b>. Die leuchtende Zeile zeigt dir, was ich gerade mache.", v: "clawd" },
+    ],
+    task: "Sammle beide Juwelen auf dem Zickzack-Weg und erreiche die Fahne.",
+    start: "", sol: "geh();\ngeh();\nsammle();\nrechts();\ngeh();\ngeh();\nlinks();\ngeh();\nsammle();\ngeh();\nrechts();\ngeh();\ngeh();\n", par: 13, palette: G.gem,
+    hints: ["Erstes Juwel: zwei Schritte geradeaus.", "Danach rechts abbiegen, zwei Schritte, dann <code>links();</code>.", "Am Ende noch einmal rechts und zwei Schritte bis zur Fahne."],
+    maps: [["~~~~~~~~", "~>.G~~~~", "~~~.~~~~", "~~~.G.~~", "~~~~~.~~", "~~~~~F~~", "~~~~~~~~"]],
+  },
+
+  // ── Welt 2: Schleifen ──
+  {
+    w: 1, title: "Wiederhole!", type: "grid",
+    intro: [
+      { t: "Achtmal <code>geh();</code> tippen ist langweilig. Eine <b>Schleife</b> wiederholt Befehle für dich – so oft du willst.", v: "loop" },
+      { t: "So sieht das aus: Die Zahl sagt, wie oft. Alles zwischen <code>{</code> und <code>}</code> wird wiederholt.", v: "code", code: "wiederhole(8, () => {\n  geh();\n});" },
+    ],
+    task: "Lauf den langen Weg bis zur Fahne – mit einer Schleife in nur <b>3 Zeilen</b>.",
+    start: "wiederhole(3, () => {\n  geh();\n});\n", sol: "wiederhole(8, () => {\n  geh();\n});\n", par: 3, needs: /wiederhole|for\s*\(|while\s*\(/, needsMsg: "Mit einer Schleife geht's kürzer!",
+    palette: ["geh();", "wiederhole(5, () => {\n  \n});"],
+    hints: ["Zähl die Felder bis zur Fahne: es sind 8.", "Ändere die 3 in der Schleife auf 8."],
+    maps: [["~~~~~~~~~~~", "~>.......F~", "~~~~~~~~~~~"]],
+  },
+  {
+    w: 1, title: "Juwelen-Reihe", type: "grid",
+    intro: [
+      { t: "In eine Schleife passen auch <b>mehrere</b> Befehle. Sie werden jedes Mal alle zusammen der Reihe nach ausgeführt.", v: "loop" },
+      { t: "Achte auf das Muster: Juwel, leeres Feld, Juwel, leeres Feld … Ein Muster ist ein Zeichen für eine Schleife!", v: "code", code: "wiederhole(4, () => {\n  geh();\n  sammle();\n  geh();\n});" },
+    ],
+    task: "Sammle alle 4 Juwelen und erreiche die Fahne.",
+    start: "wiederhole(4, () => {\n  \n});\n", sol: "wiederhole(4, () => {\n  geh();\n  sammle();\n  geh();\n});\ngeh();\n", par: 6, needs: /wiederhole|for\s*\(|while\s*\(/, needsMsg: "Nutze eine Schleife für das Muster.",
+    palette: ["geh();", "sammle();", "wiederhole(4, () => {\n  \n});"],
+    hints: ["Ein Durchgang: geh, sammle, geh.", "Nach der Schleife fehlt noch ein letzter Schritt zur Fahne."],
+    maps: [["~~~~~~~~~~~~", "~>G.G.G.G.F~", "~~~~~~~~~~~~"]],
+  },
+  {
+    w: 1, title: "Die Treppe", type: "grid",
+    intro: [
+      { t: "Schleifen werden richtig stark, wenn sie Bewegungen <b>und</b> Drehungen wiederholen. Eine Treppe ist immer: vor, drehen, vor, zurückdrehen.", v: "turn" },
+    ],
+    task: "Steig die Treppe hinunter zur Fahne.",
+    start: "wiederhole(4, () => {\n  geh();\n});\n", sol: "wiederhole(4, () => {\n  geh();\n  rechts();\n  geh();\n  links();\n});\ngeh();\n", par: 7, needs: /wiederhole|for\s*\(|while\s*\(/, needsMsg: "Die Treppe schreit nach einer Schleife!",
+    palette: ["geh();", "links();", "rechts();", "wiederhole(4, () => {\n  \n});"],
+    hints: ["Eine Stufe: <code>geh(); rechts(); geh(); links();</code>", "Es sind 4 Stufen. Danach noch ein Schritt zur Fahne."],
+    maps: [["~~~~~~~~~", "~>.~~~~~~", "~~..~~~~~", "~~~..~~~~", "~~~~..~~~", "~~~~~.F~~", "~~~~~~~~~"]],
+  },
+  {
+    w: 1, title: "Die echte for-Schleife", type: "grid",
+    intro: [
+      { t: "<code>wiederhole</code> ist mein Spezialbefehl. Echte Programmierer schreiben in JavaScript eine <b>for-Schleife</b>. Sie hat drei Teile:", v: "code", code: "for (let i = 0; i < 5; i++) {\n  geh();\n}" },
+      { t: "<code>let i = 0</code>: Ein Zähler startet bei 0.<br><code>i < 5</code>: Weitermachen, solange i kleiner als 5 ist.<br><code>i++</code>: Nach jeder Runde zählt i um 1 hoch. Also läuft sie für i = 0, 1, 2, 3, 4 – genau 5 Mal!", v: "loop" },
+    ],
+    task: "Sammle alle 5 Juwelen mit einer <b>for-Schleife</b> und erreiche die Fahne.",
+    start: "for (let i = 0; i < 5; i++) {\n  \n}\n", sol: "for (let i = 0; i < 5; i++) {\n  geh();\n  sammle();\n}\ngeh();\n", par: 5, needs: /for\s*\(/, needsMsg: "Diesmal bitte mit einer for-Schleife.",
+    palette: ["geh();", "sammle();", "for (let i = 0; i < 5; i++) {\n  \n}"],
+    hints: ["In jeder Runde: ein Schritt, ein Juwel.", "Nach der Schleife: noch ein <code>geh();</code>"],
+    maps: [["~~~~~~~~~", "~>GGGGGF~", "~~~~~~~~~"]],
+  },
+
+  // ── Welt 3: Entscheidungen ──
+  {
+    w: 2, title: "Wenn …", type: "grid",
+    intro: [
+      { t: "Jetzt wird's schlau: Mit <code>if</code> (englisch für „wenn“) entscheidet das Programm selbst, ob es etwas tut.", v: "if" },
+      { t: "<code>aufJuwel()</code> fragt mich, ob unter mir ein Juwel liegt. Die Antwort ist <b>true</b> (wahr) oder <b>false</b> (falsch).", v: "code", code: "if (aufJuwel()) {\n  sammle();\n}" },
+      { t: "Achtung, Profi-Test: Dein Code wird in <b>zwei Welten</b> geprüft – einmal mit Juwel, einmal ohne. Er muss in beiden klappen!", v: "clawd" },
+    ],
+    task: "Geh einen Schritt. <b>Wenn</b> dort ein Juwel liegt, sammle es. Dann weiter zur Fahne. Klappt in beiden Welten?",
+    start: "geh();\n", sol: "geh();\nif (aufJuwel()) {\n  sammle();\n}\ngeh();\ngeh();\n", par: 6, needs: /if\s*\(/, needsMsg: "Nutze if, damit es in beiden Welten klappt.",
+    palette: ["geh();", "sammle();", "if (aufJuwel()) {\n  \n}"],
+    hints: ["Nach dem ersten Schritt fragst du: <code>if (aufJuwel())</code>.", "Ohne if würde <code>sammle();</code> in Welt 2 einen Fehler machen."],
+    maps: [["~~~~~~", "~>G.F~", "~~~~~~"], ["~~~~~~", "~>..F~", "~~~~~~"]],
+  },
+  {
+    w: 2, title: "Links oder rechts?", type: "grid",
+    intro: [
+      { t: "Mit <code>else</code> (englisch für „sonst“) sagst du, was passieren soll, wenn die Bedingung <b>nicht</b> stimmt.", v: "if" },
+      { t: "<code>vorneFrei()</code> fragt, ob vor mir ein Weg ist.", v: "code", code: "if (vorneFrei()) {\n  geh();\n} else {\n  links();\n}" },
+    ],
+    task: "An der Kreuzung liegt die Fahne mal oben, mal unten. Dreh dich nach rechts – ist dort frei, geh hin, <b>sonst</b> dreh dich um.",
+    start: "geh();\ngeh();\nrechts();\n", sol: "geh();\ngeh();\nrechts();\nif (vorneFrei()) {\n  geh();\n  geh();\n} else {\n  links();\n  links();\n  geh();\n  geh();\n}\n", par: 13, needs: /else/, needsMsg: "Mit else wird's elegant.",
+    palette: ["geh();", "links();", "rechts();", "if (vorneFrei()) {\n  \n} else {\n  \n}"],
+    hints: ["Umdrehen = zweimal <code>links();</code>.", "Im if-Teil und im else-Teil brauchst du jeweils zwei Schritte."],
+    maps: [["~~~~~~", "~~~~~~", "~~~~~~", "~>..~~", "~~~.~~", "~~~F~~", "~~~~~~"], ["~~~~~~", "~~~F~~", "~~~.~~", "~>..~~", "~~~~~~", "~~~~~~", "~~~~~~"]],
+  },
+  {
+    w: 2, title: "Solange …", type: "grid",
+    intro: [
+      { t: "Manchmal weißt du nicht, wie oft etwas passieren soll. Dann nimmst du <code>while</code> – „solange“. Die Schleife läuft, <b>solange</b> die Bedingung wahr ist.", v: "loop" },
+      { t: "Das <code>!</code> heißt „nicht“. <code>!amZiel()</code> heißt also: „solange ich <b>nicht</b> am Ziel bin“.", v: "code", code: "while (!amZiel()) {\n  geh();\n}" },
+    ],
+    task: "Die Wege sind in jeder Welt verschieden lang. Lauf mit <code>while</code>, bis du am Ziel bist.",
+    start: "", sol: "while (!amZiel()) {\n  geh();\n}\n", par: 3, needs: /while\s*\(/, needsMsg: "Nutze while – dann ist die Länge egal.",
+    palette: ["geh();", "while (!amZiel()) {\n  \n}"],
+    hints: ["Eine while-Schleife mit <code>!amZiel()</code> als Bedingung.", "In der Schleife reicht ein einziges <code>geh();</code>"],
+    maps: [["~~~~~~", "~>..F~", "~~~~~~"], ["~~~~~~~~~~", "~>......F~", "~~~~~~~~~~"], ["~~~~~~~~", "~>....F~", "~~~~~~~~"]],
+  },
+  {
+    w: 2, title: "Das Labyrinth", type: "grid",
+    intro: [
+      { t: "Jetzt kombinierst du alles: eine <code>while</code>-Schleife mit <code>if</code> und <code>else</code> darin. So lösen Roboter echte Labyrinthe!", v: "if" },
+      { t: "Die Spiral-Regel: Wenn vorne frei ist, geh. Sonst dreh dich nach rechts. Und unterwegs: Juwel? Einsammeln!", v: "code", code: "while (!amZiel()) {\n  if (aufJuwel()) {\n    sammle();\n  }\n  if (vorneFrei()) {\n    geh();\n  } else {\n    rechts();\n  }\n}" },
+    ],
+    task: "Finde in zwei verschiedenen Spiral-Labyrinthen den Weg zur Fahne und sammle alle Juwelen.",
+    start: "while (!amZiel()) {\n  \n}\n", sol: "while (!amZiel()) {\n  if (aufJuwel()) {\n    sammle();\n  }\n  if (vorneFrei()) {\n    geh();\n  } else {\n    rechts();\n  }\n}\n", par: 10, needs: /while\s*\(/, needsMsg: "Ein Labyrinth braucht while.",
+    palette: ["geh();", "rechts();", "sammle();", "if (vorneFrei()) {\n  \n} else {\n  \n}", "if (aufJuwel()) {\n  \n}"],
+    hints: ["Innen in der while-Schleife: zuerst Juwel prüfen.", "Dann: <code>if (vorneFrei()) { geh(); } else { rechts(); }</code>"],
+    maps: [
+      ["#########", "#>..G...#", "#######.#", "#..G..#.#", "#.###.#G#", "#.#F..#.#", "#.#####.#", "#..G....#", "#########"],
+      ["#######", "#>.G..#", "#####.#", "#..F#.#", "#.###G#", "#.G...#", "#######"],
+    ],
+  },
+
+  // ── Welt 4: Variablen ──
+  {
+    w: 3, title: "Kisten für Werte", type: "console",
+    intro: [
+      { t: "Eine <b>Variable</b> ist wie eine beschriftete Kiste. Du legst einen Wert hinein und kannst ihn später wieder herausholen.", v: "box" },
+      { t: "Mit <code>let</code> baust du eine neue Kiste. <code>sag()</code> zeigt einen Wert in der Ausgabe an. Rechts im <b>Speicher</b> siehst du alle Kisten!", v: "code", code: "let name = \"Clawd\";\nlet alter = 3;\nsag(name);\nsag(alter);" },
+    ],
+    task: "Leg eine Variable <code>lieblingszahl</code> mit dem Wert <b>7</b> an und gib sie mit <code>sag()</code> aus.",
+    start: "let name = \"Clawd\";\nsag(name);\n", sol: "let lieblingszahl = 7;\nsag(lieblingszahl);\n", par: 3,
+    palette: ["let x = 5;", "sag(x);"],
+    hints: ["So geht's: <code>let lieblingszahl = 7;</code>", "Dann: <code>sag(lieblingszahl);</code>"],
+    check: r => (r.vars.lieblingszahl === 7 && r.output.includes("7")) ? ok() : fail("Die Kiste lieblingszahl soll 7 enthalten und ausgegeben werden."),
+  },
+  {
+    w: 3, title: "Rechnen wie ein Profi", type: "console",
+    intro: [
+      { t: "Computer sind Rechen-Weltmeister. <code>+</code> plus, <code>-</code> minus, <code>*</code> mal, <code>/</code> geteilt.", v: "math" },
+      { t: "Du kannst mit Variablen rechnen und das Ergebnis in einer neuen Variable speichern.", v: "code", code: "let a = 6;\nlet b = 7;\nlet ergebnis = a * b;\nsag(ergebnis); // 42" },
+    ],
+    task: "Es gibt <b>12 Äpfel</b> und <b>4 Kinder</b>. Speichere beides in Variablen und rechne aus, wie viele Äpfel jedes Kind bekommt. Speichere es in <code>proKind</code> und gib es aus.",
+    start: "let aepfel = 12;\n", sol: "let aepfel = 12;\nlet kinder = 4;\nlet proKind = aepfel / kinder;\nsag(proKind);\n", par: 5,
+    palette: ["let kinder = 4;", "let proKind = aepfel / kinder;", "sag(proKind);"],
+    hints: ["Geteilt-Zeichen ist <code>/</code>.", "<code>let proKind = aepfel / kinder;</code>"],
+    check: r => (r.vars.proKind === 3 && r.vars.aepfel === 12 && r.output.includes("3")) ? ok() : fail("proKind soll 12 / 4 = 3 sein und ausgegeben werden."),
+  },
+  {
+    w: 3, title: "Texte zusammenbauen", type: "console",
+    intro: [
+      { t: "Texte heißen in der Programmierung <b>Strings</b> und stehen in Anführungszeichen. Mit <code>+</code> klebst du sie zusammen.", v: "string" },
+      { t: "Profi-Trick: Mit Backticks <code>`</code> und <code>${}</code> setzt du Variablen direkt in einen Text ein.", v: "code", code: "let name = \"Mia\";\nsag(\"Hallo \" + name);\nsag(`Hallo ${name}!`);" },
+    ],
+    task: "Speichere deinen Namen in <code>name</code> und gib <code>Hallo DEINNAME!</code> aus – mit Ausrufezeichen am Ende.",
+    start: "let name = \"\";\n", sol: "let name = \"Mia\";\nsag(`Hallo ${name}!`);\n", par: 3,
+    palette: ["let name = \"Mia\";", "sag(\"Hallo \" + name + \"!\");", "sag(`Hallo ${name}!`);"],
+    hints: ["Schreib deinen Namen zwischen die Anführungszeichen.", "Zum Beispiel: <code>sag(\"Hallo \" + name + \"!\");</code>"],
+    check: r => {
+      const n = r.vars.name;
+      return (typeof n === "string" && n.trim().length > 0 && r.output.includes("Hallo " + n + "!")) ? ok() : fail("Die Ausgabe soll genau „Hallo " + (n || "…") + "!“ lauten.");
+    },
+  },
+  {
+    w: 3, title: "Der Juwelen-Zähler", type: "grid",
+    intro: [
+      { t: "Variablen können sich verändern! Ein <b>Zähler</b> startet bei 0 und bekommt immer +1, wenn etwas passiert.", v: "box" },
+      { t: "<code>anzahl = anzahl + 1;</code> heißt: Nimm den alten Wert, rechne +1 und lege das Ergebnis zurück in die Kiste.", v: "code", code: "let anzahl = 0;\nanzahl = anzahl + 1;\nsag(anzahl); // 1" },
+    ],
+    task: "Lauf bis zum Ziel, sammle alle Juwelen und <b>zähle</b> sie. Am Ende sagt Clawd die Anzahl mit <code>sag(anzahl);</code>",
+    start: "let anzahl = 0;\nwhile (!amZiel()) {\n  geh();\n}\n", sol: "let anzahl = 0;\nwhile (!amZiel()) {\n  geh();\n  if (aufJuwel()) {\n    sammle();\n    anzahl = anzahl + 1;\n  }\n}\nsag(anzahl);\n", par: 10,
+    palette: ["sammle();", "if (aufJuwel()) {\n  \n}", "anzahl = anzahl + 1;", "sag(anzahl);"],
+    hints: ["Im if-Block: sammeln <b>und</b> den Zähler erhöhen.", "Nach der Schleife: <code>sag(anzahl);</code>"],
+    maps: [["~~~~~~~~~~", "~>G.GG..F~", "~~~~~~~~~~"], ["~~~~~~~~~~~", "~>GG.G.GGF~", "~~~~~~~~~~~"]],
+    check: r => r.variantGems.every((g, i) => r.variantSaid[i] === String(g)) ? ok() : fail("Clawd soll am Ende die richtige Anzahl sagen (Welt 1: 3, Welt 2: 5)."),
+  },
+
+  // ── Welt 5: Zeichnen & Funktionen ──
+  {
+    w: 4, title: "Dein erstes Bild", type: "draw",
+    intro: [
+      { t: "Willkommen in der Mal-Werkstatt! Das Zeichenblatt ist <b>400 × 400</b> Punkte groß. <b>x</b> geht nach rechts, <b>y</b> geht nach <b>unten</b>.", v: "coords" },
+      { t: "Zum Malen gibt es fertige Befehle. Farben schreibst du auf Deutsch: rot, blau, gelb, grün, orange, lila, pink, weiß, schwarz …", v: "code", code: "hintergrund(\"himmel\");\nkreis(320, 80, 40, \"gelb\");\nrechteck(0, 300, 400, 100, \"grün\");" },
+    ],
+    task: "Male eine Landschaft mit mindestens einer <b>Sonne</b> (<code>kreis</code>) und einer <b>Wiese</b> (<code>rechteck</code>).",
+    start: "hintergrund(\"himmel\");\n", sol: "hintergrund(\"himmel\");\nkreis(320, 80, 40, \"gelb\");\nrechteck(0, 300, 400, 100, \"grün\");\n", par: 4,
+    palette: ["hintergrund(\"himmel\");", "kreis(200, 200, 50, \"gelb\");", "rechteck(0, 300, 400, 100, \"grün\");", "linie(0, 0, 400, 400, \"rot\");", "text(\"Hallo\", 150, 200, \"weiß\");"],
+    hints: ["<code>kreis(x, y, radius, farbe)</code>", "<code>rechteck(x, y, breite, höhe, farbe)</code>"],
+    check: r => (count(r.ops, "kreis") >= 1 && count(r.ops, "rechteck") >= 1) ? ok() : fail("Es fehlt noch ein Kreis oder ein Rechteck."),
+  },
+  {
+    w: 4, title: "Eigene Befehle", type: "draw",
+    intro: [
+      { t: "Eine <b>Funktion</b> ist ein selbst erfundener Befehl. Du gibst ihr einen Namen und packst Befehle hinein – wie ein Rezept.", v: "func" },
+      { t: "Die Werte in den Klammern heißen <b>Parameter</b>. So kannst du dasselbe Haus an verschiedenen Stellen bauen!", v: "code", code: "function haus(x, y) {\n  rechteck(x, y, 80, 60, \"orange\");\n  dreieck(x, y, x + 40, y - 40, x + 80, y, \"rot\");\n}\nhaus(40, 300);" },
+    ],
+    task: "Schreib eine Funktion <code>haus(x, y)</code> und baue damit ein Dorf aus <b>mindestens 3 Häusern</b>.",
+    start: "hintergrund(\"himmel\");\nrechteck(0, 340, 400, 60, \"grün\");\n\nfunction haus(x, y) {\n  rechteck(x, y, 80, 60, \"orange\");\n  dreieck(x, y, x + 40, y - 40, x + 80, y, \"rot\");\n}\n\nhaus(20, 280);\n",
+    sol: "hintergrund(\"himmel\");\nrechteck(0, 340, 400, 60, \"grün\");\n\nfunction haus(x, y) {\n  rechteck(x, y, 80, 60, \"orange\");\n  dreieck(x, y, x + 40, y - 40, x + 80, y, \"rot\");\n}\n\nhaus(20, 280);\nhaus(160, 280);\nhaus(300, 280);\n", par: 10,
+    needs: /function\s+\w+\s*\(|=>/, needsMsg: "Bau dir eine eigene Funktion.",
+    palette: ["haus(160, 280);", "function name(x, y) {\n  \n}", "dreieck(0, 100, 50, 0, 100, 100, \"rot\");"],
+    hints: ["Die Funktion steht schon da – ruf sie einfach öfter auf.", "Probier <code>haus(160, 280);</code> und <code>haus(300, 280);</code>"],
+    check: r => (count(r.ops, "rechteck") >= 4 && count(r.ops, "dreieck") >= 3 && /function\s+\w+\s*\(|=>/.test(r.code)) ? ok() : fail("Ruf deine Funktion mindestens dreimal auf."),
+  },
+  {
+    w: 4, title: "Ergebnisse zurückgeben", type: "console",
+    intro: [
+      { t: "Funktionen können auch etwas <b>ausrechnen und zurückgeben</b>. Dafür gibt es <code>return</code>.", v: "func" },
+      { t: "Wie eine Maschine: Werte rein, Ergebnis raus.", v: "code", code: "function doppelt(zahl) {\n  return zahl * 2;\n}\nsag(doppelt(21)); // 42" },
+    ],
+    task: "Schreib eine Funktion <code>flaeche(breite, hoehe)</code>, die die Fläche eines Rechtecks zurückgibt. Gib <code>flaeche(5, 4)</code> aus.",
+    start: "function flaeche(breite, hoehe) {\n  \n}\n", sol: "function flaeche(breite, hoehe) {\n  return breite * hoehe;\n}\nsag(flaeche(5, 4));\n", par: 4,
+    palette: ["return breite * hoehe;", "sag(flaeche(5, 4));"],
+    hints: ["Fläche = Breite mal Höhe.", "In die Funktion: <code>return breite * hoehe;</code>"],
+    check: r => (r.output.includes("20") && /return/.test(r.code) && typeof r.vars.flaeche === "function" && r.vars.flaeche(3, 7) === 21) ? ok() : fail("flaeche(5, 4) soll 20 zurückgeben und ausgegeben werden."),
+  },
+  {
+    w: 4, title: "Muster-Magie", type: "draw",
+    intro: [
+      { t: "Jetzt die Superkraft: Schleifen + Zeichnen! Mit dem Zähler <code>i</code> berechnest du für jede Runde eine neue Position.", v: "loop" },
+      { t: "<code>zufall(1, 6)</code> würfelt eine Zahl. <code>zufallsfarbe()</code> gibt dir eine bunte Farbe.", v: "code", code: "for (let i = 0; i < 10; i++) {\n  kreis(20 + i * 40, 200, 18, zufallsfarbe());\n}" },
+    ],
+    task: "Male mit einer Schleife ein Muster aus <b>mindestens 20 Kreisen</b>.",
+    start: "hintergrund(\"nacht\");\nfor (let i = 0; i < 10; i++) {\n  kreis(20 + i * 40, 200, 18, zufallsfarbe());\n}\n",
+    sol: "hintergrund(\"nacht\");\nfor (let reihe = 0; reihe < 5; reihe++) {\n  for (let i = 0; i < 10; i++) {\n    kreis(20 + i * 40, 60 + reihe * 70, 16, zufallsfarbe());\n  }\n}\n", par: 8,
+    needs: /for\s*\(|while\s*\(|wiederhole/, needsMsg: "Nutze eine Schleife.",
+    palette: ["for (let i = 0; i < 20; i++) {\n  \n}", "kreis(20 + i * 40, 200, 18, zufallsfarbe());", "zufall(0, 400)"],
+    hints: ["Erhöhe die Zahl der Durchläufe.", "Profi-Idee: Eine Schleife in einer Schleife ergibt ein Gitter!"],
+    check: r => count(r.ops, "kreis") >= 20 ? ok() : fail("Es sind erst " + count(r.ops, "kreis") + " Kreise – 20 sollen es sein."),
+  },
+
+  // ── Welt 6: Listen ──
+  {
+    w: 5, title: "Listen (Arrays)", type: "console",
+    intro: [
+      { t: "Eine <b>Liste</b> (Array) ist eine Reihe von Kisten. Jede Kiste hat eine Nummer – und Achtung: Programmierer zählen ab <b>0</b>!", v: "array" },
+      { t: "<code>liste[0]</code> ist das erste Element, <code>liste.length</code> sagt, wie viele es sind.", v: "code", code: "let farben = [\"rot\", \"grün\", \"blau\"];\nsag(farben[0]);      // rot\nsag(farben.length);  // 3" },
+    ],
+    task: "Leg eine Liste <code>tiere</code> mit <b>4 Tieren</b> an. Gib das <b>dritte</b> Tier aus und danach, wie viele Tiere in der Liste sind.",
+    start: "let tiere = [];\n", sol: "let tiere = [\"Katze\", \"Hund\", \"Pinguin\", \"Igel\"];\nsag(tiere[2]);\nsag(tiere.length);\n", par: 4,
+    palette: ["let tiere = [\"Katze\", \"Hund\"];", "sag(tiere[2]);", "sag(tiere.length);"],
+    hints: ["Das dritte Tier hat die Nummer 2!", "<code>sag(tiere.length);</code> gibt 4 aus."],
+    check: r => {
+      const t = r.vars.tiere;
+      return (Array.isArray(t) && t.length === 4 && r.output.includes(String(t[2])) && r.output.includes("4")) ? ok() : fail("tiere braucht 4 Einträge; gib tiere[2] und tiere.length aus.");
+    },
+  },
+  {
+    w: 5, title: "Listen durchlaufen", type: "draw",
+    intro: [
+      { t: "Mit <code>for … of</code> gehst du jedes Element einer Liste durch – egal wie lang sie ist.", v: "array" },
+      { t: "Kombiniert mit einem Zähler für die Position ergibt das tolle Bilder:", v: "code", code: "let groessen = [10, 30, 50];\nlet x = 60;\nfor (const g of groessen) {\n  kreis(x, 200, g, \"orange\");\n  x = x + 120;\n}" },
+    ],
+    task: "Male für <b>jede Zahl</b> in <code>groessen</code> einen Kreis mit genau diesem Radius.",
+    start: "hintergrund(\"nacht\");\nlet groessen = [10, 25, 40, 25, 10];\nlet x = 40;\n", sol: "hintergrund(\"nacht\");\nlet groessen = [10, 25, 40, 25, 10];\nlet x = 40;\nfor (const g of groessen) {\n  kreis(x, 200, g, \"lila\");\n  x = x + 80;\n}\n", par: 8,
+    palette: ["for (const g of groessen) {\n  \n}", "kreis(x, 200, g, \"lila\");", "x = x + 80;"],
+    hints: ["In der Schleife heißt das aktuelle Element <code>g</code>.", "Nach jedem Kreis <code>x</code> vergrößern, sonst liegen alle übereinander."],
+    check: r => {
+      const rs = r.ops.filter(o => o.t === "kreis").map(o => o.r);
+      return JSON.stringify(rs) === JSON.stringify([10, 25, 40, 25, 10]) ? ok() : fail("Es sollen genau 5 Kreise mit den Radien 10, 25, 40, 25, 10 sein.");
+    },
+  },
+  {
+    w: 5, title: "Balkendiagramm", type: "draw",
+    intro: [
+      { t: "Daten sichtbar machen ist eine echte Profi-Aufgabe! Ein Balkendiagramm zeigt jede Zahl als Balken.", v: "bars" },
+      { t: "Mit <code>forEach</code> bekommst du jedes Element <b>und</b> seine Nummer – praktisch für die Position.", v: "code", code: "punkte.forEach((p, i) => {\n  rechteck(30 + i * 70, 350 - p * 30, 50, p * 30, \"blau\");\n});" },
+    ],
+    task: "Zeichne für jede Zahl in <code>punkte</code> einen Balken. Je größer die Zahl, desto höher der Balken.",
+    start: "hintergrund(\"weiß\");\nlet punkte = [3, 7, 2, 9, 5];\n", sol: "hintergrund(\"weiß\");\nlet punkte = [3, 7, 2, 9, 5];\npunkte.forEach((p, i) => {\n  rechteck(30 + i * 70, 350 - p * 30, 50, p * 30, \"blau\");\n  text(String(p), 48 + i * 70, 375, \"schwarz\");\n});\n", par: 6,
+    palette: ["punkte.forEach((p, i) => {\n  \n});", "rechteck(30 + i * 70, 350 - p * 30, 50, p * 30, \"blau\");", "text(String(p), 48 + i * 70, 375, \"schwarz\");"],
+    hints: ["Höhe des Balkens: <code>p * 30</code>", "Damit die Balken unten stehen: y = <code>350 - p * 30</code>"],
+    check: r => {
+      const hs = r.ops.filter(o => o.t === "rechteck" && o.h > 0).map(o => o.h);
+      const want = [3, 7, 2, 9, 5];
+      if (hs.length < 5) return fail("Es fehlen Balken – 5 sollen es sein.");
+      const last = hs.slice(-5), f = last[0] / 3;
+      return last.every((h, i) => Math.abs(h - want[i] * f) < 1.5) ? ok() : fail("Die Balkenhöhen sollen zu den Zahlen 3, 7, 2, 9, 5 passen.");
+    },
+  },
+  {
+    w: 5, title: "map & filter", type: "console",
+    intro: [
+      { t: "Profis verwandeln Listen in einer Zeile. <code>map</code> verändert jedes Element, <code>filter</code> behält nur passende Elemente.", v: "array" },
+      { t: "<code>z % 2</code> ist der Rest beim Teilen durch 2. Ist er 0, ist die Zahl gerade.", v: "code", code: "let zahlen = [1, 2, 3, 4];\nlet mal10 = zahlen.map(z => z * 10);       // [10, 20, 30, 40]\nlet gerade = zahlen.filter(z => z % 2 === 0); // [2, 4]" },
+    ],
+    task: "Erzeuge aus <code>zahlen</code> die Liste <code>gerade</code> (nur gerade Zahlen) und die Liste <code>doppelt</code> (jede Zahl mal 2). Gib beide aus.",
+    start: "let zahlen = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\n", sol: "let zahlen = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\nlet gerade = zahlen.filter(z => z % 2 === 0);\nlet doppelt = zahlen.map(z => z * 2);\nsag(gerade);\nsag(doppelt);\n", par: 5,
+    palette: ["let gerade = zahlen.filter(z => z % 2 === 0);", "let doppelt = zahlen.map(z => z * 2);", "sag(gerade);"],
+    hints: ["filter mit der Bedingung <code>z % 2 === 0</code>.", "map mit <code>z => z * 2</code>."],
+    check: r => (same(r.vars.gerade, [2, 4, 6, 8, 10]) && same(r.vars.doppelt, [2, 4, 6, 8, 10, 12, 14, 16, 18, 20])) ? ok() : fail("gerade und doppelt stimmen noch nicht."),
+  },
+
+  // ── Welt 7: Objekte ──
+  {
+    w: 6, title: "Objekte", type: "console",
+    intro: [
+      { t: "Ein <b>Objekt</b> fasst zusammen, was zu einem Ding gehört – wie ein Steckbrief mit Eigenschaften.", v: "object" },
+      { t: "Du greifst mit einem Punkt auf eine Eigenschaft zu und kannst sie auch ändern.", v: "code", code: "let clawd = { name: \"Clawd\", farbe: \"orange\", leben: 3 };\nsag(clawd.name);\nclawd.leben = clawd.leben - 1;" },
+    ],
+    task: "Leg ein Objekt <code>held</code> mit <code>name</code>, <code>leben: 3</code> und <code>waffe</code> an. Der Held wird getroffen: Zieh 1 Leben ab und gib die Leben aus.",
+    start: "let held = {\n  \n};\n", sol: "let held = {\n  name: \"Robo\",\n  leben: 3,\n  waffe: \"Laser\",\n};\nheld.leben = held.leben - 1;\nsag(held.leben);\n", par: 8,
+    palette: ["name: \"Robo\",", "leben: 3,", "waffe: \"Laser\",", "held.leben = held.leben - 1;", "sag(held.leben);"],
+    hints: ["Eigenschaften trennst du mit Kommas.", "<code>held.leben = held.leben - 1;</code>"],
+    check: r => {
+      const h = r.vars.held;
+      return (h && typeof h === "object" && h.leben === 2 && typeof h.name === "string" && "waffe" in h && r.output.includes("2")) ? ok() : fail("held braucht name, waffe und am Ende leben: 2.");
+    },
+  },
+  {
+    w: 6, title: "Listen voller Objekte", type: "draw",
+    intro: [
+      { t: "In Spielen gibt es viele Dinge gleichzeitig: Bälle, Gegner, Sterne. Jedes ist ein Objekt – und alle zusammen stehen in einer Liste.", v: "object" },
+      { t: "So zeichnest du alle auf einmal:", v: "code", code: "let baelle = [\n  { x: 80, y: 100, r: 30, farbe: \"rot\" },\n  { x: 200, y: 250, r: 50, farbe: \"blau\" },\n];\nfor (const b of baelle) {\n  kreis(b.x, b.y, b.r, b.farbe);\n}" },
+    ],
+    task: "Leg eine Liste <code>baelle</code> mit <b>mindestens 5</b> Ball-Objekten an und zeichne alle mit einer Schleife.",
+    start: "hintergrund(\"nacht\");\nlet baelle = [\n  { x: 80, y: 100, r: 30, farbe: \"rot\" },\n];\n",
+    sol: "hintergrund(\"nacht\");\nlet baelle = [\n  { x: 80, y: 100, r: 30, farbe: \"rot\" },\n  { x: 200, y: 250, r: 50, farbe: \"blau\" },\n  { x: 320, y: 90, r: 25, farbe: \"gelb\" },\n  { x: 90, y: 300, r: 40, farbe: \"grün\" },\n  { x: 320, y: 320, r: 35, farbe: \"pink\" },\n];\nfor (const b of baelle) {\n  kreis(b.x, b.y, b.r, b.farbe);\n}\n", par: 12,
+    palette: ["{ x: 200, y: 250, r: 50, farbe: \"blau\" },", "for (const b of baelle) {\n  kreis(b.x, b.y, b.r, b.farbe);\n}"],
+    hints: ["Jedes Objekt in geschweiften Klammern, getrennt mit Komma.", "Am Ende die for…of-Schleife zum Zeichnen."],
+    check: r => (Array.isArray(r.vars.baelle) && r.vars.baelle.length >= 5 && count(r.ops, "kreis") >= 5) ? ok() : fail("Mindestens 5 Bälle in der Liste – und alle zeichnen."),
+  },
+  {
+    w: 6, title: "Klassen – Baupläne", type: "console",
+    intro: [
+      { t: "Eine <b>Klasse</b> ist ein Bauplan. Aus einem Bauplan kannst du beliebig viele Objekte bauen – das macht man mit <code>new</code>.", v: "class" },
+      { t: "Der <code>constructor</code> baut das Objekt, <code>this</code> meint „dieses Objekt selbst“. Funktionen in einer Klasse heißen <b>Methoden</b>.", v: "code", code: "class Monster {\n  constructor(name, leben) {\n    this.name = name;\n    this.leben = leben;\n  }\n  treffer() {\n    this.leben = this.leben - 1;\n  }\n}\nlet grummel = new Monster(\"Grummel\", 3);\ngrummel.treffer();" },
+    ],
+    task: "Baue eine Klasse <code>Monster</code> mit einer Methode <code>treffer()</code>. Erzeuge <b>zwei</b> Monster, triff eins davon zweimal und gib seine Leben aus.",
+    start: "class Monster {\n  constructor(name, leben) {\n    this.name = name;\n    this.leben = leben;\n  }\n}\n",
+    sol: "class Monster {\n  constructor(name, leben) {\n    this.name = name;\n    this.leben = leben;\n  }\n  treffer() {\n    this.leben = this.leben - 1;\n  }\n}\nlet grummel = new Monster(\"Grummel\", 5);\nlet blubb = new Monster(\"Blubb\", 3);\ngrummel.treffer();\ngrummel.treffer();\nsag(grummel.leben);\n", par: 16,
+    needs: /class\s+\w+/, needsMsg: "Nutze class.",
+    palette: ["treffer() {\n  this.leben = this.leben - 1;\n}", "let grummel = new Monster(\"Grummel\", 5);", "grummel.treffer();", "sag(grummel.leben);"],
+    hints: ["Die Methode <code>treffer()</code> gehört in die Klasse, unter den constructor.", "Zwei Monster: zweimal <code>new Monster(…)</code>."],
+    check: r => {
+      const ms = Object.values(r.vars).filter(v => v && typeof v === "object" && v.constructor && v.constructor.name === "Monster");
+      const hit = ms.find(m => typeof m.treffer === "function");
+      return (ms.length >= 2 && hit && /class\s+Monster/.test(r.code) && /\.treffer\(\)[\s\S]*\.treffer\(\)/.test(r.code) && r.output.length > 0) ? ok() : fail("Zwei Monster, eins zweimal treffen und die Leben ausgeben.");
+    },
+  },
+
+  // ── Welt 8: Algorithmen ──
+  {
+    w: 7, title: "Das Größte finden", type: "sort",
+    intro: [
+      { t: "Ein <b>Algorithmus</b> ist ein genaues Rezept zum Lösen eines Problems. Der erste: Finde die größte Zahl!", v: "bars" },
+      { t: "Idee: Merk dir die erste Zahl als „bisher größte“. Geh alle anderen durch – ist eine größer, merkst du dir die. <code>wert(i)</code> liest Balken i (und lässt ihn aufleuchten).", v: "code", code: "let max = wert(0);\nfor (let i = 1; i < anzahl(); i++) {\n  if (wert(i) > max) {\n    max = wert(i);\n  }\n}\nsag(max);" },
+    ],
+    task: "Finde die größte Zahl unter den Balken und gib sie mit <code>sag()</code> aus. Funktioniert's für alle Welten?",
+    start: "let max = wert(0);\n", sol: "let max = wert(0);\nfor (let i = 1; i < anzahl(); i++) {\n  if (wert(i) > max) {\n    max = wert(i);\n  }\n}\nsag(max);\n", par: 7,
+    palette: ["for (let i = 1; i < anzahl(); i++) {\n  \n}", "if (wert(i) > max) {\n  max = wert(i);\n}", "sag(max);"],
+    hints: ["Schleife von 1 bis <code>anzahl()</code>.", "Größer als max? Dann <code>max = wert(i);</code>"],
+    arrays: [[4, 9, 2, 7, 5, 3, 8, 1], [12, 3, 18, 6, 15, 9]],
+    check: r => r.variantArrays.every((a, i) => r.variantSaid[i] === String(Math.max(...a))) ? ok() : fail("Die ausgegebene Zahl ist nicht die größte."),
+  },
+  {
+    w: 7, title: "Bubble Sort", type: "sort",
+    intro: [
+      { t: "Sortieren ist eine Lieblingsaufgabe von Computern. Beim <b>Bubble Sort</b> vergleichst du immer zwei Nachbarn – stehen sie falsch herum, tauschst du sie. Große Zahlen „blubbern“ so nach oben.", v: "sort" },
+      { t: "<code>vergleiche(i, j)</code> ist wahr, wenn Balken i größer ist als Balken j. <code>tausche(i, j)</code> vertauscht sie.", v: "code", code: "for (let runde = 0; runde < anzahl(); runde++) {\n  for (let i = 0; i < anzahl() - 1; i++) {\n    if (vergleiche(i, i + 1)) {\n      tausche(i, i + 1);\n    }\n  }\n}" },
+    ],
+    task: "Sortiere die Balken von klein nach groß.",
+    start: "for (let i = 0; i < anzahl() - 1; i++) {\n  if (vergleiche(i, i + 1)) {\n    tausche(i, i + 1);\n  }\n}\n",
+    sol: "for (let runde = 0; runde < anzahl(); runde++) {\n  for (let i = 0; i < anzahl() - 1; i++) {\n    if (vergleiche(i, i + 1)) {\n      tausche(i, i + 1);\n    }\n  }\n}\n", par: 7,
+    palette: ["for (let runde = 0; runde < anzahl(); runde++) {\n  \n}", "if (vergleiche(i, i + 1)) {\n  tausche(i, i + 1);\n}"],
+    hints: ["Ein Durchgang reicht nicht – die Startschleife bringt nur die größte Zahl ganz nach rechts.", "Pack den Durchgang in eine äußere Schleife, die oft genug läuft."],
+    arrays: [[5, 2, 8, 1, 9, 3, 7, 4, 6], [3, 1, 2]],
+    check: r => r.variantArrays.every((a, i) => same(r.variantFinal[i], [...a].sort((x, y) => x - y))) ? ok() : fail("Die Balken sind noch nicht sortiert."),
+  },
+  {
+    w: 7, title: "Zahlen raten wie ein Profi", type: "guess",
+    intro: [
+      { t: "Ich denke mir eine Zahl von 1 bis 100. <code>rate(zahl)</code> antwortet mit <b>\"größer\"</b>, <b>\"kleiner\"</b> oder <b>\"richtig\"</b>.", v: "search" },
+      { t: "Die Profi-Methode heißt <b>binäre Suche</b>: Rate immer genau die Mitte. Jeder Versuch halbiert den Bereich – nach höchstens 7 Versuchen hast du jede Zahl!", v: "code", code: "let min = 1;\nlet max = 100;\nlet mitte = Math.floor((min + max) / 2);\nlet antwort = rate(mitte);\nif (antwort === \"größer\") min = mitte + 1;\nif (antwort === \"kleiner\") max = mitte - 1;" },
+    ],
+    task: "Finde die geheime Zahl in <b>höchstens 7 Versuchen</b> – in allen drei Welten.",
+    start: "let min = 1;\nlet max = 100;\n",
+    sol: "let min = 1;\nlet max = 100;\nwhile (true) {\n  let mitte = Math.floor((min + max) / 2);\n  let antwort = rate(mitte);\n  if (antwort === \"richtig\") break;\n  if (antwort === \"größer\") min = mitte + 1;\n  if (antwort === \"kleiner\") max = mitte - 1;\n}\n", par: 9,
+    palette: ["while (true) {\n  \n}", "let mitte = Math.floor((min + max) / 2);", "let antwort = rate(mitte);", "if (antwort === \"richtig\") break;", "if (antwort === \"größer\") min = mitte + 1;", "if (antwort === \"kleiner\") max = mitte - 1;"],
+    hints: ["Wiederhole: Mitte raten, Bereich anpassen.", "<code>break</code> beendet die Schleife, sobald die Antwort \"richtig\" ist."],
+    secrets: [37, 91, 2],
+    check: r => r.variantGuess.every(g => g.found && g.tries <= 7) ? ok() : fail("Jede Zahl muss in höchstens 7 Versuchen gefunden werden."),
+  },
+
+  // ── Welt 9: Spiele bauen ──
+  {
+    w: 8, title: "Bewegung!", type: "game",
+    intro: [
+      { t: "Spiele sind Daumenkinos: Viele Male pro Sekunde wird ein neues Bild gemalt. Ändert sich etwas ein kleines bisschen, sieht es aus wie Bewegung.", v: "frame" },
+      { t: "<code>jedesBild(() => { … })</code> führt deinen Code für jedes Bild aus – etwa 60 Mal pro Sekunde.", v: "code", code: "let x = 0;\njedesBild(() => {\n  hintergrund(\"nacht\");\n  kreis(x, 200, 20, \"orange\");\n  x = x + 3;\n});" },
+    ],
+    task: "Lass einen Ball über das Bild fliegen. Wenn er rechts verschwindet, soll er links wieder auftauchen.",
+    start: "let x = 0;\njedesBild(() => {\n  hintergrund(\"nacht\");\n  kreis(x, 200, 20, \"orange\");\n});\n",
+    sol: "let x = 0;\njedesBild(() => {\n  hintergrund(\"nacht\");\n  kreis(x, 200, 20, \"orange\");\n  x = x + 3;\n  if (x > 420) {\n    x = -20;\n  }\n});\n", par: 9,
+    palette: ["x = x + 3;", "if (x > 420) {\n  x = -20;\n}"],
+    hints: ["Erhöhe <code>x</code> in jedem Bild.", "Ist x größer als 420? Dann zurück auf -20."],
+    check: r => (r.game.moved && r.game.wrapped) ? ok() : (r.game.frames > 400 ? fail("Der Ball soll fliegen und links wieder auftauchen.") : null),
+  },
+  {
+    w: 8, title: "Steuerung mit Tasten", type: "game",
+    intro: [
+      { t: "Ein Spiel wird erst ein Spiel, wenn du mitspielst! <code>taste(\"links\")</code> ist wahr, solange die Pfeiltaste gedrückt ist.", v: "keys" },
+      { t: "Klick ins Spielfeld und benutze die Pfeiltasten – oder die Knöpfe unter dem Spielfeld.", v: "code", code: "if (taste(\"links\")) x = x - 4;\nif (taste(\"rechts\")) x = x + 4;" },
+    ],
+    task: "Steuere Clawds Raumschiff mit den Pfeiltasten <b>nach links und rechts</b>. Probier es aus!",
+    start: "let x = 200;\njedesBild(() => {\n  hintergrund(\"nacht\");\n  rechteck(x - 25, 340, 50, 20, \"orange\");\n});\n",
+    sol: "let x = 200;\njedesBild(() => {\n  hintergrund(\"nacht\");\n  if (taste(\"links\")) x = x - 5;\n  if (taste(\"rechts\")) x = x + 5;\n  rechteck(x - 25, 340, 50, 20, \"orange\");\n});\n", par: 8,
+    palette: ["if (taste(\"links\")) x = x - 5;", "if (taste(\"rechts\")) x = x + 5;"],
+    hints: ["Zwei if-Zeilen in jedesBild.", "Danach mit Pfeiltasten im Spielfeld steuern."],
+    check: r => (r.game.keyMoves >= 2) ? ok() : null,
+  },
+  {
+    w: 8, title: "Kollision", type: "game",
+    intro: [
+      { t: "Berühren sich zwei Dinge? Das heißt <b>Kollision</b>. Bei Kreisen misst man den Abstand der Mittelpunkte: Ist er kleiner als beide Radien zusammen – Treffer!", v: "collide" },
+      { t: "<code>abstand(x1, y1, x2, y2)</code> rechnet den Abstand für dich aus. Hast du genug Punkte, rufst du <code>geschafft()</code> auf.", v: "code", code: "if (abstand(x, y, jx, jy) < 30) {\n  punkte = punkte + 1;\n  jx = zufall(20, 380);\n}" },
+    ],
+    task: "Steuere Clawd mit allen vier Pfeiltasten und sammle <b>3 Juwelen</b>. Dann <code>geschafft()</code>!",
+    start: "let x = 200, y = 200;\nlet jx = zufall(30, 370), jy = zufall(30, 370);\nlet punkte = 0;\njedesBild(() => {\n  hintergrund(\"nacht\");\n  if (taste(\"links\")) x -= 4;\n  if (taste(\"rechts\")) x += 4;\n  if (taste(\"hoch\")) y -= 4;\n  if (taste(\"runter\")) y += 4;\n  juwel(jx, jy);\n  clawd(x, y);\n  text(\"Punkte: \" + punkte, 12, 28, \"weiß\");\n});\n",
+    sol: "let x = 200, y = 200;\nlet jx = zufall(30, 370), jy = zufall(30, 370);\nlet punkte = 0;\njedesBild(() => {\n  hintergrund(\"nacht\");\n  if (taste(\"links\")) x -= 4;\n  if (taste(\"rechts\")) x += 4;\n  if (taste(\"hoch\")) y -= 4;\n  if (taste(\"runter\")) y += 4;\n  if (abstand(x, y, jx, jy) < 30) {\n    punkte = punkte + 1;\n    jx = zufall(30, 370);\n    jy = zufall(30, 370);\n  }\n  if (punkte >= 3) geschafft();\n  juwel(jx, jy);\n  clawd(x, y);\n  text(\"Punkte: \" + punkte, 12, 28, \"weiß\");\n});\n", par: 21,
+    palette: ["if (abstand(x, y, jx, jy) < 30) {\n  \n}", "punkte = punkte + 1;", "jx = zufall(30, 370);", "if (punkte >= 3) geschafft();"],
+    hints: ["Prüfe in jedem Bild den Abstand zwischen Clawd und dem Juwel.", "Bei Treffer: Punkte +1 und Juwel an eine neue Zufallsstelle."],
+    check: r => r.game.done ? ok() : null,
+  },
+  {
+    w: 8, title: "Dein eigenes Spiel", type: "game", final: true,
+    intro: [
+      { t: "Du hast alles gelernt, was ein Spiel braucht: Variablen, Schleifen, Bedingungen, Funktionen, Objekte, Animation, Tasten und Kollision. Zeit für dein <b>Meisterstück</b>!", v: "clawd" },
+      { t: "Hier ist ein fertiges Fang-Spiel. Mach es zu <b>deinem</b> Spiel: neue Farben, schneller fallende Juwelen, mehrere Juwelen gleichzeitig, ein Timer, Leben … Alles ist erlaubt!", v: "code", code: "// Ideen:\n// - Juwelen schneller fallen lassen\n// - Eine Liste mit mehreren Juwelen\n// - Ein Leben-System\n// - Highscore-Text" },
+    ],
+    task: "Fang <b>10 Juwelen</b> mit Clawd – dann bist du offiziell <b>Clawd-Code-Profi</b>! Verändere das Spiel, wie du willst.",
+    start: "let x = 200;\nlet juwelen = [{ x: 100, y: 0 }, { x: 300, y: -200 }];\nlet punkte = 0;\nlet tempo = 2;\n\njedesBild(() => {\n  hintergrund(\"nacht\");\n  if (taste(\"links\")) x -= 6;\n  if (taste(\"rechts\")) x += 6;\n\n  for (const j of juwelen) {\n    j.y += tempo;\n    if (abstand(x, 350, j.x, j.y) < 34) {\n      punkte++;\n      tempo += 0.2;\n      j.y = -20;\n      j.x = zufall(30, 370);\n    }\n    if (j.y > 420) {\n      j.y = -20;\n      j.x = zufall(30, 370);\n    }\n    juwel(j.x, j.y);\n  }\n\n  clawd(x, 350);\n  text(\"Punkte: \" + punkte, 12, 28, \"weiß\");\n  if (punkte >= 10) geschafft();\n});\n",
+    sol: null, par: 99,
+    palette: ["juwelen.push({ x: zufall(30, 370), y: -100 });", "tempo += 0.5;", "text(\"Highscore!\", 140, 200, \"gelb\");"],
+    hints: ["Das Spiel ist schon fertig – klick ins Spielfeld und fang Juwelen mit den Pfeiltasten!", "Zu schwer? Setz <code>tempo</code> auf 1. Zu leicht? Füge mit <code>juwelen.push</code> weitere hinzu."],
+    check: r => r.game.done ? ok() : null,
+  },
+];
+
+function ok(msg) { return { ok: true, msg: msg || "" }; }
+function fail(msg) { return { ok: false, msg }; }
+function count(ops, t) { return ops.filter(o => o.t === t).length; }
+function same(a, b) { return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i]); }
+// ── basics ────────────────────────────────────────────────────────────
+const $ = s => document.querySelector(s);
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const dpr = () => Math.min(3, window.devicePixelRatio || 1);
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    if (k === "class") e.className = attrs[k];
+    else if (k === "html") e.innerHTML = attrs[k];
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), attrs[k]);
+    else if (attrs[k] !== false && attrs[k] != null) e.setAttribute(k, attrs[k]);
+  }
+  for (const kid of kids.flat()) if (kid != null) e.append(kid.nodeType ? kid : document.createTextNode(kid));
+  return e;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+// Progress lives in this browser only (it is a per-learner convenience).
+const store = (() => {
+  let data = { done: {}, code: {}, unlockAll: false, seen: {} };
+  try { const raw = localStorage.getItem("clawd-academy"); if (raw) data = Object.assign(data, JSON.parse(raw)); } catch (e) { }
+  return {
+    data,
+    save() { try { localStorage.setItem("clawd-academy", JSON.stringify(data)); } catch (e) { } },
+  };
+})();
+
+const LEVELS = ["Code-Küken", "Befehls-Bastler", "Schleifen-Flitzer", "Wenn-Dann-Detektiv", "Variablen-Verwalter", "Funktions-Erfinder", "Listen-Lord", "Objekt-Architekt", "Algorithmus-Ass", "Spiele-Entwickler", "Code-Meister"];
+function totals() {
+  let stars = 0;
+  for (const k in store.data.done) stars += store.data.done[k] || 0;
+  const xp = stars * 10;
+  const level = Math.min(LEVELS.length, Math.floor(xp / 90) + 1);
+  return { stars, xp, level, into: (xp % 90) / 90 };
+}
+function renderTop() {
+  const t = totals();
+  $("#lvlNum").textContent = t.level;
+  $("#lvlName").textContent = LEVELS[t.level - 1];
+  $("#xpFill").style.width = (t.level >= LEVELS.length ? 100 : Math.round(t.into * 100)) + "%";
+  $("#starCount").textContent = t.stars;
+}
+const isDone = i => (store.data.done[i] || 0) > 0;
+const unlocked = i => store.data.unlockAll || i === 0 || isDone(i - 1) || isDone(i);
+const nextLesson = () => { for (let i = 0; i < LESSONS.length; i++) if (!isDone(i)) return i; return LESSONS.length - 1; };
+
+// ── pixel art (Clawd and friends) ─────────────────────────────────────
+const PAL = { w: "#f6f3ee", m: "#3a0d14", r: "#e5484d", g: "#c8cdd6", b: "#ff8fa3", h: "#d62839", W: "#ffffff", y: "#f7c04a", k: "#2a2a30", l: "#9aa0aa", c: "#6ec6ff", o: "#f28c28", G: "#3ddc97", n: "#8b5a3c", p: "#a78bfa", d: "#1b1f3b", s: "#4ea8de" };
+const E = "..................", TOP = "...############...", BODY = "...############...", ARMS = ".################.";
+const EYES = { c: "...##.######.##...", l: "...#.######.###...", r: "...###.######.#...", shut: "...############..." };
+function pose({ eyes = "c", arms = "side", legs = "a", happy = false, mouth = 0 } = {}) {
+  let r0 = E, r1 = TOP, r2 = EYES[eyes] || EYES.c, r3 = ARMS, r4 = BODY;
+  if (happy) { r1 = "...##.######.##..."; r2 = "...#.#.####.#.#..."; }
+  if (arms === "up") { r0 = ".##............##."; r3 = BODY; }
+  if (arms === "down") { r3 = BODY; r4 = ARMS; }
+  if (arms === "wave") { r0 = "................##"; r3 = ".###############.."; }
+  const rows = [r0, r1, r2];
+  if (mouth === 1) rows.push("...#mmmmmmmmmm#...");
+  if (mouth >= 2) rows.push("...#wmwmwmwmwm#...", "...#mmmmmmmmmm#...", "...#mwmwmwmwmw#...");
+  rows.push(r3, r4, legs === "b" ? ".....#.#..#.#....." : "....#.#....#.#....");
+  return rows;
+}
+function drawRows(ctx, rows, x, y, px, body) {
+  for (let r = 0; r < rows.length; r++) for (let c = 0; c < rows[r].length; c++) {
+    const ch = rows[r][c];
+    if (ch === ".") continue;
+    ctx.fillStyle = ch === "#" ? body : (PAL[ch] || body);
+    ctx.fillRect(Math.round(x + c * px), Math.round(y + r * px), Math.ceil(px), Math.ceil(px));
+  }
+}
+const ICONS = {
+  walk: ["..........", "...####...", "..#.##.#..", "..######..", ".########.", "..######..", "...#..#...", "..........", ".#.#.#.#..", ".........."],
+  loop: ["..........", "...####...", "..#....#..", ".#......#.", ".#......#.", ".#....###.", "..#....#..", "...####...", "..........", ".........."],
+  fork: ["....##....", "....##....", "....##....", "...####...", "..##..##..", ".##....##.", "##......##", "#........#", "..........", ".........."],
+  box: ["..........", ".########.", ".#......#.", ".#.####.#.", ".#......#.", ".#.###..#.", ".#......#.", ".########.", "..........", ".........."],
+  brush: ["........##", ".......###", "......###.", ".....###..", "....###...", "..####....", ".#####....", ".####.....", "###.......", ".........."],
+  list: ["..........", "##.##.##..", "##.##.##..", "..........", "..........", "##.##.##..", "##.##.##..", "..........", ".#..#..#..", ".........."],
+  obj: ["..######..", ".#......#.", ".#.##.#.#.", ".#......#.", ".#.###..#.", ".#......#.", ".#.##.#.#.", ".#......#.", "..######..", ".........."],
+  bars: ["..........", "........#.", "......#.#.", "......#.#.", "..#...#.#.", "..#.#.#.#.", "#.#.#.#.#.", "#.#.#.#.#.", "##########", ".........."],
+  game: ["..........", "...####...", "..######..", ".##.##.##.", ".########.", "..#....#..", ".#.#..#.#.", "#.#....#.#", "..........", ".........."],
+};
+function drawIcon(canvas, name, color) {
+  const rows = ICONS[name] || ICONS.walk;
+  canvas.width = 40; canvas.height = 40;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, 40, 40);
+  drawRows(ctx, rows, 0, 0, 4, color);
+}
+function drawGem(ctx, cx, cy, s, t) {
+  const g = s * 0.36, bob = Math.sin(t / 300) * s * 0.04;
+  ctx.save();
+  ctx.translate(cx, cy + bob);
+  ctx.fillStyle = "#7b5cf5";
+  ctx.beginPath(); ctx.moveTo(0, -g); ctx.lineTo(g * 0.85, -g * 0.15); ctx.lineTo(0, g); ctx.lineTo(-g * 0.85, -g * 0.15); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#a990ff";
+  ctx.beginPath(); ctx.moveTo(0, -g); ctx.lineTo(g * 0.85, -g * 0.15); ctx.lineTo(0, -g * 0.15); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#5537c9";
+  ctx.beginPath(); ctx.moveTo(0, g); ctx.lineTo(-g * 0.85, -g * 0.15); ctx.lineTo(0, -g * 0.15); ctx.closePath(); ctx.fill();
+  const tw = (Math.sin(t / 180 + cx) + 1) / 2;
+  ctx.fillStyle = `rgba(255,255,255,${0.4 + tw * 0.6})`;
+  ctx.fillRect(-g * 0.45, -g * 0.55, g * 0.22, g * 0.22);
+  ctx.restore();
+}
+
+// ── code: highlighting ────────────────────────────────────────────────
+const KEYWORDS = new Set("let const var if else while for function return true false new of in class constructor this break continue null undefined typeof".split(" "));
+const API_WORDS = new Set("geh links rechts sammle vorneFrei aufJuwel amZiel sag wiederhole hintergrund kreis rechteck linie dreieck text zufall zufallsfarbe anzahl wert vergleiche tausche rate jedesBild taste abstand geschafft clawd juwel".split(" "));
+function escapeHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function highlight(src) {
+  let out = "", i = 0;
+  while (i < src.length) {
+    const rest = src.slice(i);
+    let m;
+    if ((m = /^\/\/[^\n]*/.exec(rest))) { out += `<span class="t-com">${escapeHtml(m[0])}</span>`; i += m[0].length; continue; }
+    if ((m = /^("(?:[^"\\\n]|\\.)*"?|'(?:[^'\\\n]|\\.)*'?|`(?:[^`\\]|\\.)*`?)/.exec(rest))) { out += `<span class="t-str">${escapeHtml(m[0])}</span>`; i += m[0].length; continue; }
+    if ((m = /^\d+(\.\d+)?/.exec(rest))) { out += `<span class="t-num">${m[0]}</span>`; i += m[0].length; continue; }
+    if ((m = /^[A-Za-zÄÖÜäöüß_$][\wÄÖÜäöüß$]*/.exec(rest))) {
+      const w = m[0];
+      out += KEYWORDS.has(w) ? `<span class="t-key">${w}</span>` : API_WORDS.has(w) ? `<span class="t-fn">${w}</span>` : w;
+      i += w.length; continue;
+    }
+    out += escapeHtml(src[i]); i++;
+  }
+  return out + "\n";
+}
+
+// ── code: running safely ──────────────────────────────────────────────
+class ClawdError extends Error { constructor(msg, line) { super(msg); this.clawd = true; this.line = line; } }
+function matchParen(src, open) {
+  let depth = 0;
+  for (let i = open; i < src.length; i++) {
+    const c = src[i];
+    if (c === '"' || c === "'" || c === "`") { i++; while (i < src.length && src[i] !== c) { if (src[i] === "\\") i++; i++; } continue; }
+    if (c === "(") depth++;
+    else if (c === ")") { depth--; if (depth === 0) return i; }
+  }
+  return -1;
+}
+function splitTop(s, sep) {
+  const parts = []; let depth = 0, cur = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '"' || c === "'" || c === "`") { let j = i + 1; while (j < s.length && s[j] !== c) { if (s[j] === "\\") j++; j++; } cur += s.slice(i, j + 1); i = j; continue; }
+    if ("([{".includes(c)) depth++;
+    if (")]}".includes(c)) depth--;
+    if (c === sep && depth === 0) { parts.push(cur); cur = ""; continue; }
+    cur += c;
+  }
+  parts.push(cur);
+  return parts;
+}
+// Every while/for condition also calls __g(), which stops endless loops. Line count stays the same.
+function guardLoops(src) {
+  let out = "", i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    if (c === "/" && src[i + 1] === "/") { const j = src.indexOf("\n", i); const e = j < 0 ? src.length : j; out += src.slice(i, e); i = e; continue; }
+    if (c === "/" && src[i + 1] === "*") { const j = src.indexOf("*/", i + 2); const e = j < 0 ? src.length : j + 2; out += src.slice(i, e); i = e; continue; }
+    if (c === '"' || c === "'" || c === "`") { let j = i + 1; while (j < src.length && src[j] !== c) { if (src[j] === "\\") j++; j++; } out += src.slice(i, j + 1); i = j + 1; continue; }
+    const m = /^(while|for)\s*\(/.exec(src.slice(i, i + 16));
+    if (m && !/[\w$.]/.test(src[i - 1] || "")) {
+      const open = i + m[0].length - 1, close = matchParen(src, open);
+      if (close > 0) {
+        const inner = src.slice(open + 1, close);
+        let ni = inner;
+        if (m[1] === "while") ni = "__g() && (" + inner + ")";
+        else {
+          const p = splitTop(inner, ";");
+          if (p.length === 3) ni = p[0] + ";" + (p[1].trim() ? "__g() && (" + p[1] + ")" : "__g()") + ";" + p[2];
+        }
+        out += src.slice(i, open + 1) + ni + ")";
+        i = close + 1;
+        continue;
+      }
+    }
+    out += c; i++;
+  }
+  return out;
+}
+let guardCount = 0, guardLimit = 2e6;
+function __g() { if (++guardCount > guardLimit) throw new ClawdError("Diese Schleife hört nie auf! Ändert sich die Bedingung irgendwann?"); return true; }
+
+function compile(code, api, tail) {
+  const names = Object.keys(api);
+  const fn = new Function(...names, "__g", '"use strict";\n' + guardLoops(code) + (tail || ""));
+  return () => fn(...names.map(n => api[n]), __g);
+}
+function rawLine(stack) {
+  const m = /<anonymous>:(\d+):\d+/.exec(stack || "") || /> Function:(\d+):\d+/.exec(stack || "") || /Function:(\d+):\d+/.exec(stack || "");
+  return m ? +m[1] : 0;
+}
+let LINE_OFFSET = 2;
+try { compile('throw new Error("x")', {})(); } catch (e) { const l = rawLine(e.stack); if (l) LINE_OFFSET = l - 1; }
+function lineOf(e) { const l = rawLine(e && e.stack) - LINE_OFFSET; return l > 0 ? l : 0; }
+function hereLine() { return lineOf(new Error()); }
+function friendly(e) {
+  const m = (e && e.message) || String(e);
+  if (e && e.clawd) return m;
+  let r;
+  if (e instanceof SyntaxError) {
+    if (/Unexpected end of input|missing \} /.test(m)) return "Am Ende fehlt etwas – vermutlich eine schließende Klammer } oder ).";
+    if (/missing \) after argument list/.test(m)) return "Da fehlt eine schließende Klammer ).";
+    if (/Invalid or unexpected token|unterminated string|Unterminated/i.test(m)) return "Ein Zeichen passt nicht – fehlt vielleicht ein Anführungszeichen?";
+    if ((r = /Unexpected token '?(.)'?/.exec(m))) return "Schreibfehler: Das Zeichen „" + r[1] + "“ steht an einer Stelle, wo ich es nicht erwarte.";
+    if (/Unexpected identifier/.test(m)) return "Schreibfehler: Zwischen zwei Wörtern fehlt etwas – ein Punkt, ein Komma oder eine Klammer?";
+    if (/has already been declared/.test(m)) return "Diese Variable gibt es schon. Ohne „let“ kannst du ihr einen neuen Wert geben.";
+    return "Schreibfehler im Code: " + m;
+  }
+  if ((r = /^(\S+) is not defined/.exec(m))) return "Das Wort „" + r[1] + "“ kenne ich nicht. Vertippt? Groß- und Kleinschreibung zählt! Eine neue Variable legst du mit let an.";
+  if ((r = /(\S+) is not a function/.exec(m))) return "„" + r[1].replace(/^\w+\./, "") + "“ ist kein Befehl, den man mit () ausführen kann.";
+  if (/Cannot read propert|undefined/.test(m) && e instanceof TypeError) return "Hier wird etwas aus „nichts“ (undefined) gelesen. Stimmen Name und Nummer?";
+  if (/Assignment to constant/.test(m)) return "Eine const-Variable kann man nicht verändern – nimm let.";
+  if (/before initialization/.test(m)) return "Diese Variable wird benutzt, bevor sie mit let angelegt wurde.";
+  if (e instanceof RangeError) return "Das hört nie auf: Eine Funktion ruft sich immer wieder selbst auf.";
+  return m;
+}
+const API_NAMES = new Set([...API_WORDS, "Math"]);
+function topNames(code) {
+  const names = new Set();
+  const decl = /\b(?:let|const|var)\s+([^;\n]+)/g;
+  let m;
+  while ((m = decl.exec(code))) {
+    for (const part of splitTop(m[1], ",")) {
+      const n = /^\s*([A-Za-z_$ÄÖÜäöüß][\w$ÄÖÜäöüß]*)/.exec(part);
+      if (n) names.add(n[1]);
+      if (/\bof\b|\bin\b/.test(part)) break;
+    }
+  }
+  const fns = /\b(?:function|class)\s+([A-Za-z_$][\w$]*)/g;
+  while ((m = fns.exec(code))) names.add(m[1]);
+  return [...names].filter(n => !API_NAMES.has(n) && !KEYWORDS.has(n));
+}
+function varsTail(code) {
+  const ns = topNames(code);
+  return "\n;__vars({" + ns.map(n => JSON.stringify(n) + ": typeof " + n + ' === "undefined" ? undefined : ' + n).join(", ") + "});";
+}
+function show(v) {
+  if (typeof v === "string") return v;
+  if (v === undefined) return "undefined";
+  if (typeof v === "function") return "Funktion";
+  try { return JSON.stringify(v, (k, x) => typeof x === "function" ? undefined : x); } catch (e) { return String(v); }
+}
+function codeLines(code) { return code.split("\n").filter(l => l.trim() && !l.trim().startsWith("//")).length; }
+function wiederhole(n, fn) {
+  if (typeof n !== "number") throw new ClawdError("wiederhole braucht zuerst eine Zahl, z. B. wiederhole(3, () => { … })", hereLine());
+  if (typeof fn !== "function") throw new ClawdError("Bei wiederhole fehlt der Teil () => { … } mit den Befehlen.", hereLine());
+  for (let i = 0; i < n; i++) { __g(); fn(i); }
+}
+
+// ── engine: grid world (Clawd on tiles) ───────────────────────────────
+const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];
+function parseMap(rows) {
+  const m = { w: rows[0].length, h: rows.length, rows, gems: [], flag: null, start: null };
+  rows.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch === "G") m.gems.push(x + "," + y);
+    if (ch === "F") m.flag = { x, y };
+    const d = ">v<^".indexOf(ch);
+    if (d >= 0) m.start = { x, y, dir: d };
+  }));
+  return m;
+}
+const blocked = (m, x, y) => x < 0 || y < 0 || x >= m.w || y >= m.h || m.rows[y][x] === "#" || m.rows[y][x] === "~";
+function simulateGrid(code, map) {
+  const st = { x: map.start.x, y: map.start.y, dir: map.start.dir, got: [] };
+  const frames = [{ ev: "start", x: st.x, y: st.y, dir: st.dir, got: [], line: 0 }];
+  const said = [];
+  const snap = (ev, extra) => {
+    frames.push(Object.assign({ ev, x: st.x, y: st.y, dir: st.dir, got: st.got.slice(), line: hereLine() }, extra));
+    if (frames.length > 3000) throw new ClawdError("Zu viele Schritte! Läuft Clawd im Kreis?", hereLine());
+  };
+  const here = () => st.x + "," + st.y;
+  const api = {
+    geh() {
+      const nx = st.x + DX[st.dir], ny = st.y + DY[st.dir];
+      if (blocked(map, nx, ny)) {
+        snap("bump");
+        throw new ClawdError("Autsch! Da ist " + (map.rows[ny] && map.rows[ny][nx] === "#" ? "eine Wand" : "Wasser") + " – da kann ich nicht hin.", hereLine());
+      }
+      st.x = nx; st.y = ny; snap("move");
+    },
+    rechts() { st.dir = (st.dir + 1) % 4; snap("turn"); },
+    links() { st.dir = (st.dir + 3) % 4; snap("turn"); },
+    sammle() {
+      if (!map.gems.includes(here()) || st.got.includes(here())) { snap("bump"); throw new ClawdError("Hier liegt kein Juwel zum Sammeln.", hereLine()); }
+      st.got.push(here()); snap("collect");
+    },
+    vorneFrei: () => !blocked(map, st.x + DX[st.dir], st.y + DY[st.dir]),
+    aufJuwel: () => map.gems.includes(here()) && !st.got.includes(here()),
+    amZiel: () => !!map.flag && st.x === map.flag.x && st.y === map.flag.y,
+    sag(v) { said.push(show(v)); snap("say", { text: show(v) }); },
+    wiederhole,
+    console: { log: v => api.sag(v) },
+  };
+  guardCount = 0;
+  let err = null;
+  try { compile(code, api)(); } catch (e) { err = { msg: friendly(e), line: e.line || lineOf(e) }; }
+  const missing = map.gems.length - st.got.length;
+  const atFlag = !map.flag || (st.x === map.flag.x && st.y === map.flag.y);
+  let goal = null;
+  if (!err) {
+    if (missing > 0) goal = missing === 1 ? "Fast! Ein Juwel fehlt noch." : "Fast! Es fehlen noch " + missing + " Juwelen.";
+    else if (!atFlag) goal = "Alle Juwelen da – aber Clawd steht noch nicht auf der Fahne.";
+  }
+  return { frames, err, goal, ok: !err && !goal, said, gems: map.gems.length };
+}
+
+function GridView(canvas, map) {
+  const ctx = canvas.getContext("2d");
+  let state = { x: map.start.x, y: map.start.y, dir: map.start.dir, got: [], hop: 0, bump: 0, say: "", sayT: 0, happy: 0, trail: [] };
+  let sparkles = [], raf = 0, alive = true;
+  function size() {
+    const r = canvas.getBoundingClientRect(), d = dpr();
+    canvas.width = Math.max(10, Math.round(r.width * d)); canvas.height = Math.max(10, Math.round(r.height * d));
+  }
+  function tileGeom() {
+    const T = Math.floor(Math.min(canvas.width / map.w, canvas.height / map.h));
+    return { T, ox: Math.floor((canvas.width - T * map.w) / 2), oy: Math.floor((canvas.height - T * map.h) / 2) };
+  }
+  function hash(x, y) { return ((x * 73856093) ^ (y * 19349663)) >>> 0; }
+  function draw(t) {
+    if (!alive) return;
+    const { T, ox, oy } = tileGeom();
+    ctx.fillStyle = "#2f6fc0"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const px = Math.max(1, Math.floor(T / 12));
+    for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
+      const ch = map.rows[y][x], X = ox + x * T, Y = oy + y * T;
+      if (ch === "~") {
+        ctx.fillStyle = (x + y) % 2 ? "#3477cc" : "#3a7fd4"; ctx.fillRect(X, Y, T, T);
+        ctx.fillStyle = "rgba(255,255,255,.28)";
+        const wv = Math.floor(((t / 400) + x * 0.7 + y * 0.3) % 3);
+        ctx.fillRect(X + px * (2 + wv * 2), Y + T * 0.35, px * 3, px); ctx.fillRect(X + px * (6 - wv), Y + T * 0.7, px * 3, px);
+      } else if (ch === "#") {
+        ctx.fillStyle = "#676c86"; ctx.fillRect(X, Y, T, T);
+        ctx.fillStyle = "#858aa6"; ctx.fillRect(X, Y, T, px * 2);
+        ctx.fillStyle = "#4b4f68"; ctx.fillRect(X, Y + T - px * 2, T, px * 2);
+        ctx.fillStyle = "#5a5f7a"; ctx.fillRect(X, Y + T / 2, T, px); ctx.fillRect(X + T / 2, Y + px * 2, px, T / 2 - px * 2); ctx.fillRect(X + T / 4, Y + T / 2, px, T / 2 - px * 2);
+      } else {
+        ctx.fillStyle = (x + y) % 2 ? "#5cbf6a" : "#55b763"; ctx.fillRect(X, Y, T, T);
+        const hh = hash(x, y);
+        ctx.fillStyle = "#79d487";
+        ctx.fillRect(X + (hh % 7 + 2) * px, Y + ((hh >> 3) % 7 + 2) * px, px, px * 2);
+        ctx.fillRect(X + ((hh >> 6) % 7 + 2) * px, Y + ((hh >> 9) % 7 + 2) * px, px, px * 2);
+        ctx.fillStyle = "rgba(0,0,0,.08)"; ctx.fillRect(X, Y + T - px, T, px);
+      }
+    }
+    for (const tr of state.trail) {
+      ctx.fillStyle = "rgba(255,255,255,.18)";
+      ctx.fillRect(ox + tr.x * T + T * 0.42, oy + tr.y * T + T * 0.42, T * 0.16, T * 0.16);
+    }
+    if (map.flag) {
+      const X = ox + map.flag.x * T, Y = oy + map.flag.y * T;
+      ctx.fillStyle = "#e8e8f0"; ctx.fillRect(X + T * 0.3, Y + T * 0.12, px * 1.5, T * 0.76);
+      ctx.fillStyle = "#3a3f5c"; ctx.fillRect(X + T * 0.24, Y + T * 0.84, T * 0.2, px * 1.5);
+      ctx.fillStyle = "#d77757";
+      for (let i = 0; i < 6; i++) {
+        const wave = Math.sin(t / 160 + i * 0.9) * px;
+        ctx.fillRect(X + T * 0.3 + px * 1.5 + i * T * 0.08, Y + T * 0.14 + wave, T * 0.085, T * 0.3);
+      }
+    }
+    for (const g of map.gems) {
+      if (state.got.includes(g)) continue;
+      const [gx, gy] = g.split(",").map(Number);
+      drawGem(ctx, ox + gx * T + T / 2, oy + gy * T + T / 2, T, t);
+    }
+    // Clawd
+    const cpx = (T * 0.86) / 18;
+    const legs = state.hop > 0 && state.hop < 1 ? (Math.floor(state.hop * 4) % 2 ? "b" : "a") : "a";
+    const look = state.dir === 0 ? "r" : state.dir === 2 ? "l" : "c";
+    const rows = pose({ eyes: look, legs, happy: state.happy > 0, arms: state.happy > 0 ? "up" : state.bump > 0 ? "up" : state.say ? "wave" : "side" });
+    const hop = Math.sin(Math.min(1, Math.max(0, state.hop)) * Math.PI) * T * 0.12;
+    const shake = state.bump > 0 ? Math.sin(state.bump * 40) * T * 0.06 : 0;
+    const cx = ox + state.x * T + T * 0.07 + shake, cy = oy + state.y * T + T - rows.length * cpx - T * 0.06 - hop;
+    ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(ox + state.x * T + T * 0.2, oy + state.y * T + T * 0.86, T * 0.6, px * 1.5);
+    drawRows(ctx, rows, cx, cy, cpx, state.bump > 0 ? "#c45a3a" : "#d77757");
+    // Direction arrow
+    ctx.fillStyle = "#ffffff";
+    const ax = ox + state.x * T + T / 2 + DX[state.dir] * T * 0.48, ay = oy + state.y * T + T / 2 + DY[state.dir] * T * 0.48;
+    ctx.beginPath();
+    const a = state.dir * Math.PI / 2, s = T * 0.09;
+    ctx.moveTo(ax + Math.cos(a) * s, ay + Math.sin(a) * s);
+    ctx.lineTo(ax + Math.cos(a + 2.4) * s, ay + Math.sin(a + 2.4) * s);
+    ctx.lineTo(ax + Math.cos(a - 2.4) * s, ay + Math.sin(a - 2.4) * s);
+    ctx.fill();
+    // Sparkles
+    sparkles = sparkles.filter(p => t - p.t0 < 700);
+    for (const p of sparkles) {
+      const k = (t - p.t0) / 700;
+      ctx.fillStyle = `rgba(255,236,150,${1 - k})`;
+      ctx.fillRect(p.x + p.vx * k * T, p.y + p.vy * k * T - k * T * 0.3, px * 2, px * 2);
+    }
+    // Speech bubble
+    if (state.say) {
+      ctx.font = `600 ${Math.max(12, T * 0.28)}px Fredoka, sans-serif`;
+      const w = ctx.measureText(state.say).width + T * 0.4, bh = T * 0.5;
+      let bx = ox + state.x * T + T / 2 - w / 2, by = oy + state.y * T - bh - T * 0.05;
+      bx = Math.max(4, Math.min(canvas.width - w - 4, bx)); by = Math.max(4, by);
+      ctx.fillStyle = "#ffffff"; roundRect(ctx, bx, by, w, bh, bh * 0.3); ctx.fill();
+      ctx.fillStyle = "#1b1f3b"; ctx.textBaseline = "middle"; ctx.fillText(state.say, bx + T * 0.2, by + bh / 2);
+    }
+  }
+  function loop(t) { draw(t); raf = requestAnimationFrame(loop); }
+  size();
+  raf = requestAnimationFrame(loop);
+  const ro = new ResizeObserver(size); ro.observe(canvas);
+  return {
+    set(s) { state = Object.assign({ hop: 0, bump: 0, say: "", happy: 0, trail: [] }, s); },
+    get state() { return state; },
+    sparkle() {
+      const { T, ox, oy } = tileGeom();
+      for (let i = 0; i < 10; i++) sparkles.push({ x: ox + state.x * T + T / 2, y: oy + state.y * T + T / 2, vx: (Math.random() - .5) * .9, vy: (Math.random() - .8) * .7, t0: performance.now() });
+    },
+    destroy() { alive = false; cancelAnimationFrame(raf); ro.disconnect(); },
+  };
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+// ── engine: drawing board ─────────────────────────────────────────────
+const COLORS = {
+  rot: "#e5484d", blau: "#3d7ff5", gelb: "#f5c518", "grün": "#2fbf71", gruen: "#2fbf71", orange: "#f08a4b", lila: "#8b5cf6", pink: "#f472b6",
+  "weiß": "#ffffff", weiss: "#ffffff", schwarz: "#111827", grau: "#9ca3af", braun: "#92603b", "türkis": "#14b8a6", tuerkis: "#14b8a6",
+  himmel: "#9fd8ff", nacht: "#14183a", clawd: "#d77757", gold: "#f5b83d", dunkelgrün: "#1f7a4a", hellblau: "#7cc4ff",
+};
+const RANDOM_COLORS = ["#e5484d", "#3d7ff5", "#f5c518", "#2fbf71", "#f08a4b", "#8b5cf6", "#f472b6", "#14b8a6"];
+const col = c => COLORS[String(c).toLowerCase()] || String(c);
+function num(v, name) { if (typeof v !== "number" || isNaN(v)) throw new ClawdError("„" + name + "“ braucht eine Zahl.", hereLine()); return v; }
+function drawOp(ctx, o, k) {
+  ctx.save();
+  if (k < 1) {
+    const cx = o.t === "kreis" ? o.x : o.t === "rechteck" ? o.x + o.w / 2 : o.t === "dreieck" ? (o.x1 + o.x2 + o.x3) / 3 : o.t === "text" ? o.x : 200;
+    const cy = o.t === "kreis" ? o.y : o.t === "rechteck" ? o.y + o.h / 2 : o.t === "dreieck" ? (o.y1 + o.y2 + o.y3) / 3 : o.t === "text" ? o.y : 200;
+    const s = o.t === "bg" ? 1 : easeBack(k);
+    ctx.translate(cx, cy); ctx.scale(s, s); ctx.translate(-cx, -cy);
+    ctx.globalAlpha = Math.min(1, k * 2);
+  }
+  ctx.fillStyle = col(o.c); ctx.strokeStyle = col(o.c);
+  if (o.t === "bg") ctx.fillRect(0, 0, 400, 400);
+  if (o.t === "kreis") { ctx.beginPath(); ctx.arc(o.x, o.y, Math.max(0, o.r), 0, Math.PI * 2); ctx.fill(); }
+  if (o.t === "rechteck") ctx.fillRect(o.x, o.y, o.w, o.h);
+  if (o.t === "linie") { ctx.lineWidth = o.d; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(o.x1, o.y1); ctx.lineTo(o.x2, o.y2); ctx.stroke(); }
+  if (o.t === "dreieck") { ctx.beginPath(); ctx.moveTo(o.x1, o.y1); ctx.lineTo(o.x2, o.y2); ctx.lineTo(o.x3, o.y3); ctx.closePath(); ctx.fill(); }
+  if (o.t === "text") { ctx.font = `600 ${o.size}px Fredoka, sans-serif`; ctx.textBaseline = "alphabetic"; ctx.fillText(o.s, o.x, o.y); }
+  if (o.t === "clawd") drawRows(ctx, pose({ legs: o.legs, eyes: o.eyes || "c" }), o.x - 27, o.y - 18, 3, "#d77757");
+  if (o.t === "juwel") drawGem(ctx, o.x, o.y, 44, o.time || 0);
+  ctx.restore();
+}
+function easeBack(k) { const c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); }
+function drawApi(push) {
+  return {
+    hintergrund: c => push({ t: "bg", c: c || "weiß" }),
+    kreis: (x, y, r, c) => push({ t: "kreis", x: num(x, "kreis x"), y: num(y, "kreis y"), r: num(r, "kreis radius"), c: c || "orange" }),
+    rechteck: (x, y, w, hh, c) => push({ t: "rechteck", x: num(x, "rechteck x"), y: num(y, "rechteck y"), w: num(w, "rechteck breite"), h: num(hh, "rechteck höhe"), c: c || "blau" }),
+    linie: (x1, y1, x2, y2, c, d) => push({ t: "linie", x1: num(x1, "linie"), y1: num(y1, "linie"), x2: num(x2, "linie"), y2: num(y2, "linie"), c: c || "schwarz", d: d || 4 }),
+    dreieck: (x1, y1, x2, y2, x3, y3, c) => push({ t: "dreieck", x1: num(x1, "dreieck"), y1: num(y1, "dreieck"), x2: num(x2, "dreieck"), y2: num(y2, "dreieck"), x3: num(x3, "dreieck"), y3: num(y3, "dreieck"), c: c || "rot" }),
+    text: (s, x, y, c, size) => push({ t: "text", s: show(s), x: num(x, "text x"), y: num(y, "text y"), c: c || "schwarz", size: size || 22 }),
+    zufall: (a, b) => Math.floor(Math.random() * (b - a + 1)) + a,
+    zufallsfarbe: () => RANDOM_COLORS[Math.floor(Math.random() * RANDOM_COLORS.length)],
+    wiederhole,
+  };
+}
+
+// ── engine: console (output + memory) ─────────────────────────────────
+function runConsole(code) {
+  const output = [], ops = [];
+  let vars = {};
+  const api = Object.assign(drawApi(o => ops.push(o)), {
+    sag: v => { output.push(show(v)); if (output.length > 500) throw new ClawdError("Zu viele Ausgaben!", hereLine()); },
+    __vars: v => { vars = v; },
+  });
+  api.console = { log: api.sag };
+  guardCount = 0;
+  let err = null;
+  try { compile(code, api, varsTail(code))(); } catch (e) { err = { msg: friendly(e), line: e.line || lineOf(e) }; }
+  return { output, vars, ops, err };
+}
+
+// ── engine: sorting bars / guessing ───────────────────────────────────
+function runSort(code, arr) {
+  const a = arr.slice(), ops = [], said = [];
+  const idx = (i, name) => { if (typeof i !== "number" || i < 0 || i >= a.length || i % 1) throw new ClawdError(name + "(" + i + "): Es gibt nur die Balken 0 bis " + (a.length - 1) + ".", hereLine()); return i; };
+  const rec = o => { ops.push(Object.assign({ line: hereLine() }, o)); if (ops.length > 4000) throw new ClawdError("Zu viele Schritte – hört die Schleife auf?", hereLine()); };
+  const api = {
+    anzahl: () => a.length,
+    wert: i => { idx(i, "wert"); rec({ t: "read", i }); return a[i]; },
+    vergleiche: (i, j) => { idx(i, "vergleiche"); idx(j, "vergleiche"); rec({ t: "cmp", i, j }); return a[i] > a[j]; },
+    tausche: (i, j) => { idx(i, "tausche"); idx(j, "tausche"); [a[i], a[j]] = [a[j], a[i]]; rec({ t: "swap", i, j }); },
+    sag: v => { said.push(show(v)); rec({ t: "say", text: show(v) }); },
+    wiederhole,
+  };
+  api.console = { log: api.sag };
+  guardCount = 0;
+  let err = null;
+  try { compile(code, api)(); } catch (e) { err = { msg: friendly(e), line: e.line || lineOf(e) }; }
+  return { ops, said, final: a, err };
+}
+function runGuess(code, secret) {
+  const ops = [];
+  let found = false, tries = 0;
+  const api = {
+    rate: z => {
+      if (typeof z !== "number") throw new ClawdError("rate braucht eine Zahl.", hereLine());
+      tries++;
+      if (tries > 60) throw new ClawdError("Über 60 Versuche – so wird das nichts. Rätst du immer dieselbe Zahl?", hereLine());
+      const ans = z === secret ? "richtig" : secret > z ? "größer" : "kleiner";
+      if (ans === "richtig") found = true;
+      ops.push({ z, ans, line: hereLine() });
+      return ans;
+    },
+    sag: () => { },
+    wiederhole,
+  };
+  api.console = { log: () => { } };
+  guardCount = 0;
+  let err = null;
+  try { compile(code, api)(); } catch (e) { err = { msg: friendly(e), line: e.line || lineOf(e) }; }
+  return { ops, found, tries, err, secret };
+}
+// ── game engine (live, 60 fps) ────────────────────────────────────────
+const KEYMAP = { ArrowLeft: "links", ArrowRight: "rechts", ArrowUp: "hoch", ArrowDown: "runter", " ": "leertaste", a: "links", d: "rechts", w: "hoch", s: "runter" };
+const keys = {};
+let activeGame = null;
+addEventListener("keydown", e => {
+  const k = KEYMAP[e.key];
+  if (k && activeGame && !e.target.closest("textarea")) { keys[k] = true; e.preventDefault(); }
+});
+addEventListener("keyup", e => { const k = KEYMAP[e.key]; if (k) keys[k] = false; });
+function startGame(canvas, code, onTick, onError) {
+  const ctx = canvas.getContext("2d");
+  let frameFn = null, stopped = false, frames = 0, raf = 0, done = false;
+  const stats = { frames: 0, moved: false, wrapped: false, keyMoves: 0, done: false };
+  let firstX = null, lastX = null, lastY = null, frameFirst = null, t0 = performance.now();
+  function scale() {
+    const r = canvas.getBoundingClientRect(), d = dpr();
+    const w = Math.max(10, Math.round(r.width * d)), hh = Math.max(10, Math.round(r.height * d));
+    if (canvas.width !== w || canvas.height !== hh) { canvas.width = w; canvas.height = hh; }
+    ctx.setTransform(canvas.width / 400, 0, 0, canvas.height / 400, 0, 0);
+  }
+  const push = o => {
+    if (o.t === "juwel") o.time = performance.now();
+    drawOp(ctx, o, 1);
+    if (!frameFirst && (o.t === "kreis" || o.t === "rechteck" || o.t === "clawd")) frameFirst = o;
+  };
+  const api = Object.assign(drawApi(push), {
+    jedesBild: fn => { if (typeof fn !== "function") throw new ClawdError("jedesBild braucht () => { … }", hereLine()); frameFn = fn; },
+    taste: name => !!keys[name],
+    abstand: (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1),
+    geschafft: () => { done = true; stats.done = true; },
+    clawd: (x, y) => push({ t: "clawd", x, y, legs: Math.floor(frames / 8) % 2 ? "b" : "a" }),
+    juwel: (x, y) => push({ t: "juwel", x, y }),
+    sag: v => push({ t: "text", s: show(v), x: 12, y: 390, c: "weiß", size: 16 }),
+    breite: 400, hoehe: 400,
+  });
+  api.console = { log: api.sag };
+  scale();
+  ctx.fillStyle = "#14183a"; ctx.fillRect(0, 0, 400, 400);
+  guardCount = 0; guardLimit = 2e6;
+  try { compile(code, api)(); } catch (e) { onError({ msg: friendly(e), line: e.line || lineOf(e) }); return { stop() { } }; }
+  if (!frameFn) { onError({ msg: "Es fehlt jedesBild(() => { … }) – ohne gibt es keine Animation." }); return { stop() { } }; }
+  activeGame = true;
+  function tick() {
+    if (stopped) return;
+    scale();
+    frameFirst = null;
+    guardCount = 0; guardLimit = 2e5;
+    try { frameFn(frames); } catch (e) { stopped = true; activeGame = null; onError({ msg: friendly(e), line: e.line || lineOf(e) }); return; }
+    frames++; stats.frames = frames;
+    if (frameFirst) {
+      const x = frameFirst.x, y = frameFirst.y;
+      if (firstX === null) firstX = x;
+      if (lastX !== null && Math.abs(x - firstX) > 20) stats.moved = true;
+      if (lastX !== null && lastX - x > 200) stats.wrapped = true;
+      const anyKey = Object.values(keys).some(Boolean);
+      if (anyKey && lastX !== null && (x !== lastX || y !== lastY)) stats.keyMoves++;
+      lastX = x; lastY = y;
+    }
+    if (frames % 15 === 0) onTick(stats);
+    raf = requestAnimationFrame(tick);
+  }
+  raf = requestAnimationFrame(tick);
+  return { stop() { stopped = true; cancelAnimationFrame(raf); activeGame = null; for (const k in keys) keys[k] = false; }, stats, pause(v) { stopped = v; if (!v) raf = requestAnimationFrame(tick); } };
+}
+
+// ── intro visuals ─────────────────────────────────────────────────────
+let visTimers = [];
+function clearVis() { visTimers.forEach(t => { clearInterval(t); cancelAnimationFrame(t); }); visTimers = []; }
+function clawdCanvas(w, _unused, opts) {
+  const c = h("canvas", { width: 18 * 4, height: 12 * 4 });
+  c.style.width = w + "px"; c.style.height = h_(w) + "px";
+  function h_(w) { return Math.round(w * 2 / 3); }
+  const ctx = c.getContext("2d");
+  let f = 0;
+  const id = setInterval(() => {
+    f++;
+    ctx.clearRect(0, 0, c.width, c.height);
+    const p = typeof opts === "function" ? opts(f) : opts || {};
+    const rows = pose(p);
+    drawRows(ctx, rows, 0, (12 - rows.length) * 4 - (p.jump ? Math.abs(Math.sin(f / 3)) * 6 : 0), 4, p.color || "#d77757");
+  }, 140);
+  visTimers.push(id);
+  return c;
+}
+function buildVis(card) {
+  const v = h("div", { class: "vis" });
+  const add = (...k) => v.append(...k);
+  switch (card.v) {
+    case "clawd": add(clawdCanvas(150, 0, f => ({ arms: f % 6 < 3 ? "wave" : "side", eyes: f % 20 === 0 ? "shut" : "c", happy: f % 30 > 24 }))); break;
+    case "cmd": {
+      const row = h("div", { class: "v-row" });
+      ["geh();", "geh();", "rechts();", "sammle();"].forEach((t, i) => { const c = h("span", { class: "v-chip" }, t); c.style.animationDelay = i * 0.35 + "s"; row.append(c, i < 3 ? h("span", { style: "color:var(--muted)" }, "→") : null); });
+      add(row); break;
+    }
+    case "turn": {
+      const box = h("div", { class: "v-row" });
+      const arrow = h("div", { style: "width:90px;height:90px;border-radius:50%;background:var(--surface);display:grid;place-items:center;box-shadow:inset 0 0 0 3px var(--line);transition:transform .5s cubic-bezier(.3,1.4,.5,1);font:700 40px var(--font-display);color:var(--accent)" }, "➜");
+      const lbl = h("code", null, "rechts();");
+      box.append(arrow, lbl); add(box);
+      let a = 0, n = 0;
+      visTimers.push(setInterval(() => { n++; const r = n % 4 < 2; a += r ? 90 : -90; arrow.style.transform = `rotate(${a}deg)`; lbl.textContent = r ? "rechts();" : "links();"; }, 1100));
+      break;
+    }
+    case "loop": {
+      const ring = h("div", { class: "v-ring", html: '<svg viewBox="0 0 110 110"><circle cx="55" cy="55" r="46" fill="none" stroke="var(--line)" stroke-width="8"/><path d="M55 9 A46 46 0 1 1 9 55" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round"/><path d="M2 48 L9 60 L18 48" fill="var(--accent)"/></svg>' });
+      const b = h("b", null, "1"); ring.append(b);
+      add(h("div", { class: "v-row" }, ring, h("div", { style: "display:grid;gap:4px" }, h("span", { class: "v-chip" }, "geh();"), h("small", { style: "color:var(--muted)" }, "wird wiederholt"))));
+      let n = 1; visTimers.push(setInterval(() => { n = n % 5 + 1; b.textContent = n; }, 480));
+      break;
+    }
+    case "if": {
+      v.innerHTML = '<svg class="v-fork" viewBox="0 0 280 150"><path d="M20 75 H110" stroke="var(--line)" stroke-width="10" stroke-linecap="round"/><path d="M110 75 C150 75 150 25 200 25 H260" stroke="var(--mint)" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M110 75 C150 75 150 125 200 125 H260" stroke="var(--danger)" stroke-width="10" fill="none" stroke-linecap="round" opacity=".55"/><text x="210" y="14" font-family="Fredoka" font-size="14" fill="var(--mint)">ja (true)</text><text x="200" y="148" font-family="Fredoka" font-size="14" fill="var(--danger)">nein (false)</text><rect x="72" y="40" width="76" height="26" rx="8" fill="var(--ink)"/><text x="110" y="58" text-anchor="middle" font-family="JetBrains Mono" font-size="12" fill="var(--surface)">if ( ? )</text><circle id="dotf" r="9" fill="var(--accent)" cx="20" cy="75"/></svg>';
+      const dot = v.querySelector("#dotf"), up = v.querySelector(".v-fork path:nth-child(2)"), down = v.querySelector(".v-fork path:nth-child(3)");
+      let t = 0, yes = true;
+      visTimers.push(setInterval(() => {
+        t += 0.025;
+        if (t > 1) { t = 0; yes = !yes; up.setAttribute("opacity", yes ? 1 : .55); down.setAttribute("opacity", yes ? .55 : 1); }
+        const x = 20 + t * 240, y = x < 110 ? 75 : 75 + (yes ? -1 : 1) * Math.min(50, (x - 110) * 0.7);
+        dot.setAttribute("cx", x); dot.setAttribute("cy", y);
+      }, 30));
+      break;
+    }
+    case "box": {
+      const val = h("b", null, "7");
+      add(h("div", { class: "v-box" }, h("div", { class: "v-crate" }, val), h("span", { class: "v-label" }, "lieblingszahl")));
+      const vals = ["7", "\"Hallo\"", "42", "true"]; let n = 0;
+      visTimers.push(setInterval(() => { n = (n + 1) % vals.length; val.textContent = vals[n]; val.style.animation = "none"; void val.offsetWidth; val.style.animation = ""; }, 2600));
+      break;
+    }
+    case "math": {
+      const row = h("div", { class: "v-row" });
+      const eqs = [["6", "×", "7", "42"], ["12", "÷", "4", "3"], ["5", "+", "8", "13"], ["10", "−", "3", "7"]]; let n = 0;
+      const draw = () => { row.innerHTML = ""; const e = eqs[n]; [e[0], e[1], e[2], "=", e[3]].forEach((t, i) => { const c = h("span", { class: "v-chip" }, t); c.style.animationDelay = i * 0.15 + "s"; if (i === 4) c.style.color = "var(--tok-num)"; row.append(c); }); n = (n + 1) % eqs.length; };
+      draw(); add(row); visTimers.push(setInterval(draw, 2200));
+      break;
+    }
+    case "string": {
+      const row = h("div", { class: "v-row" });
+      const draw = () => { row.innerHTML = ""; [["\"Hallo \"", 0], ["+", .3], ["name", .6], ["→", .9], ["\"Hallo Mia\"", 1.2]].forEach(([t, d]) => { const c = h("span", { class: "v-chip" }, t); c.style.animationDelay = d + "s"; if (t.startsWith("\"")) c.style.color = "var(--tok-str)"; row.append(c); }); };
+      draw(); add(row); visTimers.push(setInterval(draw, 3000));
+      break;
+    }
+    case "coords": {
+      const c = h("canvas", { width: 220, height: 160 }); c.style.width = "220px"; c.style.maxWidth = "100%";
+      add(c);
+      const ctx = c.getContext("2d"); let t = 0;
+      const id = setInterval(() => {
+        t += 0.02; ctx.clearRect(0, 0, 220, 160);
+        ctx.fillStyle = css("--surface"); ctx.fillRect(20, 14, 180, 130);
+        ctx.strokeStyle = css("--line"); ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(20 + i * 45, 14); ctx.lineTo(20 + i * 45, 144); ctx.stroke(); ctx.beginPath(); ctx.moveTo(20, 14 + i * 32.5); ctx.lineTo(200, 14 + i * 32.5); ctx.stroke(); }
+        ctx.fillStyle = css("--accent"); ctx.font = "600 11px JetBrains Mono";
+        ctx.fillText("x →", 176, 10); ctx.save(); ctx.translate(10, 40); ctx.fillText("y", 0, 0); ctx.fillText("↓", 0, 14); ctx.restore();
+        const x = 20 + (Math.sin(t) * .5 + .5) * 180, y = 14 + (Math.cos(t * 1.3) * .5 + .5) * 130;
+        ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.fill();
+        ctx.fillStyle = css("--ink"); ctx.fillText(`(${Math.round((x - 20) / 180 * 400)}, ${Math.round((y - 14) / 130 * 400)})`, Math.min(x + 10, 150), Math.max(y - 8, 26));
+      }, 40);
+      visTimers.push(id); break;
+    }
+    case "func": add(h("div", { class: "v-machine" }, h("span", { class: "v-ball in" }, "5, 4"), h("div", { class: "m" }, "flaeche()"), h("span", { class: "v-ball outb" }, "20"))); break;
+    case "array": {
+      const cells = h("div", { class: "v-cells" });
+      ["\"rot\"", "\"grün\"", "\"blau\"", "\"gelb\""].forEach((t, i) => { const s = h("span", null, h("b", null, t), h("small", null, "[" + i + "]")); s.style.animationDelay = i * 0.25 + "s"; cells.append(s); });
+      add(cells); break;
+    }
+    case "object": {
+      const o = h("div", { class: "v-obj" });
+      [["{", ""], ["  name: ", "\"Clawd\","], ["  farbe: ", "\"orange\","], ["  leben: ", "3"], ["}", ""]].forEach(([k, val], i) => { const d = h("div", null, k, h("span", { style: "color:var(--accent)" }, val)); d.style.animationDelay = i * 0.2 + "s"; d.style.whiteSpace = "pre"; o.append(d); });
+      add(o); break;
+    }
+    case "class": {
+      const row = h("div", { class: "v-row" }, h("div", { class: "v-obj", style: "border-style:dashed" }, h("div", null, "class Monster"), h("div", { style: "color:var(--muted)" }, "Bauplan")), h("span", null, "→"));
+      ["Grummel", "Blubb"].forEach((n, i) => { const c = h("div", { class: "v-obj" }, h("div", null, n), h("div", { style: "color:var(--accent)" }, "leben: " + (5 - i * 2))); c.style.animation = "slidein .5s " + (0.4 + i * 0.4) + "s backwards"; row.append(c); });
+      add(row); break;
+    }
+    case "bars": case "sort": {
+      const bars = h("div", { class: "v-bars" }); const vals = [5, 2, 8, 1, 6, 3, 7, 4];
+      const els = vals.map(() => { const i = h("i"); bars.append(i); return i; });
+      const draw = hot => els.forEach((e, k) => { e.style.height = vals[k] * 12 + "px"; e.classList.toggle("hot", hot && hot.includes(k)); });
+      draw(); add(bars);
+      let i = 0, sorted = 0;
+      visTimers.push(setInterval(() => {
+        if (card.v === "bars") { const m = vals.indexOf(Math.max(...vals)); draw([i % vals.length === m ? m : i % vals.length]); i++; return; }
+        if (i >= vals.length - 1 - sorted) { i = 0; sorted++; if (sorted >= vals.length) { vals.sort(() => Math.random() - .5); sorted = 0; } }
+        if (vals[i] > vals[i + 1]) [vals[i], vals[i + 1]] = [vals[i + 1], vals[i]];
+        draw([i, i + 1]); i++;
+      }, 450));
+      break;
+    }
+    case "search": {
+      const c = h("canvas", { width: 280, height: 90 }); c.style.width = "280px"; c.style.maxWidth = "100%"; add(c);
+      const ctx = c.getContext("2d"); let lo = 1, hi = 100, secret = 37, step = 0;
+      visTimers.push(setInterval(() => {
+        ctx.clearRect(0, 0, 280, 90);
+        ctx.fillStyle = css("--line"); ctx.fillRect(10, 40, 260, 10);
+        ctx.fillStyle = css("--sky"); ctx.fillRect(10 + (lo - 1) / 99 * 260, 40, Math.max(3, (hi - lo) / 99 * 260), 10);
+        const mid = Math.floor((lo + hi) / 2);
+        ctx.fillStyle = css("--accent"); ctx.beginPath(); ctx.arc(10 + (mid - 1) / 99 * 260, 45, 8, 0, 7); ctx.fill();
+        ctx.fillStyle = css("--ink"); ctx.font = "600 13px Fredoka";
+        ctx.fillText(`Bereich ${lo}–${hi} · rate ${mid}`, 10, 25);
+        ctx.fillText(mid === secret ? "richtig! 🎉" : secret > mid ? "→ größer" : "← kleiner", 10, 78);
+        step++;
+        if (mid === secret) { if (step > 3) { lo = 1; hi = 100; secret = 1 + Math.floor(Math.random() * 100); step = 0; } }
+        else if (secret > mid) lo = mid + 1; else hi = mid - 1;
+      }, 1100));
+      break;
+    }
+    case "frame": {
+      const fl = h("div", { class: "v-flip" });
+      for (let i = 0; i < 4; i++) { const s = h("span"); const b = h("i"); b.style.left = 4 + i * 9 + "px"; s.append(b); fl.append(s); }
+      add(fl); let k = 0;
+      visTimers.push(setInterval(() => { k = (k + 1) % 4; [...fl.children].forEach((s, i) => s.style.boxShadow = i === k ? "inset 0 0 0 3px var(--accent)" : ""); }, 250));
+      break;
+    }
+    case "keys": add(h("div", { class: "v-keys" }, h("span"), h("b", null, "↑"), h("span"), h("b", { class: "p" }, "←"), h("b", null, "↓"), h("b", { class: "p", style: "animation-delay:.8s" }, "→"))); break;
+    case "collide": {
+      const c = h("canvas", { width: 240, height: 110 }); c.style.width = "240px"; c.style.maxWidth = "100%"; add(c);
+      const ctx = c.getContext("2d"); let t = 0;
+      visTimers.push(setInterval(() => {
+        t = (t + 0.02) % 1; ctx.clearRect(0, 0, 240, 110);
+        const ax = 30 + t * 150, bx = 190, d = Math.abs(bx - ax), hit = d < 44;
+        ctx.strokeStyle = css("--muted"); ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(ax, 55); ctx.lineTo(bx, 55); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = hit ? css("--mint") : css("--accent"); ctx.beginPath(); ctx.arc(ax, 55, 22, 0, 7); ctx.fill();
+        ctx.fillStyle = css("--grape"); ctx.beginPath(); ctx.arc(bx, 55, 22, 0, 7); ctx.fill();
+        ctx.fillStyle = css("--ink"); ctx.font = "600 12px JetBrains Mono"; ctx.fillText("abstand = " + Math.round(d), 70, 16);
+        if (hit) { ctx.font = "700 14px Fredoka"; ctx.fillText("Treffer!", 94, 104); }
+      }, 30));
+      break;
+    }
+    default: break;
+  }
+  if (card.code) {
+    const pre = h("pre", { html: highlight(card.code).trimEnd() });
+    if (card.v === "code") { v.innerHTML = ""; v.append(pre); }
+    else v.append(h("div", { style: "width:100%;margin-top:10px" }, pre));
+  }
+  return v;
+}
+
+// ── views ─────────────────────────────────────────────────────────────
+const main = $("#main");
+let cleanup = [];
+function teardown() { cleanup.forEach(f => f()); cleanup = []; clearVis(); }
+
+function viewHome() {
+  teardown();
+  location.hash = "start";
+  main.innerHTML = "";
+  const next = nextLesson(), started = Object.keys(store.data.done).length > 0;
+  const heroCanvas = h("canvas");
+  const codeBox = h("div", { class: "hero-code", "aria-hidden": "true" });
+  const hero = h("section", { class: "hero" },
+    h("div", null,
+      h("h1", null, "Programmieren lernen – ", h("em", null, "vom ersten Schritt"), " bis zum Profi."),
+      h("p", null, "Du schreibst echten JavaScript-Code, und Clawd setzt ihn sofort um: Er läuft, sammelt Juwelen, malt Bilder, sortiert Zahlen und wird am Ende zu deinem eigenen Spiel. 34 Lektionen in 9 Welten – Schritt für Schritt, ohne Vorwissen."),
+      h("div", { class: "cta" },
+        h("button", { class: "btn primary", type: "button", onclick: () => viewLesson(next) }, started ? "Weiterlernen →" : "Los geht's →"),
+        h("button", { class: "btn", type: "button", onclick: () => document.getElementById("weltkarte").scrollIntoView({ behavior: "smooth" }) }, "Alle Welten ansehen"))),
+    h("div", { class: "hero-stage" }, heroCanvas, codeBox));
+  main.append(hero);
+  heroDemo(heroCanvas, codeBox);
+
+  const head = h("div", { class: "journey-head", id: "weltkarte" },
+    h("div", null, h("h2", null, "Deine Reise"), h("p", null, "Jede Welt baut auf der vorherigen auf. Sterne gibt's für saubere Lösungen.")),
+    store.data.unlockAll ? null : h("button", { class: "linkbtn", type: "button", onclick: () => { store.data.unlockAll = true; store.save(); viewHome(); } }, "Ich kann schon was – alle Lektionen freischalten"));
+  const grid = h("div", { class: "worlds" });
+  WORLDS.forEach((w, wi) => {
+    const ids = LESSONS.map((l, i) => l.w === wi ? i : -1).filter(i => i >= 0);
+    const doneN = ids.filter(isDone).length;
+    const anyOpen = ids.some(unlocked);
+    const badge = h("canvas"); drawIcon(badge, w.icon, w.color);
+    const lessons = h("div", { class: "lessons" });
+    ids.forEach(i => {
+      const st = store.data.done[i] || 0, isNext = i === next && unlocked(i), open = unlocked(i);
+      const b = h("button", { class: "ldot" + (st ? " done" : "") + (isNext ? " next" : "") + (open ? "" : " lock"), type: "button", title: LESSONS[i].title + (open ? "" : " (noch gesperrt)"), "aria-label": "Lektion " + (i + 1) + ": " + LESSONS[i].title, onclick: () => open ? viewLesson(i) : toastLocked(b) }, open ? String(i + 1) : "🔒");
+      if (st) b.append(h("span", { class: "st" }, "★".repeat(st)));
+      lessons.append(b);
+    });
+    const card = h("article", { class: "world" + (anyOpen ? "" : " locked") },
+      h("div", { class: "wh" }, h("div", { class: "badge" }, badge), h("div", null, h("div", { class: "num" }, "Welt " + (wi + 1)), h("h3", null, w.name))),
+      h("p", null, w.desc), lessons,
+      h("div", { class: "wprog", title: doneN + " von " + ids.length + " geschafft" }, h("i", { style: "width:" + Math.round(doneN / ids.length * 100) + "%" })));
+    card.style.setProperty("--wc", w.color);
+    card.style.animationDelay = wi * 0.05 + "s";
+    grid.append(card);
+  });
+  main.append(head, grid);
+  renderTop();
+}
+function toastLocked(b) { b.animate([{ transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "none" }], { duration: 250 }); }
+
+function heroDemo(canvas, codeBox) {
+  const map = parseMap(["~~~~~~~~~~~~", "~>G.G.G.G.F~", "~~~~~~~~~~~~", "~~~~~~~~~~~~"].slice(0, 3));
+  const view = GridView(canvas, map);
+  const lines = ["wiederhole(4, () => {", "  geh();", "  sammle();", "  geh();", "});", "geh();"];
+  codeBox.innerHTML = lines.map((l, i) => `<div data-l="${i}">${highlight(l).trimEnd() || "&nbsp;"}</div>`).join("");
+  const res = simulateGrid(lines.join("\n"), map);
+  const seq = res.frames.slice(1);
+  const lineFor = f => f.ev === "move" ? (f.x === 10 ? 5 : (f.x % 2 === 0 ? 1 : 3)) : 2;
+  let k = 0, alive = true;
+  async function play() {
+    while (alive) {
+      view.set({ x: map.start.x, y: map.start.y, dir: 0, got: [], trail: [] });
+      for (k = 0; k < seq.length && alive; k++) {
+        const f = seq[k], prev = k ? seq[k - 1] : res.frames[0];
+        codeBox.querySelectorAll("div").forEach(d => d.classList.toggle("on", +d.dataset.l === lineFor(f)));
+        await animateStep(view, prev, f, 420, () => alive);
+      }
+      view.set(Object.assign({}, view.state, { happy: 1 }));
+      await sleep(1600);
+    }
+  }
+  play();
+  cleanup.push(() => { alive = false; view.destroy(); });
+}
+
+async function animateStep(view, prev, f, ms, alive) {
+  const s0 = Object.assign({}, view.state);
+  const trail = (s0.trail || []).slice();
+  if (f.ev === "move") trail.push({ x: prev.x, y: prev.y });
+  const t0 = performance.now();
+  if (reduceMotion) ms = Math.min(ms, 60);
+  return new Promise(resolve => {
+    function tick(t) {
+      if (alive && !alive()) return resolve();
+      const k = Math.min(1, (t - t0) / ms);
+      const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      const st = { x: prev.x + (f.x - prev.x) * e, y: prev.y + (f.y - prev.y) * e, dir: k > 0.4 ? f.dir : prev.dir, got: k > 0.5 ? f.got : prev.got, hop: f.ev === "move" ? k : 0, bump: f.ev === "bump" ? k : 0, say: f.ev === "say" ? f.text : "", happy: 0, trail };
+      if (f.ev === "bump") { st.x = prev.x + DX[prev.dir] * 0.25 * Math.sin(k * Math.PI); st.y = prev.y + DY[prev.dir] * 0.25 * Math.sin(k * Math.PI); }
+      view.set(st);
+      if (k < 1) requestAnimationFrame(tick);
+      else { if (f.ev === "collect") view.sparkle(); resolve(); }
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+// ── lesson view ───────────────────────────────────────────────────────
+let L = null, LI = 0, editor = null, speed = 1, running = false, runToken = 0, hintsShown = 0, usedSolution = false, game = null, variantIdx = 0;
+function viewLesson(i) {
+  teardown();
+  LI = i; L = LESSONS[i]; hintsShown = 0; usedSolution = false; variantIdx = 0;
+  location.hash = "lektion-" + (i + 1);
+  const w = WORLDS[L.w];
+  main.innerHTML = "";
+  const wrap = h("div");
+  wrap.style.setProperty("--wc", w.color);
+  wrap.append(h("div", { class: "crumbs" },
+    h("button", { class: "btn small", type: "button", onclick: viewHome }, "← Weltkarte"),
+    h("span", { class: "wname" }, "Welt " + (L.w + 1) + " · " + w.name + " · Lektion " + (i + 1) + " von " + LESSONS.length),
+    h("h2", null, L.title)));
+
+  // Tutor column
+  const tutorAvatar = clawdCanvas(64, 0, f => ({ arms: f % 8 < 2 ? "wave" : "side", eyes: f % 25 === 0 ? "shut" : "c", mouth: talking > 0 && f % 2 ? 1 : 0 }));
+  let talking = 0;
+  const bubble = h("div", { class: "bubble", "aria-live": "polite" });
+  const visSlot = h("div");
+  const dots = h("div", { class: "dots" }, L.intro.map(() => h("i")));
+  const back = h("button", { class: "btn small", type: "button" }, "Zurück");
+  const fwd = h("button", { class: "btn small primary", type: "button" }, "Weiter");
+  let step = 0;
+  function showStep() {
+    clearVis();
+    const c = L.intro[step];
+    bubble.innerHTML = c.t;
+    talking = 6; const tt = setInterval(() => { talking--; if (talking <= 0) clearInterval(tt); }, 140);
+    visSlot.innerHTML = ""; visSlot.append(buildVis(c));
+    [...dots.children].forEach((d, k) => d.classList.toggle("on", k === step));
+    back.disabled = step === 0;
+    fwd.textContent = step === L.intro.length - 1 ? "Verstanden!" : "Weiter";
+    tutorAvatar.remove(); talkRow.prepend(tutorAvatar);
+  }
+  const talkRow = h("div", { class: "talk" }, tutorAvatar, bubble);
+  back.onclick = () => { if (step > 0) { step--; showStep(); } };
+  fwd.onclick = () => { if (step < L.intro.length - 1) { step++; showStep(); } else { taskCard.scrollIntoView({ behavior: "smooth", block: "nearest" }); editor.focus(); taskCard.animate([{ boxShadow: "0 0 0 4px var(--accent)" }, { boxShadow: "var(--shadow)" }], { duration: 1200 }); } };
+  const introCard = h("div", { class: "card" }, talkRow, visSlot, h("div", { class: "stepnav" }, dots, back, fwd));
+  const hintBox = h("div");
+  const hintBtn = h("button", { class: "btn small", type: "button" }, "💡 Tipp");
+  const solBtn = h("button", { class: "btn small", type: "button", hidden: true }, "Lösung zeigen");
+  hintBtn.onclick = () => {
+    if (hintsShown < L.hints.length) { hintBox.append(h("div", { class: "hint", html: L.hints[hintsShown] })); hintsShown++; }
+    if (hintsShown >= L.hints.length) { hintBtn.disabled = true; if (L.sol) solBtn.hidden = false; }
+  };
+  solBtn.onclick = () => { usedSolution = true; editor.set(L.sol); hintBox.append(h("div", { class: "hint" }, "Hier ist eine Lösung. Schau sie dir in Ruhe an und drück dann auf Ausführen.")); solBtn.hidden = true; };
+  const taskCard = h("div", { class: "card task" }, h("h3", null, "Deine Aufgabe"), h("p", { html: L.task }), hintBox, h("div", { class: "row" }, hintBtn, solBtn));
+  const tutor = h("aside", { class: "tutor" }, introCard, taskCard);
+
+  // Work column: stage + editor
+  const stageBar = h("div", { class: "stagebar" });
+  const stage = h("div", { class: "stage" + (["draw", "game"].includes(L.type) ? " square" : "") });
+  const runBtn = h("button", { class: "btn go", type: "button" }, "▶ Ausführen");
+  const stopBtn = h("button", { class: "btn small", type: "button" }, "⟲ Zurücksetzen");
+  const speedIn = h("input", { type: "range", min: "0.4", max: "4", step: "0.1", value: String(speed), id: "speed", "aria-label": "Tempo" });
+  speedIn.oninput = () => { speed = +speedIn.value; };
+  const pad = h("div", { class: "pad" + (L.type === "game" ? " on" : "") });
+  [["←", "links"], ["↑", "hoch"], ["↓", "runter"], ["→", "rechts"]].forEach(([t, k]) => {
+    const b = h("button", { type: "button", "aria-label": k }, t);
+    const on = e => { e.preventDefault(); keys[k] = true; }, off = () => { keys[k] = false; };
+    b.addEventListener("pointerdown", on); b.addEventListener("pointerup", off); b.addEventListener("pointerleave", off);
+    pad.append(b);
+  });
+  const controls = h("div", { class: "controls" }, runBtn, stopBtn, pad,
+    L.type === "game" ? null : h("label", { class: "speed", for: "speed" }, "🐢", speedIn, "🐇"));
+  const stageCard = h("div", { class: "card stagecard" }, stageBar, stage, controls);
+  editor = makeEditor(store.data.code[i] != null ? store.data.code[i] : L.start, L.palette || []);
+  const work = h("section", { class: "work" }, stageCard, editor.el);
+  wrap.append(h("div", { class: "lesson" }, tutor, work));
+  main.append(wrap);
+  showStep();
+  setupStage(stage, stageBar);
+  runBtn.onclick = () => run(stage, stageBar);
+  stopBtn.onclick = () => { stopRun(); setupStage(stage, stageBar); };
+  editor.onRun = () => run(stage, stageBar);
+  editor.onChange = code => { store.data.code[i] = code; store.save(); };
+  cleanup.push(() => { stopRun(); });
+  renderTop();
+  window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+}
+
+let stageView = null;
+function setupStage(stage, bar) {
+  if (stageView && stageView.destroy) stageView.destroy();
+  stageView = null;
+  stage.innerHTML = ""; bar.innerHTML = "";
+  editor.mark(0);
+  const title = { grid: "Clawds Welt", console: "Ausgabe & Speicher", draw: "Zeichenblatt 400 × 400", sort: "Balken", guess: "Zahlenstrahl 1–100", game: "Spielfeld – klick hinein und steuere mit den Pfeiltasten" }[L.type];
+  bar.append(h("span", { class: "title" }, title));
+  if (L.maps && L.maps.length > 1 || L.arrays && L.arrays.length > 1 || L.secrets && L.secrets.length > 1) {
+    const n = (L.maps || L.arrays || L.secrets).length;
+    const tabs = h("div", { class: "tabs", role: "tablist" });
+    for (let k = 0; k < n; k++) tabs.append(h("button", { class: "tab" + (k === variantIdx ? " on" : ""), type: "button", role: "tab", onclick: () => { if (running) return; variantIdx = k; setupStage(stage, bar); } }, "Welt " + (k + 1)));
+    bar.append(tabs);
+  }
+  if (L.type === "grid") {
+    const c = h("canvas"); stage.append(c);
+    stageView = GridView(c, parseMap(L.maps[variantIdx]));
+  } else if (L.type === "console") {
+    stage.append(h("div", { class: "console" }, h("div", { class: "panel" }, h("h4", null, "Ausgabe"), h("div", { class: "out", id: "out" }, h("div", { style: "color:var(--muted);border:0" }, "Hier erscheint, was du mit sag() ausgibst."))), h("div", { class: "panel" }, h("h4", null, "Speicher (deine Variablen)"), h("div", { class: "mem", id: "mem" }))));
+  } else if (L.type === "draw") {
+    const c = h("canvas"); stage.append(c);
+    stageView = BoardView(c);
+  } else if (L.type === "sort") {
+    const c = h("canvas"); stage.append(c);
+    stageView = BarsView(c, L.arrays[variantIdx]);
+  } else if (L.type === "guess") {
+    const c = h("canvas"); stage.append(c);
+    stageView = GuessView(c);
+  } else if (L.type === "game") {
+    const c = h("canvas", { tabindex: "0", "aria-label": "Spielfeld" }); stage.append(c);
+    const ctx = c.getContext("2d");
+    requestAnimationFrame(() => { const r = c.getBoundingClientRect(); c.width = r.width * dpr(); c.height = r.height * dpr(); ctx.fillStyle = "#14183a"; ctx.fillRect(0, 0, c.width, c.height); ctx.fillStyle = "#9aa0c7"; ctx.font = `600 ${16 * dpr()}px Fredoka, sans-serif`; ctx.textAlign = "center"; ctx.fillText("Drück ▶ Ausführen, um dein Spiel zu starten", c.width / 2, c.height / 2); });
+  }
+}
+function stopRun() { runToken++; running = false; if (game) { game.stop(); game = null; } }
+function stageMsg(stage, text, info) {
+  stage.querySelectorAll(".msg").forEach(m => m.remove());
+  if (!text) return;
+  const m = h("div", { class: "msg" + (info ? " info" : "") }, text);
+  stage.append(m);
+}
+
+async function run(stage, bar) {
+  stopRun();
+  const token = ++runToken;
+  running = true;
+  const code = editor.get();
+  store.data.code[LI] = code; store.save();
+  editor.mark(0);
+  const alive = () => token === runToken;
+  const r = { code, vars: {}, output: [], ops: [] };
+  let verdict = null;
+
+  if (L.type === "grid") {
+    const results = L.maps.map(m => simulateGrid(code, parseMap(m)));
+    r.variantGems = L.maps.map(m => parseMap(m).gems.length);
+    r.variantSaid = results.map(x => x.said[x.said.length - 1]);
+    const order = results.map((_, k) => k);
+    for (const k of order) {
+      if (!alive()) return;
+      variantIdx = k; setupStage(stage, bar);
+      const res = results[k];
+      await playGrid(stageView, res, alive);
+      if (!alive()) return;
+      const tab = bar.querySelectorAll(".tab")[k];
+      if (!res.ok) {
+        if (tab) tab.classList.add("bad");
+        const msg = res.err ? res.err.msg : res.goal;
+        stageMsg(stage, (results.length > 1 ? "Welt " + (k + 1) + ": " : "") + msg);
+        if (res.err) editor.mark(res.err.line, true);
+        running = false; return;
+      }
+      if (tab) tab.classList.add("ok");
+      stageView.set(Object.assign({}, stageView.state, { happy: 1 }));
+      await sleep(results.length > 1 ? 650 : 300);
+    }
+    verdict = L.check ? L.check(r) : ok();
+  } else if (L.type === "console") {
+    const res = runConsole(code);
+    Object.assign(r, res);
+    renderConsole(res);
+    if (res.err) { stageMsg(stage, res.err.msg); editor.mark(res.err.line, true); running = false; return; }
+    await sleep(500);
+    verdict = L.check(r);
+  } else if (L.type === "draw") {
+    const res = runConsole(code);
+    Object.assign(r, res);
+    if (res.err) { stageMsg(stage, res.err.msg); editor.mark(res.err.line, true); running = false; return; }
+    await stageView.play(res.ops, alive);
+    if (!alive()) return;
+    verdict = L.check(r);
+  } else if (L.type === "sort") {
+    r.variantArrays = L.arrays; r.variantSaid = []; r.variantFinal = [];
+    for (let k = 0; k < L.arrays.length; k++) {
+      if (!alive()) return;
+      variantIdx = k; setupStage(stage, bar);
+      const res = runSort(code, L.arrays[k]);
+      r.variantSaid.push(res.said[res.said.length - 1]); r.variantFinal.push(res.final);
+      await stageView.play(res.ops, alive);
+      if (!alive()) return;
+      if (res.err) { stageMsg(stage, res.err.msg); editor.mark(res.err.line, true); running = false; return; }
+      const tab = bar.querySelectorAll(".tab")[k];
+      const partial = L.check({ variantArrays: [L.arrays[k]], variantSaid: [r.variantSaid[k]], variantFinal: [res.final] });
+      if (!partial.ok) { if (tab) tab.classList.add("bad"); stageMsg(stage, partial.msg); running = false; return; }
+      if (tab) tab.classList.add("ok");
+      await sleep(500);
+    }
+    verdict = L.check(r);
+  } else if (L.type === "guess") {
+    r.variantGuess = [];
+    for (let k = 0; k < L.secrets.length; k++) {
+      if (!alive()) return;
+      variantIdx = k; setupStage(stage, bar);
+      const res = runGuess(code, L.secrets[k]);
+      r.variantGuess.push(res);
+      await stageView.play(res, alive);
+      if (!alive()) return;
+      if (res.err) { stageMsg(stage, res.err.msg); editor.mark(res.err.line, true); running = false; return; }
+      const tab = bar.querySelectorAll(".tab")[k];
+      if (!res.found || res.tries > 7) { if (tab) tab.classList.add("bad"); stageMsg(stage, !res.found ? "Die geheime Zahl wurde nicht gefunden." : res.tries + " Versuche – geht's in höchstens 7?"); running = false; return; }
+      if (tab) tab.classList.add("ok");
+      await sleep(500);
+    }
+    verdict = L.check(r);
+  } else if (L.type === "game") {
+    setupStage(stage, bar);
+    const c = stage.querySelector("canvas");
+    c.focus();
+    game = startGame(c, code, stats => {
+      if (!alive()) return;
+      const v = L.check({ game: stats, code });
+      if (v && v.ok) { game.pause(true); finish(v); }
+      else if (v && !v.ok) { stageMsg(stage, v.msg); }
+    }, err => { stageMsg(stage, err.msg); editor.mark(err.line, true); running = false; });
+    if (L.title === "Steuerung mit Tasten") stageMsg(stage, "Jetzt die Pfeiltasten drücken!", true);
+    return;
+  }
+  running = false;
+  if (!alive()) return;
+  if (verdict && verdict.ok) finish(verdict);
+  else if (verdict) stageMsg(stage, verdict.msg);
+}
+
+async function playGrid(view, res, alive) {
+  const fr = res.frames;
+  view.set({ x: fr[0].x, y: fr[0].y, dir: fr[0].dir, got: [], trail: [] });
+  await sleep(150);
+  for (let k = 1; k < fr.length; k++) {
+    if (!alive()) return;
+    const f = fr[k];
+    editor.mark(f.line);
+    const base = f.ev === "move" ? 360 : f.ev === "turn" ? 230 : f.ev === "collect" ? 300 : f.ev === "say" ? 900 : f.ev === "bump" ? 420 : 200;
+    const fast = fr.length > 120 ? Math.min(4, fr.length / 120) : 1;
+    await animateStep(view, fr[k - 1], f, base / speed / fast, alive);
+  }
+}
+
+function renderConsole(res) {
+  const out = $("#out"), mem = $("#mem");
+  if (!out) return;
+  out.innerHTML = "";
+  res.output.forEach((line, i) => { const d = h("div", null, line); d.style.animationDelay = Math.min(i, 20) * 0.08 + "s"; out.append(d); });
+  if (res.err) out.append(h("div", { class: "err" }, "⚠ " + res.err.msg));
+  if (!res.output.length && !res.err) out.append(h("div", { style: "color:var(--muted)" }, "(keine Ausgabe – benutze sag(…))"));
+  mem.innerHTML = "";
+  let n = 0;
+  for (const [k, v] of Object.entries(res.vars)) {
+    if (v === undefined || typeof v === "function") continue;
+    const box = h("div", { class: "vbox" }, h("span", { class: "vn" }, k));
+    if (Array.isArray(v)) box.append(h("div", { class: "arr" }, v.slice(0, 20).map((x, i) => h("span", null, h("b", null, typeof x === "object" ? "{…}" : show(x)), h("small", null, "[" + i + "]")))));
+    else if (v && typeof v === "object") box.append(h("div", { class: "obj" }, (v.constructor && v.constructor.name !== "Object" ? v.constructor.name + " " : "") + "{", Object.entries(v).map(([a, b]) => h("div", null, h("i", null, "  " + a + ": "), typeof b === "string" ? JSON.stringify(b) : show(b))), "}"));
+    else box.append(h("div", { class: "vv" + (typeof v === "string" ? " str" : typeof v === "boolean" ? " bool" : "") }, typeof v === "string" ? JSON.stringify(v) : show(v)));
+    box.style.animationDelay = n++ * 0.12 + "s";
+    mem.append(box);
+  }
+  if (!n) mem.append(h("div", { style: "color:var(--muted);font-size:14px" }, "Noch keine Variablen. Leg eine mit let an!"));
+}
+
+function BoardView(canvas) {
+  const ctx = canvas.getContext("2d");
+  let ops = [], shown = 0, partial = 1;
+  function size() { const r = canvas.getBoundingClientRect(), d = dpr(); canvas.width = Math.max(10, Math.round(r.width * d)); canvas.height = Math.max(10, Math.round(r.height * d)); draw(); }
+  function draw() {
+    ctx.setTransform(canvas.width / 400, 0, 0, canvas.height / 400, 0, 0);
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 400, 400);
+    ctx.strokeStyle = "rgba(27,31,59,.06)"; ctx.lineWidth = 1;
+    for (let i = 50; i < 400; i += 50) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 400); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(400, i); ctx.stroke(); }
+    for (let i = 0; i < shown; i++) drawOp(ctx, ops[i], 1);
+    if (shown < ops.length && partial < 1) drawOp(ctx, ops[shown], partial);
+    if (!ops.length) { ctx.fillStyle = "rgba(27,31,59,.35)"; ctx.font = "600 13px JetBrains Mono"; for (let i = 0; i <= 400; i += 100) { ctx.fillText(String(i), i + 3, 13); if (i) ctx.fillText(String(i), 3, i - 3); } }
+  }
+  const ro = new ResizeObserver(size); ro.observe(canvas); size();
+  return {
+    async play(list, alive) {
+      ops = list; shown = 0;
+      const per = Math.max(12, Math.min(160, 2600 / Math.max(1, list.length))) / speed;
+      for (shown = 0; shown < ops.length; shown++) {
+        const t0 = performance.now();
+        await new Promise(res => { function f(t) { if (!alive()) return res(); partial = Math.min(1, (t - t0) / per); draw(); if (partial < 1) requestAnimationFrame(f); else res(); } requestAnimationFrame(f); });
+        if (!alive()) return;
+        if (ops[shown] && ops[shown].line) editor.mark(ops[shown].line);
+      }
+      partial = 1; draw();
+    },
+    destroy() { ro.disconnect(); },
+  };
+}
+function BarsView(canvas, arr) {
+  const ctx = canvas.getContext("2d");
+  let a = arr.slice(), hot = {}, swap = null, said = "";
+  function size() { const r = canvas.getBoundingClientRect(), d = dpr(); canvas.width = Math.max(10, Math.round(r.width * d)); canvas.height = Math.max(10, Math.round(r.height * d)); draw(); }
+  function draw() {
+    const W = canvas.width, H = canvas.height, d = dpr(), n = a.length, max = Math.max(...a);
+    ctx.fillStyle = css("--surface-2"); ctx.fillRect(0, 0, W, H);
+    const gap = W * 0.02, bw = (W - gap * (n + 1)) / n, base = H - 34 * d;
+    a.forEach((v, i) => {
+      let x = gap + i * (bw + gap);
+      if (swap && (i === swap.i || i === swap.j)) { const other = i === swap.i ? swap.j : swap.i; x += ((other - i) * (bw + gap)) * swap.k; }
+      const bh = (v / max) * (base - 40 * d);
+      ctx.fillStyle = hot[i] === "swap" ? css("--accent") : hot[i] === "cmp" ? css("--grape") : hot[i] === "read" ? css("--sun") : css("--sky");
+      roundRect(ctx, x, base - bh, bw, bh, Math.min(10 * d, bw / 3)); ctx.fill();
+      ctx.fillStyle = css("--ink"); ctx.font = `600 ${14 * d}px JetBrains Mono`; ctx.textAlign = "center";
+      ctx.fillText(String(v), x + bw / 2, base - bh - 8 * d);
+      ctx.fillStyle = css("--muted"); ctx.font = `${11 * d}px JetBrains Mono`;
+      ctx.fillText("[" + i + "]", x + bw / 2, base + 18 * d);
+    });
+    if (said) { ctx.fillStyle = css("--accent"); ctx.font = `700 ${18 * d}px Fredoka`; ctx.textAlign = "left"; ctx.fillText("sag: " + said, 12 * d, 26 * d); }
+  }
+  const ro = new ResizeObserver(size); ro.observe(canvas); size();
+  return {
+    async play(ops, alive) {
+      a = arr.slice();
+      const per = Math.max(30, Math.min(420, 9000 / Math.max(1, ops.length))) / speed;
+      for (const o of ops) {
+        if (!alive()) return;
+        editor.mark(o.line);
+        hot = {};
+        if (o.t === "read") hot[o.i] = "read";
+        if (o.t === "cmp") { hot[o.i] = "cmp"; hot[o.j] = "cmp"; }
+        if (o.t === "say") said = o.text;
+        if (o.t === "swap") {
+          hot[o.i] = "swap"; hot[o.j] = "swap";
+          const t0 = performance.now();
+          await new Promise(res => { function f(t) { if (!alive()) return res(); swap = { i: o.i, j: o.j, k: Math.min(1, (t - t0) / per) }; draw(); if (swap.k < 1) requestAnimationFrame(f); else res(); } requestAnimationFrame(f); });
+          swap = null;[a[o.i], a[o.j]] = [a[o.j], a[o.i]];
+        } else { draw(); await sleep(per * (o.t === "say" ? 3 : 1)); }
+      }
+      hot = {}; draw();
+    },
+    destroy() { ro.disconnect(); },
+  };
+}
+function GuessView(canvas) {
+  const ctx = canvas.getContext("2d");
+  let lo = 1, hi = 100, marks = [], cur = null;
+  function size() { const r = canvas.getBoundingClientRect(), d = dpr(); canvas.width = Math.max(10, Math.round(r.width * d)); canvas.height = Math.max(10, Math.round(r.height * d)); draw(); }
+  const X = z => 30 * dpr() + (z - 1) / 99 * (canvas.width - 60 * dpr());
+  function draw() {
+    const W = canvas.width, H = canvas.height, d = dpr(), y = H * 0.55;
+    ctx.fillStyle = css("--surface-2"); ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = css("--line"); ctx.fillRect(X(1), y - 6 * d, X(100) - X(1), 12 * d);
+    ctx.fillStyle = css("--sky"); ctx.fillRect(X(lo), y - 6 * d, Math.max(4 * d, X(hi) - X(lo)), 12 * d);
+    ctx.fillStyle = css("--muted"); ctx.font = `${12 * d}px JetBrains Mono`; ctx.textAlign = "center";
+    [1, 25, 50, 75, 100].forEach(z => ctx.fillText(String(z), X(z), y + 30 * d));
+    marks.forEach((m, i) => {
+      ctx.fillStyle = m.ans === "richtig" ? css("--mint") : css("--accent");
+      ctx.beginPath(); ctx.arc(X(m.z), y, 8 * d, 0, 7); ctx.fill();
+      ctx.fillStyle = css("--ink"); ctx.font = `600 ${12 * d}px JetBrains Mono`;
+      ctx.fillText(String(m.z), X(m.z), y - (18 + (i % 3) * 14) * d);
+    });
+    ctx.textAlign = "left"; ctx.font = `700 ${18 * d}px Fredoka`; ctx.fillStyle = css("--ink");
+    ctx.fillText(cur ? `Versuch ${marks.length}: ${cur.z} → ${cur.ans}` : "Ich denke mir eine Zahl …", 16 * d, 32 * d);
+    ctx.font = `600 ${13 * d}px Fredoka`; ctx.fillStyle = css("--muted");
+    ctx.fillText(`möglicher Bereich: ${lo} bis ${hi}`, 16 * d, 54 * d);
+  }
+  const ro = new ResizeObserver(size); ro.observe(canvas); size();
+  return {
+    async play(res, alive) {
+      lo = 1; hi = 100; marks = []; cur = null; draw();
+      for (const o of res.ops) {
+        if (!alive()) return;
+        editor.mark(o.line);
+        marks.push(o); cur = o;
+        if (o.ans === "größer") lo = Math.max(lo, o.z + 1);
+        if (o.ans === "kleiner") hi = Math.min(hi, o.z - 1);
+        if (o.ans === "richtig") { lo = hi = o.z; }
+        draw(); await sleep(650 / speed);
+      }
+    },
+    destroy() { ro.disconnect(); },
+  };
+}
+
+// ── editor ────────────────────────────────────────────────────────────
+function makeEditor(initial, palette) {
+  const ta = h("textarea", { spellcheck: "false", autocapitalize: "off", autocomplete: "off", "aria-label": "Dein Code", id: "code" });
+  const pre = h("pre", { "aria-hidden": "true" });
+  const gutter = h("div", { class: "gutter", "aria-hidden": "true" });
+  const glow = h("div", { class: "lineglow" });
+  const wrapC = h("div", { class: "codewrap" }, glow, pre, ta);
+  const ed = h("div", { class: "editor" }, gutter, wrapC);
+  const pal = h("div", { class: "palette" }, h("span", { class: "lbl" }, "Einfügen:"));
+  palette.forEach(snip => pal.append(h("button", { class: "chip" + (/^(if|for|while|function|class|let|wiederhole)/.test(snip) ? " k" : ""), type: "button", onclick: () => insert(snip) }, snip.split("\n")[0].replace(/\{\s*$/, "{ … }"))));
+  const foot = h("div", { class: "edfoot" }, h("span", null, h("kbd", null, "Strg"), " + ", h("kbd", null, "Enter"), " führt aus"), h("span", null, "·"), h("span", null, "Tab rückt ein"));
+  const el = h("div", { class: "card editorcard" }, palette.length ? pal : null, ed, foot);
+  let errLine = 0;
+  const api = { el, onRun: null, onChange: null };
+  function refresh() {
+    pre.innerHTML = highlight(ta.value);
+    const n = ta.value.split("\n").length;
+    gutter.innerHTML = "";
+    for (let i = 1; i <= Math.max(n, 10); i++) gutter.append(h("div", { class: i === errLine ? "err" : "" }, i === errLine ? "●" : String(i)));
+    ta.style.height = "auto"; ta.style.height = Math.max(236, ta.scrollHeight) + "px";
+  }
+  function insert(snip) {
+    const v = ta.value, pos = ta.selectionStart;
+    const lineStart = v.lastIndexOf("\n", pos - 1) + 1;
+    const lineEnd = v.indexOf("\n", pos) < 0 ? v.length : v.indexOf("\n", pos);
+    const curLine = v.slice(lineStart, lineEnd);
+    const indent = /^\s*/.exec(curLine)[0];
+    const blank = curLine.trim() === "";
+    const text = snip.split("\n").map((l, i) => (i === 0 && !blank ? indent : indent) + l).join("\n");
+    let at, before, after;
+    if (blank) { before = v.slice(0, lineStart); after = v.slice(lineEnd); at = before.length; ta.value = before + text + after; }
+    else { before = v.slice(0, lineEnd) + "\n"; after = v.slice(lineEnd); at = before.length; ta.value = before + text + after; }
+    const inner = text.indexOf("\n" + indent + "  \n");
+    const cursor = inner >= 0 ? at + inner + 1 + indent.length + 2 : at + text.length;
+    ta.focus(); ta.setSelectionRange(cursor, cursor);
+    errLine = 0; refresh(); api.onChange && api.onChange(ta.value);
+  }
+  ta.addEventListener("input", () => { errLine = 0; glow.style.display = "none"; refresh(); api.onChange && api.onChange(ta.value); });
+  ta.addEventListener("scroll", () => { pre.scrollLeft = ta.scrollLeft; });
+  ta.addEventListener("keydown", e => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); api.onRun && api.onRun(); return; }
+    if (e.key === "Tab" && !e.shiftKey) { e.preventDefault(); document.execCommand("insertText", false, "  "); return; }
+    if (e.key === "Enter") {
+      const v = ta.value, pos = ta.selectionStart;
+      const ls = v.lastIndexOf("\n", pos - 1) + 1, line = v.slice(ls, pos);
+      let ind = /^\s*/.exec(line)[0];
+      if (/[{(\[]\s*$/.test(line)) ind += "  ";
+      e.preventDefault(); document.execCommand("insertText", false, "\n" + ind);
+    }
+    if (e.key === "}" ) {
+      const v = ta.value, pos = ta.selectionStart, ls = v.lastIndexOf("\n", pos - 1) + 1, line = v.slice(ls, pos);
+      if (/^\s+$/.test(line) && line.length >= 2) { e.preventDefault(); ta.setSelectionRange(pos - 2, pos); document.execCommand("insertText", false, "}"); }
+    }
+  });
+  api.get = () => ta.value;
+  api.set = v => { ta.value = v; errLine = 0; refresh(); api.onChange && api.onChange(v); };
+  api.focus = () => ta.focus();
+  api.mark = (line, err) => {
+    errLine = err ? line : 0;
+    if (!line) { glow.style.display = "none"; refresh(); return; }
+    glow.style.display = "block"; glow.classList.toggle("err", !!err);
+    glow.style.top = 12 + (line - 1) * 24 + "px";
+    if (err) refresh();
+  };
+  ta.value = initial; refresh();
+  return api;
+}
+
+// ── winning ───────────────────────────────────────────────────────────
+function finish(verdict) {
+  running = false;
+  const code = editor.get();
+  let stars = 1;
+  if (!usedSolution && hintsShown < 2) stars++;
+  const parOk = !L.par || codeLines(code) <= L.par, needsOk = !L.needs || L.needs.test(code);
+  if (!usedSolution && parOk && needsOk) stars++;
+  stars = Math.min(3, stars);
+  const before = totals(), prev = store.data.done[LI] || 0;
+  store.data.done[LI] = Math.max(prev, stars); store.save();
+  const after = totals(), gain = after.xp - before.xp;
+  renderTop();
+  confetti();
+  const tip = !needsOk ? (L.needsMsg || "") : !parOk ? "Für 3 Sterne: Schaffst du es in höchstens " + L.par + " Zeilen?" : stars < 3 && hintsShown >= 2 ? "Für 3 Sterne: Versuch es mit höchstens einem Tipp." : "";
+  const starSvg = on => `<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3 6.1 20.6l1.3-6.6L2.5 9.4l6.6-.8z" fill="${on ? "var(--sun)" : "var(--line)"}" stroke="${on ? "#c98a12" : "none"}" stroke-width="1"/></svg>`;
+  const happy = clawdCanvas(126, 0, f => ({ happy: true, arms: f % 4 < 2 ? "up" : "side", jump: true }));
+  const isLast = LI === LESSONS.length - 1;
+  const ov = h("div", { class: "overlay", role: "dialog", "aria-modal": "true", "aria-label": "Geschafft" },
+    h("div", { class: "win" }, happy,
+      h("h2", null, L.final ? "Du bist Clawd-Code-Profi!" : ["Geschafft!", "Super gemacht!", "Klasse!", "Stark!"][LI % 4]),
+      h("div", { class: "stars", html: [0, 1, 2].map(k => starSvg(k < stars)).join("") }),
+      gain > 0 ? h("div", { class: "gain" }, "+" + gain + " XP" + (after.level > before.level ? " · Level " + after.level + ": " + LEVELS[after.level - 1] + "!" : "")) : null,
+      h("p", null, L.final ? "Von geh(); bis zu deinem eigenen Spiel – du hast alle 34 Lektionen gemeistert. Mach weiter, bau eigene Spiele, und hab Spaß dabei!" : tip || (verdict.msg || "Dein Code hat perfekt funktioniert.")),
+      h("div", { class: "row" },
+        h("button", { class: "btn", type: "button", onclick: () => { ov.remove(); if (game) game.pause(false); } }, "Nochmal"),
+        isLast ? h("button", { class: "btn primary", type: "button", onclick: () => { ov.remove(); viewHome(); } }, "Zur Weltkarte") : h("button", { class: "btn primary", type: "button", onclick: () => { ov.remove(); viewLesson(LI + 1); } }, "Nächste Lektion →"))));
+  document.body.append(ov);
+  ov.querySelector(".btn.primary").focus();
+}
+function confetti() {
+  if (reduceMotion) return;
+  const c = $("#confetti"), ctx = c.getContext("2d");
+  c.width = innerWidth * dpr(); c.height = innerHeight * dpr();
+  const colors = ["#d77757", "#3d7ff5", "#f5c518", "#22a96a", "#7b5cf5", "#f472b6"];
+  const parts = Array.from({ length: 140 }, () => ({ x: c.width / 2 + (Math.random() - .5) * c.width * .3, y: c.height * .45, vx: (Math.random() - .5) * 22 * dpr(), vy: (-Math.random() * 20 - 8) * dpr(), s: (6 + Math.random() * 6) * dpr(), r: Math.random() * 6, vr: (Math.random() - .5) * .4, c: colors[Math.floor(Math.random() * colors.length)] }));
+  const t0 = performance.now();
+  function f(t) {
+    ctx.clearRect(0, 0, c.width, c.height);
+    for (const p of parts) { p.vy += 0.7 * dpr(); p.vx *= .985; p.x += p.vx; p.y += p.vy; p.r += p.vr; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore(); }
+    if (t - t0 < 3200) requestAnimationFrame(f); else ctx.clearRect(0, 0, c.width, c.height);
+  }
+  requestAnimationFrame(f);
+}
+
+// ── boot ──────────────────────────────────────────────────────────────
+Error.stackTraceLimit = 50;
+(function logo() { const c = $("#logo"), ctx = c.getContext("2d"); drawRows(ctx, pose({}), 0, -1, 1, "#d77757"); })();
+$("#homeBtn").addEventListener("click", viewHome);
+(function route() {
+  const m = /^#lektion-(\d+)$/.exec(location.hash);
+  const i = m ? +m[1] - 1 : -1;
+  if (i >= 0 && i < LESSONS.length && unlocked(i)) viewLesson(i); else viewHome();
+})();
+</script>
