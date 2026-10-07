@@ -43,21 +43,8 @@ namespace ClaudeIsland
 
         static readonly string[] WakeWords = { "hey clawd", "hallo clawd", "hey claude", "hallo claude", "hey klod", "hey klaud", "hallo klaud", "okay clawd", "he clawd" };
 
-        static readonly Dictionary<string, int> Numbers = new Dictionary<string, int>
-        {
-            { "eine", 1 }, { "einer", 1 }, { "zwei", 2 }, { "drei", 3 }, { "vier", 4 }, { "fünf", 5 }, { "sechs", 6 }, { "sieben", 7 },
-            { "acht", 8 }, { "neun", 9 }, { "zehn", 10 }, { "zwölf", 12 }, { "fünfzehn", 15 }, { "zwanzig", 20 }, { "fünfundzwanzig", 25 },
-            { "dreißig", 30 }, { "vierzig", 40 }, { "fünfundvierzig", 45 }, { "sechzig", 60 },
-        };
-
-        // App name -> what to start (an exe, a URI or a special value).
-        static readonly Dictionary<string, string> Apps = new Dictionary<string, string>
-        {
-            { "rechner", "calc.exe" }, { "taschenrechner", "calc.exe" }, { "editor", "notepad.exe" }, { "explorer", "explorer.exe" },
-            { "browser", "https://www.google.de" }, { "spotify", "spotify:" }, { "discord", "discord://" }, { "steam", "steam://open/main" },
-            { "einstellungen", "ms-settings:" }, { "task manager", "taskmgr.exe" }, { "terminal", "wt.exe" }, { "mail", "mailto:" },
-            { "vs code", "@code" }, { "visual studio code", "@code" }, { "downloads", "@downloads" }, { "claude code", "@claude" },
-        };
+        static Dictionary<string, int> Numbers { get { return VoiceIntent.Numbers; } }
+        static Dictionary<string, string> Apps { get { return VoiceIntent.Apps; } }
 
         // ── setup ─────────────────────────────────────────────────────────
 
@@ -244,28 +231,92 @@ namespace ClaudeIsland
         {
             if (r == null || r.Grammar == null) return;
             VoiceLog("gehört", r);
+            if (voiceState == "typing" || voiceState == "speaking") return; // Windows voice typing or Clawd himself is talking
             string kind = r.Grammar.Name;
-            bool wakeFirst = kind.StartsWith("wake");
-            // The wake word must be heard clearly; free questions need a bit of confidence too.
-            if (wakeFirst)
+            bool listening = voiceState == "listening";
+            // The wake word must be heard clearly.
+            if (kind.StartsWith("wake"))
             {
                 var first = r.Words.Take(2).ToList();
                 if (first.Count == 0 || first.Average(w => w.Confidence) < 0.6) return;
             }
-            if (r.Confidence < (kind.EndsWith("ask") ? 0.35 : 0.55)) return;
 
             string text = r.Text.ToLowerInvariant().Trim();
             foreach (var wake in WakeWords)
                 if (text.StartsWith(wake)) { text = text.Substring(wake.Length).Trim(); break; }
 
             if (kind == "wake") { ListenNow(); return; }
+
+            bool command = kind == "wake+cmd" || kind == "cmd";
+            if (command && r.Confidence < 0.5)
+            {
+                // Not sure what was said: while Clawd is listening anyway, let Windows voice typing take over.
+                if (listening) StartVoiceTyping();
+                return;
+            }
             if (listenTimer != null) listenTimer.Stop();
             if (gCommand != null) gCommand.Enabled = gAsk.Enabled = false;
             heard = text;
-            Toast("„" + text + "“", 3);
 
-            if (kind == "wake+cmd" || kind == "cmd") RunCommand(text);
-            else if (text.Length > 0) AskClaude(text);
+            if (command) { Toast("„" + text + "“", 3); RunCommand(text); return; }
+
+            // Free speech: first look for a command in it ("wie viel uhr haben wir denn" is still the time).
+            string intent = VoiceIntent.Match(text);
+            if (intent != null) { Toast("„" + text + "“", 3); RunCommand(intent); return; }
+
+            // A real question only when Windows is reasonably sure of the words; never send gibberish to Claude.
+            int words = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
+            if (words >= 3 && r.Confidence >= 0.55) { Toast("„" + text + "“", 3); AskClaude(text); return; }
+            StartVoiceTyping();
+        }
+
+        // ── free questions by Windows voice typing (much better than the old dictation) ──
+
+        DispatcherTimer typingTimer;
+        long typingStarted, typingChanged;
+        string typingText = "";
+
+        /// <summary>
+        /// Opens the island with the cursor in the question box and starts Windows voice typing
+        /// (Win+H, the same recognition as in Word). As soon as you pause for a moment, Clawd
+        /// sends the question and reads the answer.
+        /// </summary>
+        void StartVoiceTyping()
+        {
+            if (listenTimer != null) listenTimer.Stop();
+            if (gCommand != null) gCommand.Enabled = gAsk.Enabled = false;
+            SetVoiceState("typing");
+            input.Text = "";
+            Toast("Sprich deine Frage – Windows tippt mit. Ich schicke sie ab, sobald du kurz Pause machst.", 6);
+            Dictate();
+            typingStarted = typingChanged = Clock.NowMs();
+            typingText = "";
+            if (typingTimer == null)
+            {
+                typingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+                typingTimer.Tick += (s, e) => Guard("voice typing", TypingTick);
+            }
+            typingTimer.Start();
+        }
+
+        void TypingTick()
+        {
+            long now = Clock.NowMs();
+            string text = input.Text.Trim();
+            if (text != typingText) { typingText = text; typingChanged = now; }
+            bool settled = text.Length > 0 && now - typingChanged > 2800;
+            bool gaveUp = (text.Length == 0 && now - typingStarted > 12000) || now - typingStarted > 45000;
+            if (!settled && !gaveUp && voiceState == "typing") return;
+            typingTimer.Stop();
+            if (voiceState != "typing") return; // cancelled meanwhile
+            if (text.Length > 0)
+            {
+                // Done: take the focus out of the box so Windows stops typing, then act.
+                System.Windows.Input.Keyboard.ClearFocus();
+                string intent = VoiceIntent.Match(text);
+                if (intent != null) { input.Text = ""; Toast("„" + text + "“", 3); RunCommand(intent); }
+                else AskClaude(text);
+            }
             else SetVoiceState("");
         }
 
@@ -309,7 +360,7 @@ namespace ClaudeIsland
                 Say("Frag mich nach Uhrzeit, Wetter oder deinem Limit. Ich steuere Musik und Lautstärke, öffne Apps und Projekte, stelle Timer und mache Bildschirmfotos. Und alles andere frage ich Claude.");
             else if ((m = Regex.Match(t, @"timer (?:auf )?(\w+) minuten?$")).Success || (m = Regex.Match(t, @"stelle einen timer auf (\w+) minuten?$")).Success)
             {
-                minutes = Numbers.ContainsKey(m.Groups[1].Value) ? Numbers[m.Groups[1].Value] : 0;
+                if (!Numbers.TryGetValue(m.Groups[1].Value, out minutes) && !int.TryParse(m.Groups[1].Value, out minutes)) minutes = 0;
                 if (minutes <= 0) { Say("Wie viele Minuten?"); return; }
                 StartTimer(minutes);
                 Say("Timer läuft: " + minutes + (minutes == 1 ? " Minute." : " Minuten."));
@@ -486,7 +537,7 @@ namespace ClaudeIsland
             if (state == voiceState) return;
             voiceState = state;
             voiceShownAt = Clock.NowMs();
-            if (state == "listening") SetRimColors(new[] { Color.FromRgb(110, 198, 255), Color.FromRgb(167, 139, 250), Colors.White, Color.FromRgb(110, 198, 255) }, 1.6, true);
+            if (state == "listening" || state == "typing") SetRimColors(new[] { Color.FromRgb(110, 198, 255), Color.FromRgb(167, 139, 250), Colors.White, Color.FromRgb(110, 198, 255) }, 1.6, true);
             else if (state == "speaking") SetRimColors(new[] { Palette.Clawd, Color.FromRgb(110, 198, 255), Palette.Clawd }, 2.2, false);
             else if (state == "thinking") SetRim(Mode.Busy);
             else SetRim(mode);
@@ -540,6 +591,67 @@ namespace ClaudeIsland
                 keybd_event(vk, 0, 0, UIntPtr.Zero);
                 keybd_event(vk, 0, 2, UIntPtr.Zero);
             }
+        }
+    }
+
+    /// <summary>Finds a known command in free speech: "wie viel uhr haben wir denn" is still the time.</summary>
+    static class VoiceIntent
+    {
+        public static readonly Dictionary<string, int> Numbers = new Dictionary<string, int>
+        {
+            { "eine", 1 }, { "einer", 1 }, { "zwei", 2 }, { "drei", 3 }, { "vier", 4 }, { "fünf", 5 }, { "sechs", 6 }, { "sieben", 7 },
+            { "acht", 8 }, { "neun", 9 }, { "zehn", 10 }, { "zwölf", 12 }, { "fünfzehn", 15 }, { "zwanzig", 20 }, { "fünfundzwanzig", 25 },
+            { "dreißig", 30 }, { "vierzig", 40 }, { "fünfundvierzig", 45 }, { "sechzig", 60 },
+        };
+
+        // App name -> what to start (an exe, a URI or a special value).
+        public static readonly Dictionary<string, string> Apps = new Dictionary<string, string>
+        {
+            { "rechner", "calc.exe" }, { "taschenrechner", "calc.exe" }, { "editor", "notepad.exe" }, { "explorer", "explorer.exe" },
+            { "browser", "https://www.google.de" }, { "spotify", "spotify:" }, { "discord", "discord://" }, { "steam", "steam://open/main" },
+            { "einstellungen", "ms-settings:" }, { "task manager", "taskmgr.exe" }, { "terminal", "wt.exe" }, { "mail", "mailto:" },
+            { "vs code", "@code" }, { "visual studio code", "@code" }, { "downloads", "@downloads" }, { "claude code", "@claude" },
+        };
+
+        public static string Match(string text)
+        {
+            string t = " " + Regex.Replace((text ?? "").ToLowerInvariant(), "[^\\p{L}\\p{N} ]+", " ") + " ";
+            t = Regex.Replace(t, "\\s+", " ");
+            string all = t.Trim();
+            if (all.Length == 0) return null;
+            Func<string, bool> has = w => t.Contains(" " + w);
+            if (has("viel uhr") || has("wie spät") || has("uhrzeit") || has("welche zeit")) return "wie spät ist es";
+            if (has("datum") || has("welcher tag") || has("welchen tag") || has("was für ein tag")) return "welcher tag ist heute";
+            if (has("wetter") || has("regnet es") || has("wie warm") || has("wie kalt")) return "wie ist das wetter";
+            if (has("mein limit") || has("mein kontingent") || has("meine nutzung") || (has("limit") && (has("wie viel") || has("noch")))) return "wie ist mein limit";
+            if (has("was macht claude") || all == "status" || has("ist claude fertig") || has("woran arbeitet")) return "was macht claude";
+            if (has("lauter")) return has("viel ") ? "viel lauter" : "lauter";
+            if (has("leiser")) return has("viel ") ? "viel leiser" : "leiser";
+            if (has("stumm") || has("ton aus")) return "ton aus";
+            if ((has("nächst") || has("weiter")) && (has("lied") || has("titel") || has("song"))) return "nächster titel";
+            if ((has("vorherig") || has("letzt") || has("zurück")) && (has("lied") || has("titel") || has("song"))) return "vorheriger titel";
+            if (has("musik ") || all == "pause" || all == "weiter" || has("abspielen")) return "musik pause";
+            if (has("screenshot") || has("bildschirmfoto")) return "mach einen screenshot";
+            if ((has("bildschirm") || has("pc ") || has("computer")) && has("sperr")) return "bildschirm sperren";
+            if (has("feuerwerk")) return "feuerwerk";
+            if (has("komm zurück")) return "komm zurück";
+            if (has("komm raus") || has("geh auf den desktop")) return "komm raus";
+            if (has("was kannst du") || all == "hilfe") return "was kannst du";
+            if (has("timer") || has("wecker") || has("erinner"))
+            {
+                var m = Regex.Match(t, " (\\d+) ");
+                int n = m.Success ? int.Parse(m.Groups[1].Value) : 0;
+                if (n == 0) foreach (var kv in Numbers) if (has(kv.Key + " ")) { n = kv.Value; break; }
+                if (n > 0 && n <= 180) return "timer " + n + " minuten";
+            }
+            if (has("öffne") || has("starte") || (has("mach") && has("auf ")))
+            {
+                if (has("claude code") && !has("projekt")) return "starte claude code";
+                foreach (var app in Apps.Keys.OrderByDescending(a => a.Length)) if (has(app + " ")) return "öffne " + app;
+            }
+            if (all == "danke" || has("danke dir") || has("vielen dank")) return "danke";
+            if (all == "stopp" || all == "abbrechen" || has("sei still")) return "stopp";
+            return null;
         }
     }
 }

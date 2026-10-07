@@ -84,8 +84,14 @@ Gut zu wissen:
 - Nötig ist die **deutsche Spracherkennung von Windows**: Einstellungen → Zeit und Sprache →
   Sprache → Deutsch → Optionen → „Spracherkennung“. Fehlt sie, sagt Clawd dir das. Eine deutsche
   Stimme (z. B. „Hedda“ oder „Katja“) ist bei deutschem Windows schon dabei.
-- Befehle versteht Windows sehr zuverlässig. Freie Fragen (Diktat) klappen ordentlich, aber nicht
-  so gut wie moderne Online-Erkennung. Sprich deutlich und nicht zu schnell.
+- Befehle versteht Clawd auch frei formuliert („wie viel Uhr haben wir denn“, „erinnere mich in
+  fünf Minuten“, „mach mal lauter“).
+- Für **freie Fragen** nutzt Clawd die Windows-Spracheingabe (dieselbe wie Win+H in Word): Ist er
+  sich nicht ganz sicher, was du gesagt hast, öffnet sich die Island mit dem Eingabefeld, oben steht
+  „Sprich, ich tippe mit …“, und du stellst deine Frage. Sobald du kurz Pause machst, schickt er sie
+  ab und liest die Antwort vor. Halbverstandenes Kauderwelsch schickt er nie an Claude.
+- Was Clawd gehört hat, steht in `%LOCALAPPDATA%\ClaudeIsland\voice.log`. Der Diagnose-Bericht
+  zeigt es auch.
 
 ## Show-Effekte
 

@@ -1170,7 +1170,7 @@ namespace ClaudeIsland
                 look.Arms = fileDrag || demoDrag || look.Food ? "up" : "side";
                 look.Eyes = now < yawnUntil ? "shut" : "c";
             }
-            else if (voiceState == "listening") { look.Arms = (now / 400) % 2 == 0 ? "wave" : "side"; look.Eyes = blink ? "shut" : "c"; bob = -Math.Abs(Math.Sin(now / 300.0)) * 2; }
+            else if (voiceState == "listening" || voiceState == "typing") { look.Arms = (now / 400) % 2 == 0 ? "wave" : "side"; look.Eyes = blink ? "shut" : "c"; bob = -Math.Abs(Math.Sin(now / 300.0)) * 2; }
             else if (now < petUntil) { look.Happy = true; look.Blush = true; }
             else if (now < dizzyUntil) { look.Eyes = (now / 110) % 2 == 0 ? "l" : "r"; bob = Math.Sin(now / 90.0) * 2; }
             else if (now < trickUntil) { look.Happy = true; look.Arms = (now / 150) % 2 == 0 ? "up" : "wave"; if ((now / 600) % 2 == 0 && hop.Settled) { hop.Velocity -= 220; StartRendering(); } }
@@ -1587,9 +1587,9 @@ namespace ClaudeIsland
             timeLabel.Text = time;
             timeLabel.Visibility = time.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             label.Foreground = overall == Mode.Busy ? ShimmerBrush() : Palette.Brush(limited ? Palette.Error : Palette.Text);
-            if (voiceState == "listening" || voiceState == "speaking")
+            if (voiceState == "listening" || voiceState == "speaking" || voiceState == "typing")
             {
-                label.Text = voiceState == "listening" ? "Hört zu …" : "Spricht …";
+                label.Text = voiceState == "listening" ? "Hört zu …" : voiceState == "typing" ? "Sprich, ich tippe mit …" : "Spricht …";
                 label.Foreground = Palette.Brush(Color.FromRgb(110, 198, 255));
                 timeLabel.Visibility = Visibility.Collapsed;
             }
