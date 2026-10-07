@@ -44,7 +44,7 @@ namespace ClaudeIsland
         [DllImport("winmm.dll")] static extern int waveInClose(IntPtr h);
 
         public const int Rate = 16000;
-        const int WHDR_DONE = 1, Buffers = 6, BufferBytes = Rate * 2 / 10; // 100 ms each
+        const int WHDR_DONE = 1, Buffers = 6;
 
         /// <summary>Names of all recording devices, by waveIn id.</summary>
         public static List<string> Devices()
@@ -96,15 +96,50 @@ namespace ClaudeIsland
         volatile bool running;
         Thread pump;
 
+        // Source format actually opened; audio is converted to 16 kHz mono for the speech engine.
+        int srcRate = Rate, srcChannels = 1;
+        double resamplePos;
+        short lastSample;
+        public string Format { get; private set; }
+
+        const int WAVE_MAPPED = 0x4;
+
+        static string Explain(int err)
+        {
+            switch (err)
+            {
+                case 2: return "Gerät nicht gefunden";
+                case 4: return "wird gerade von einem anderen Programm exklusiv benutzt";
+                case 32: return "Audioformat nicht unterstützt";
+                case 6: return "kein Treiber";
+                default: return "Fehler " + err;
+            }
+        }
+
         public MicStream(int device)
         {
-            var fmt = new WAVEFORMATEX { wFormatTag = 1, nChannels = 1, nSamplesPerSec = Rate, nAvgBytesPerSec = Rate * 2, nBlockAlign = 2, wBitsPerSample = 16, cbSize = 0 };
-            int err = waveInOpen(out handle, new IntPtr(device), ref fmt, IntPtr.Zero, IntPtr.Zero, 0);
-            if (err != 0) throw new IOException("Mikrofon konnte nicht geöffnet werden (waveIn " + err + ").");
+            // Many headsets only record at 48 kHz; try what the device likes and convert ourselves.
+            var tries = new[]
+            {
+                new[] { Rate, 1, WAVE_MAPPED }, new[] { Rate, 1, 0 },
+                new[] { 48000, 1, 0 }, new[] { 48000, 2, 0 }, new[] { 44100, 1, 0 }, new[] { 44100, 2, 0 },
+                new[] { 48000, 2, WAVE_MAPPED }, new[] { 32000, 1, 0 }, new[] { 22050, 1, 0 },
+            };
+            int err = -1;
+            foreach (var tr in tries)
+            {
+                var fmt = new WAVEFORMATEX { wFormatTag = 1, nChannels = (short)tr[1], nSamplesPerSec = tr[0], nAvgBytesPerSec = tr[0] * 2 * tr[1], nBlockAlign = (short)(2 * tr[1]), wBitsPerSample = 16, cbSize = 0 };
+                err = waveInOpen(out handle, new IntPtr(device), ref fmt, IntPtr.Zero, IntPtr.Zero, tr[2]);
+                if (err == 0) { srcRate = tr[0]; srcChannels = tr[1]; break; }
+                if (err == 2 || err == 4 || err == 6) break; // no point in other formats
+            }
+            if (err != 0) throw new IOException("Mikrofon " + (device + 1) + ": " + Explain(err) + " (waveIn " + err + ")");
+            Format = srcRate + " Hz, " + (srcChannels == 1 ? "mono" : "stereo");
+            int bufferBytes = srcRate * 2 * srcChannels / 10; // 100 ms
             int size = Marshal.SizeOf(typeof(WAVEHDR));
             for (int i = 0; i < Buffers; i++)
             {
-                var hdr = new WAVEHDR { lpData = Marshal.AllocHGlobal(BufferBytes), dwBufferLength = BufferBytes };
+                var hdr = new WAVEHDR { lpData = Marshal.AllocHGlobal(bufferBytes), dwBufferLength = bufferBytes };
                 headers[i] = Marshal.AllocHGlobal(size);
                 Marshal.StructureToPtr(hdr, headers[i], false);
                 waveInPrepareHeader(handle, headers[i], size);
@@ -128,8 +163,9 @@ namespace ClaudeIsland
                     if ((hdr.dwFlags & WHDR_DONE) == 0) continue;
                     if (hdr.dwBytesRecorded > 0)
                     {
-                        var data = new byte[hdr.dwBytesRecorded];
-                        Marshal.Copy(hdr.lpData, data, 0, data.Length);
+                        var raw = new byte[hdr.dwBytesRecorded];
+                        Marshal.Copy(hdr.lpData, raw, 0, raw.Length);
+                        var data = Convert16kMono(raw);
                         lock (chunks)
                         {
                             chunks.Enqueue(data);
@@ -146,6 +182,37 @@ namespace ClaudeIsland
                 }
                 Thread.Sleep(10);
             }
+        }
+
+        /// <summary>16-bit PCM in the opened format -> 16 kHz mono (channel mix + linear resampling).</summary>
+        byte[] Convert16kMono(byte[] raw)
+        {
+            if (srcRate == Rate && srcChannels == 1) return raw;
+            int frames = raw.Length / (2 * srcChannels);
+            var mono = new short[frames];
+            for (int f = 0; f < frames; f++)
+            {
+                int sum = 0;
+                for (int c = 0; c < srcChannels; c++) sum += BitConverter.ToInt16(raw, (f * srcChannels + c) * 2);
+                mono[f] = (short)(sum / srcChannels);
+            }
+            double step = srcRate / (double)Rate;
+            var output = new List<byte>(frames * 2 * Rate / srcRate + 4);
+            // resamplePos runs over the previous last sample (-1) and this chunk (0..frames-1).
+            while (resamplePos < frames - 1)
+            {
+                int i = (int)Math.Floor(resamplePos);
+                double frac = resamplePos - i;
+                short a = i < 0 ? lastSample : mono[i];
+                short b = mono[i + 1];
+                short v = (short)(a + (b - a) * frac);
+                output.Add((byte)(v & 0xFF));
+                output.Add((byte)((v >> 8) & 0xFF));
+                resamplePos += step;
+            }
+            resamplePos -= frames;
+            if (frames > 0) lastSample = mono[frames - 1];
+            return output.ToArray();
         }
 
         public override int Read(byte[] buffer, int offset, int count)
@@ -228,8 +295,18 @@ namespace ClaudeIsland
                 if (info == null) lines.Add("Test: keine deutsche Spracherkennung");
                 else
                 {
+                    MicStream opened = null;
+                    var order = new List<int>();
+                    if (pick >= 0) order.Add(pick);
+                    for (int i = 0; i < devices.Count; i++) if (i != pick && !MicStream.IsVirtual(devices[i])) order.Add(i);
+                    foreach (int dev in order)
+                    {
+                        if (opened != null) break;
+                        try { opened = new MicStream(dev); lines.Add("Geoeffnet: " + devices[dev] + " (" + opened.Format + ")"); }
+                        catch (Exception ex) { lines.Add("Nicht zu oeffnen: " + devices[dev] + " - " + ex.Message); }
+                    }
                     using (var eng = new System.Speech.Recognition.SpeechRecognitionEngine(info))
-                    using (var mic = pick >= 0 ? new MicStream(pick) : null)
+                    using (var mic = opened)
                     {
                         if (mic != null) eng.SetInputToAudioStream(mic, new System.Speech.AudioFormat.SpeechAudioFormatInfo(MicStream.Rate, System.Speech.AudioFormat.AudioBitsPerSample.Sixteen, System.Speech.AudioFormat.AudioChannel.Mono));
                         else eng.SetInputToDefaultAudioDevice();

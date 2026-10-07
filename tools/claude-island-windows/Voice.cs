@@ -87,15 +87,11 @@ namespace ClaudeIsland
                 }
                 ears = new SpeechRecognitionEngine(info);
                 // Listen on a real microphone, not on a virtual Steam/Oculus device that Windows may use as default.
-                string micName;
-                int mic = MicStream.Pick(settings.Mic, out micName);
-                if (mic >= 0)
-                {
-                    micStream = new MicStream(mic);
+                // If the chosen one cannot be opened, try the other real microphones, then Windows' default.
+                micStream = OpenMic(out micInUse);
+                if (micStream != null)
                     ears.SetInputToAudioStream(micStream, new System.Speech.AudioFormat.SpeechAudioFormatInfo(MicStream.Rate, System.Speech.AudioFormat.AudioBitsPerSample.Sixteen, System.Speech.AudioFormat.AudioChannel.Mono));
-                }
                 else ears.SetInputToDefaultAudioDevice();
-                micInUse = mic >= 0 ? micName : "Windows-Standard";
                 BuildGrammars(info.Culture);
                 gWake.Enabled = gWakeCommand.Enabled = gWakeAsk.Enabled = wakeWord;
                 gCommand.Enabled = gAsk.Enabled = false;
@@ -129,9 +125,33 @@ namespace ClaudeIsland
                 VoiceLog("fehler: " + ex.GetType().Name + ": " + ex.Message, null);
                 try { if (ears != null) ears.Dispose(); } catch { }
                 ears = null;
-                Toast("Das Mikrofon konnte ich nicht öffnen. Ist eins angeschlossen und für Desktop-Apps freigegeben?", 6);
+                Toast("Das Mikrofon ließ sich nicht öffnen: " + ex.Message + " – im Tray-Menü unter „Mikrofon für „Hey Clawd““ kannst du ein anderes wählen.", 8);
                 return false;
             }
+        }
+
+        MicStream OpenMic(out string used)
+        {
+            string picked;
+            int first = MicStream.Pick(settings.Mic, out picked);
+            var devices = MicStream.Devices();
+            var order = new List<int>();
+            if (first >= 0) order.Add(first);
+            for (int i = 0; i < devices.Count; i++)
+                if (i != first && !MicStream.IsVirtual(devices[i])) order.Add(i);
+            foreach (int i in order)
+            {
+                try
+                {
+                    var s = new MicStream(i);
+                    used = devices[i] + " (" + s.Format + ")";
+                    if (i != first && first >= 0) Toast("„" + devices[first] + "“ ließ sich nicht öffnen – ich höre über „" + devices[i] + "“.", 6);
+                    return s;
+                }
+                catch (Exception ex) { VoiceLog("mikrofon " + devices[i] + ": " + ex.Message, null); }
+            }
+            used = "Windows-Standard";
+            return null;
         }
 
         /// <summary>Choose the microphone for "Hey Clawd" ("" = automatic) and restart listening on it.</summary>
