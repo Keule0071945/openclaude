@@ -41,7 +41,7 @@ namespace ClaudeIsland
         DispatcherTimer listenTimer;
         readonly List<DispatcherTimer> timers = new List<DispatcherTimer>();
 
-        static readonly string[] WakeWords = { "hey clawd", "hallo clawd", "hey claude", "hallo claude", "hey klod", "okay clawd", "he clawd" };
+        static readonly string[] WakeWords = { "hey clawd", "hallo clawd", "hey claude", "hallo claude", "hey klod", "hey klaud", "hallo klaud", "okay clawd", "he clawd" };
 
         static readonly Dictionary<string, int> Numbers = new Dictionary<string, int>
         {
@@ -92,6 +92,7 @@ namespace ClaudeIsland
                     .FirstOrDefault(r => r.Culture.TwoLetterISOLanguageName == "de");
                 if (info == null)
                 {
+                    VoiceLog("fehler: keine deutsche Spracherkennung; vorhanden: " + string.Join(", ", SpeechRecognitionEngine.InstalledRecognizers().Select(x => x.Culture.Name)), null);
                     Toast("Für „Hey Clawd“ fehlt die deutsche Spracherkennung von Windows: Einstellungen → Zeit und Sprache → Sprache → Deutsch → Optionen → Spracherkennung installieren.", 10);
                     return false;
                 }
@@ -101,6 +102,8 @@ namespace ClaudeIsland
                 gWake.Enabled = gWakeCommand.Enabled = gWakeAsk.Enabled = wakeWord;
                 gCommand.Enabled = gAsk.Enabled = false;
                 ears.SpeechRecognized += (s, e) => Dispatcher.BeginInvoke(new Action(() => Guard("voice", () => OnHeard(e.Result))));
+                ears.SpeechRecognitionRejected += (s, e) => { if (e.Result != null && e.Result.Text.Length > 0) VoiceLog("verworfen", e.Result); };
+                VoiceLog("start: Erkenner " + info.Name + " (" + info.Culture.Name + "), immer zuhören=" + wakeWord, null);
                 ears.RecognizeAsync(RecognizeMode.Multiple);
 
                 voice = new SpeechSynthesizer();
@@ -120,6 +123,8 @@ namespace ClaudeIsland
             catch (Exception ex)
             {
                 AppPaths.LogError("voice", ex);
+                VoiceLog("fehler: " + ex.GetType().Name + ": " + ex.Message, null);
+                try { if (ears != null) ears.Dispose(); } catch { }
                 ears = null;
                 Toast("Das Mikrofon konnte ich nicht öffnen. Ist eins angeschlossen und für Desktop-Apps freigegeben?", 6);
                 return false;
@@ -170,7 +175,9 @@ namespace ClaudeIsland
         /// <summary>"mein-projekt" -> "mein projekt": speakable folder names.</summary>
         static string SpokenName(string folder)
         {
-            return Regex.Replace(folder.ToLowerInvariant(), "[-_.]+", " ").Trim();
+            // Only letters and single spaces: anything else can make the grammar fail to load.
+            string s = Regex.Replace(folder.ToLowerInvariant(), "[^\\p{L}]+", " ");
+            return Regex.Replace(s, "\\s+", " ").Trim();
         }
 
         void BuildGrammars(CultureInfo culture)
@@ -236,6 +243,7 @@ namespace ClaudeIsland
         void OnHeard(RecognitionResult r)
         {
             if (r == null || r.Grammar == null) return;
+            VoiceLog("gehört", r);
             string kind = r.Grammar.Name;
             bool wakeFirst = kind.StartsWith("wake");
             // The wake word must be heard clearly; free questions need a bit of confidence too.
@@ -505,6 +513,23 @@ namespace ClaudeIsland
         }
 
         // ── Windows helpers ───────────────────────────────────────────────
+
+        static readonly string VoiceLogPath = System.IO.Path.Combine(AppPaths.Root, "voice.log");
+
+        /// <summary>What Clawd heard (and how sure he was) - the diagnosis shows it, to tune the phrases.</summary>
+        static void VoiceLog(string what, RecognitionResult r)
+        {
+            try
+            {
+                Directory.CreateDirectory(AppPaths.Root);
+                var info = new FileInfo(VoiceLogPath);
+                if (info.Exists && info.Length > 64 * 1024) info.Delete();
+                string line = DateTime.Now.ToString("HH:mm:ss") + " " + what +
+                    (r != null ? ": \"" + r.Text + "\" (" + r.Confidence.ToString("0.00", CultureInfo.InvariantCulture) + ", " + (r.Grammar != null ? r.Grammar.Name : "-") + ")" : "");
+                File.AppendAllText(VoiceLogPath, line + Environment.NewLine);
+            }
+            catch { }
+        }
 
         [DllImport("user32.dll")] static extern bool LockWorkStation();
 
