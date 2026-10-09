@@ -23,6 +23,7 @@ type FlagGuard = {
 const FLAG_REQUIRES_SOURCE: FlagGuard[] = [
   { flag: 'MCP_SKILLS', source: 'src/skills/mcpSkills.ts' },
   { flag: 'CONTEXT_COLLAPSE', source: 'src/services/contextCollapse/index.ts' },
+  { flag: 'VOICE_MODE', source: 'src/services/voiceSTT.ts' },
 ]
 
 test('build feature flags are not enabled without their source files', () => {

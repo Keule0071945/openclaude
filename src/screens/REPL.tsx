@@ -110,6 +110,7 @@ const useVoiceIntegration: typeof import('../hooks/useVoiceIntegration.js').useV
   resetAnchor: () => { }
 });
 const VoiceKeybindingHandler: typeof import('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler = feature('VOICE_MODE') ? require('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler : () => null;
+const onVoiceTurnComplete: typeof import('../services/voiceReplies.js').onVoiceTurnComplete = feature('VOICE_MODE') ? require('../services/voiceReplies.js').onVoiceTurnComplete : () => {};
 // Dead code elimination: conditional import for coordinator mode
 const getCoordinatorUserContext: (mcpClients: ReadonlyArray<{
   name: string;
@@ -3323,6 +3324,10 @@ export function REPL({
         companionReaction: reaction
       }));
     }
+    // Read a short version of the reply aloud after dictated turns.
+    onVoiceTurnComplete(messagesRef.current, {
+      aborted: abortController.signal.aborted
+    });
     queryCheckpoint('query_end');
 
     resetLoadingState();

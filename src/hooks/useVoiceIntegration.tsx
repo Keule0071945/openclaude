@@ -10,6 +10,7 @@ import { useInput } from '../ink.js';
 import { useOptionalKeybindingContext } from '../keybindings/KeybindingContext.js';
 import { keystrokesEqual } from '../keybindings/resolver.js';
 import type { ParsedKeystroke } from '../keybindings/types.js';
+import { markVoiceInput } from '../services/voiceReplies.js';
 import { normalizeFullWidthSpace } from '../utils/stringUtils.js';
 import { useVoiceEnabled } from './useVoiceEnabled.js';
 
@@ -304,6 +305,8 @@ export function useVoiceIntegration({
       setInputValueRaw(newInput);
     }
     lastSetInputRef.current = newInput;
+    // The prompt now holds dictated text: speak this turn's reply.
+    markVoiceInput();
     // Update the prefix to include this chunk so focus mode can continue
     // appending subsequent transcripts after it.
     voicePrefixRef.current = prefix_1 + leadingSpace_0 + text;

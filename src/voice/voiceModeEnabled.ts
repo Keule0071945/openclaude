@@ -1,5 +1,6 @@
 import { feature } from 'bun:bundle'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
+import { isTranscriptionAvailable } from '../services/voiceTranscriptionSTT.js'
 import {
   getClaudeAIOAuthTokens,
   isAnthropicAuthEnabled,
@@ -23,15 +24,19 @@ export function isVoiceGrowthBookEnabled(): boolean {
 }
 
 /**
- * Auth-only check for voice mode. Returns true when the user has a valid
- * Anthropic OAuth token. Backed by the memoized getClaudeAIOAuthTokens —
- * first call spawns `security` on macOS (~20-50ms), subsequent calls are
- * cache hits. The memoize clears on token refresh (~once/hour), so one
- * cold spawn per refresh is expected. Cheap enough for usage-time checks.
+ * Backend check for voice mode. Returns true when a speech-to-text backend
+ * is usable: an OpenAI-compatible transcription endpoint (GROQ_API_KEY,
+ * OPENAI_API_KEY, or OPENCLAUDE_STT_BASE_URL) or a valid Anthropic OAuth
+ * token for the claude.ai voice_stream endpoint. The OAuth half is backed
+ * by the memoized getClaudeAIOAuthTokens — first call spawns `security` on
+ * macOS (~20-50ms), subsequent calls are cache hits. Cheap enough for
+ * usage-time checks.
  */
 export function hasVoiceAuth(): boolean {
-  // Voice mode requires Anthropic OAuth — it uses the voice_stream
-  // endpoint on claude.ai which is not available with API keys,
+  if (isTranscriptionAvailable()) {
+    return true
+  }
+  // The voice_stream endpoint on claude.ai is not available with API keys,
   // Bedrock, Vertex, or Foundry.
   if (!isAnthropicAuthEnabled()) {
     return false

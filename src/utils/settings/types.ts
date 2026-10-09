@@ -1142,6 +1142,12 @@ export const SettingsSchema = lazySchema(() =>
               .boolean()
               .optional()
               .describe('Enable voice mode (hold-to-talk dictation)'),
+            voiceReplies: z
+              .boolean()
+              .optional()
+              .describe(
+                'Read a short summary of the reply aloud after dictated turns (default: true)',
+              ),
           }
         : {}),
       ...(feature('KAIROS')

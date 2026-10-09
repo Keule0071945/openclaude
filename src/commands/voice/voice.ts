@@ -1,33 +1,94 @@
-import { normalizeLanguageForSTT } from '../../hooks/useVoice.js'
+import {
+  normalizeLanguageForSTT,
+  VOICE_STT_UNAVAILABLE_MESSAGE,
+} from '../../hooks/useVoice.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import { logEvent } from '../../services/analytics/index.js'
 import type { LocalCommandCall } from '../../types/command.js'
-import { isAnthropicAuthEnabled } from '../../utils/auth.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 import {
   getInitialSettings,
   updateSettingsForSource,
 } from '../../utils/settings/settings.js'
-import { isVoiceModeEnabled } from '../../voice/voiceModeEnabled.js'
+import {
+  isVoiceGrowthBookEnabled,
+  isVoiceModeEnabled,
+} from '../../voice/voiceModeEnabled.js'
 
 const LANG_HINT_MAX_SHOWS = 2
 
-export const call: LocalCommandCall = async () => {
-  // Check auth and kill-switch before allowing voice mode
+const TTS_UNAVAILABLE_HINT =
+  'No text-to-speech engine found. Install espeak-ng (Linux) or set OPENCLAUDE_TTS_BASE_URL to an OpenAI-compatible /audio/speech server.'
+
+async function describeSpokenReplies(): Promise<string> {
+  const { resolveTtsBackend, describeTtsBackend } = await import(
+    '../../services/voiceSpeech.js'
+  )
+  const backend = resolveTtsBackend()
+  return backend
+    ? `Spoken replies: ${describeTtsBackend(backend)} (/voice replies off to mute).`
+    : `Spoken replies: unavailable. ${TTS_UNAVAILABLE_HINT}`
+}
+
+async function handleRepliesArg(value: string) {
+  if (value !== 'on' && value !== 'off') {
+    const { areVoiceRepliesEnabled } = await import(
+      '../../services/voiceReplies.js'
+    )
+    const state = getInitialSettings().voiceReplies === false ? 'off' : 'on'
+    const detail =
+      state === 'on' ? ` ${await describeSpokenReplies()}` : ''
+    const note =
+      state === 'on' && !areVoiceRepliesEnabled()
+        ? ' They play once voice mode is enabled (and OPENCLAUDE_TTS is not "off").'
+        : ''
+    return {
+      type: 'text' as const,
+      value: `Spoken replies are ${state}.${detail}${note} Usage: /voice replies on|off`,
+    }
+  }
+  const enabled = value === 'on'
+  const result = updateSettingsForSource('userSettings', {
+    voiceReplies: enabled,
+  })
+  if (result.error) {
+    return {
+      type: 'text' as const,
+      value:
+        'Failed to update settings. Check your settings file for syntax errors.',
+    }
+  }
+  settingsChangeDetector.notifyChange('userSettings')
+  if (!enabled) {
+    const { stopSpeaking } = await import('../../services/voiceSpeech.js')
+    stopSpeaking()
+    return { type: 'text' as const, value: 'Spoken replies disabled.' }
+  }
+  return {
+    type: 'text' as const,
+    value: `Spoken replies enabled. ${await describeSpokenReplies()}`,
+  }
+}
+
+export const call: LocalCommandCall = async args => {
+  const [subcommand, value = ''] = args.trim().toLowerCase().split(/\s+/)
+  if (subcommand === 'replies') {
+    return handleRepliesArg(value)
+  }
+
+  // Check the kill-switch and for a usable speech-to-text backend before
+  // allowing voice mode.
   if (!isVoiceModeEnabled()) {
-    // Differentiate: OAuth-less users get an auth hint, everyone else
-    // gets nothing (command shouldn't be reachable when the kill-switch is on).
-    if (!isAnthropicAuthEnabled()) {
+    if (!isVoiceGrowthBookEnabled()) {
       return {
         type: 'text' as const,
-        value:
-          'Voice mode requires a Claude.ai account. Please run /login to sign in.',
+        value: 'Voice mode is not available.',
       }
     }
     return {
       type: 'text' as const,
-      value: 'Voice mode is not available.',
+      value: VOICE_STT_UNAVAILABLE_MESSAGE,
     }
   }
 
@@ -55,9 +116,7 @@ export const call: LocalCommandCall = async () => {
   }
 
   // Toggle ON — run pre-flight checks first
-  const { isVoiceStreamAvailable } = await import(
-    '../../services/voiceStreamSTT.js'
-  )
+  const { resolveSttBackend } = await import('../../services/voiceSTT.js')
   const { checkRecordingAvailability } = await import('../../services/voice.js')
 
   // Check recording availability (microphone access)
@@ -70,12 +129,12 @@ export const call: LocalCommandCall = async () => {
     }
   }
 
-  // Check for API key
-  if (!isVoiceStreamAvailable()) {
+  // Check for a speech-to-text backend
+  const sttBackend = resolveSttBackend()
+  if (!sttBackend) {
     return {
       type: 'text' as const,
-      value:
-        'Voice mode requires a Claude.ai account. Please run /login to sign in.',
+      value: VOICE_STT_UNAVAILABLE_MESSAGE,
     }
   }
 
@@ -132,9 +191,15 @@ export const call: LocalCommandCall = async () => {
   const showHint = !stt.fellBackFrom && priorCount < LANG_HINT_MAX_SHOWS
   let langNote = ''
   if (stt.fellBackFrom) {
-    langNote = ` Note: "${stt.fellBackFrom}" is not a supported dictation language; using English. Change it via /config.`
+    langNote =
+      sttBackend.id === 'anthropic'
+        ? ` Note: "${stt.fellBackFrom}" is not a supported dictation language; using English. Change it via /config.`
+        : ` Dictation language: auto-detect ("${stt.fellBackFrom}" has no language code).`
   } else if (showHint) {
-    langNote = ` Dictation language: ${stt.code} (/config to change).`
+    // Whisper-style backends auto-detect when no language is configured.
+    const autoDetect =
+      sttBackend.id !== 'anthropic' && !currentSettings.language?.trim()
+    langNote = ` Dictation language: ${autoDetect ? 'auto-detect' : stt.code} (/config to change).`
   }
   if (langChanged || showHint) {
     saveGlobalConfig(prev => ({
@@ -143,8 +208,12 @@ export const call: LocalCommandCall = async () => {
       voiceLangHintLastLanguage: stt.code,
     }))
   }
+  const repliesNote =
+    currentSettings.voiceReplies === false
+      ? ''
+      : ` ${await describeSpokenReplies()}`
   return {
     type: 'text' as const,
-    value: `Voice mode enabled. Hold ${key} to record.${langNote}`,
+    value: `Voice mode enabled. Hold ${key} to record. Speech-to-text: ${sttBackend.label}.${langNote}${repliesNote}`,
   }
 }

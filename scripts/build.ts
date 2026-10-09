@@ -83,7 +83,6 @@ const productionReactPlugin = {
 // selectively enabled here when their full source exists in the mirror.
 const featureFlags: Record<string, boolean> = {
   // ── Disabled: require Anthropic infrastructure or missing source ─────
-  VOICE_MODE: false,              // Push-to-talk STT via claude.ai OAuth endpoint
   PROACTIVE: false,               // Autonomous agent mode (missing proactive/ module)
   KAIROS: false,                  // Persistent assistant/session mode (cloud backend)
   BRIDGE_MODE: false,             // Remote desktop bridge via CCR infrastructure
@@ -112,6 +111,7 @@ const featureFlags: Record<string, boolean> = {
   MESSAGE_ACTIONS: true,              // Message action buttons in the UI
 
   // ── Enabled: new activations ────────────────────────────────────────
+  VOICE_MODE: true,                   // Push-to-talk dictation (OpenAI-compatible or claude.ai STT) + spoken replies
   DUMP_SYSTEM_PROMPT: true,           // --dump-system-prompt CLI flag for debugging
   CACHED_MICROCOMPACT: true,          // Cache-aware tool result truncation optimization
   AWAY_SUMMARY: true,                 // "While you were away" recap after 5min blur

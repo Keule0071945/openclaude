@@ -1,10 +1,11 @@
-// React hook for hold-to-talk voice input using Anthropic voice_stream STT.
+// React hook for hold-to-talk voice input.
 //
 // Hold the keybinding to record; release to stop and submit.  Auto-repeat
 // key events reset an internal timer — when no keypress arrives within
 // RELEASE_TIMEOUT_MS the recording stops automatically.  Uses the native
-// audio module (macOS) or SoX for recording, and Anthropic's voice_stream
-// endpoint (conversation_engine) for STT.
+// audio module (macOS) or SoX for recording. Transcription goes through
+// voiceSTT.ts, which picks Anthropic's voice_stream endpoint or any
+// OpenAI-compatible /audio/transcriptions server.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSetVoiceState } from '../context/voice.js'
@@ -14,11 +15,11 @@ import {
   logEvent,
 } from '../services/analytics/index.js'
 import { getVoiceKeyterms } from '../services/voiceKeyterms.js'
-import {
-  connectVoiceStream,
-  type FinalizeSource,
-  isVoiceStreamAvailable,
-  type VoiceStreamConnection,
+import { stopSpeaking } from '../services/voiceSpeech.js'
+import { connectVoiceSTT, isVoiceSttAvailable } from '../services/voiceSTT.js'
+import type {
+  FinalizeSource,
+  VoiceStreamConnection,
 } from '../services/voiceStreamSTT.js'
 import { logForDebugging } from '../utils/debug.js'
 import { toError } from '../utils/errors.js'
@@ -132,6 +133,19 @@ export function normalizeLanguageForSTT(language: string | undefined): {
   if (base && SUPPORTED_LANGUAGE_CODES.has(base)) return { code: base }
   return { code: DEFAULT_STT_LANGUAGE, fellBackFrom: language }
 }
+
+// True when the language came from the user's settings and is supported.
+// An unset or unsupported preference resolves to a fallback code, which
+// Whisper-style backends should not force — they auto-detect instead.
+function isExplicitLanguage(
+  rawLanguage: string | undefined,
+  stt: { fellBackFrom?: string },
+): boolean {
+  return Boolean(rawLanguage?.trim()) && stt.fellBackFrom === undefined
+}
+
+export const VOICE_STT_UNAVAILABLE_MESSAGE =
+  'No speech-to-text backend is configured. Set GROQ_API_KEY or OPENCLAUDE_STT_BASE_URL (any OpenAI-compatible /audio/transcriptions server), or /login with a Claude.ai account.'
 
 // Lazy-loaded voice module. We defer importing voice.ts (and its native
 // audio-capture-napi dependency) until voice input is actually activated.
@@ -401,11 +415,12 @@ export function useVoice({
           const replayBuffer = fullAudioRef.current
           await sleep(250)
           if (isStale()) return
-          const stt = normalizeLanguageForSTT(getInitialSettings().language)
+          const rawLanguage = getInitialSettings().language
+          const stt = normalizeLanguageForSTT(rawLanguage)
           const keyterms = await getVoiceKeyterms()
           if (isStale()) return
           await new Promise<void>(resolve => {
-            void connectVoiceStream(
+            void connectVoiceSTT(
               {
                 onTranscript: (t, isFinal) => {
                   if (isStale()) return
@@ -442,7 +457,11 @@ export function useVoice({
                   })
                 },
               },
-              { language: stt.code, keyterms },
+              {
+                language: stt.code,
+                languageIsExplicit: isExplicitLanguage(rawLanguage, stt),
+                keyterms,
+              },
             ).then(
               c => {
                 if (!c) resolve()
@@ -646,6 +665,8 @@ export function useVoice({
     // - handleKeyEvent's `currentState === 'idle'` re-entry check below
     // If an await runs first, both see stale 'idle'. See PR #20873 review.
     updateState('recording')
+    // Barge-in: the user talking always wins over a reply being read aloud.
+    stopSpeaking()
     recordingStartRef.current = Date.now()
     accumulatedRef.current = ''
     seenRepeatRef.current = false
@@ -778,7 +799,7 @@ export function useVoice({
 
     const attemptConnect = (keyterms: string[]): void => {
       const myAttemptGen = attemptGenRef.current
-      void connectVoiceStream(
+      void connectVoiceSTT(
         {
           onTranscript: (text: string, isFinal: boolean) => {
             if (isStale()) return
@@ -976,6 +997,7 @@ export function useVoice({
         },
         {
           language: stt.code,
+          languageIsExplicit: isExplicitLanguage(rawLanguage, stt),
           keyterms,
         },
       ).then(conn => {
@@ -985,11 +1007,9 @@ export function useVoice({
         }
         if (!conn) {
           logForDebugging(
-            '[voice] Failed to connect to voice_stream (no OAuth token?)',
+            '[voice] Failed to connect to a speech-to-text backend',
           )
-          onErrorRef.current?.(
-            'Voice mode requires a Claude.ai account. Please run /login to sign in.',
-          )
+          onErrorRef.current?.(VOICE_STT_UNAVAILABLE_MESSAGE)
           // Clear the audio buffer on failure
           audioBuffer.length = 0
           cleanup()
@@ -1021,7 +1041,7 @@ export function useVoice({
   // delay of ~500ms on macOS).
   const handleKeyEvent = useCallback(
     (fallbackMs = REPEAT_FALLBACK_MS): void => {
-      if (!enabled || !isVoiceStreamAvailable()) {
+      if (!enabled || !isVoiceSttAvailable()) {
         return
       }
 
