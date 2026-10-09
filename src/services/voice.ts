@@ -21,10 +21,35 @@ type AudioNapi = typeof import('audio-capture-napi')
 let audioNapi: AudioNapi | null = null
 let audioNapiPromise: Promise<AudioNapi> | null = null
 
+// Stand-in used when the native addon is missing. The open build replaces
+// audio-capture-napi with a stub that has none of these exports (see
+// scripts/build.ts), and source checkouts may not have it installed.
+// Reporting "unavailable" routes recording to the SoX / arecord fallbacks.
+const NO_NATIVE_AUDIO = {
+  isNativeAudioAvailable: () => false,
+  isNativeRecordingActive: () => false,
+  startNativeRecording: () => false,
+  stopNativeRecording: () => {},
+} as unknown as AudioNapi
+
 function loadAudioNapi(): Promise<AudioNapi> {
   audioNapiPromise ??= (async () => {
     const t0 = Date.now()
-    const mod = await import('audio-capture-napi')
+    let mod: AudioNapi
+    try {
+      mod = await import('audio-capture-napi')
+    } catch (error) {
+      logForDebugging(
+        `[voice] audio-capture-napi unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      audioNapi = NO_NATIVE_AUDIO
+      return NO_NATIVE_AUDIO
+    }
+    if (typeof mod.isNativeAudioAvailable !== 'function') {
+      logForDebugging('[voice] audio-capture-napi is a stub; using SoX/arecord')
+      audioNapi = NO_NATIVE_AUDIO
+      return NO_NATIVE_AUDIO
+    }
     // vendor/audio-capture-src/index.ts defers require(...node) until the
     // first function call — trigger it here so timing reflects real cost.
     mod.isNativeAudioAvailable()
