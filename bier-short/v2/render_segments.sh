@@ -11,5 +11,5 @@ for ((a=0; a<N; a+=300)); do
   [ -f "$out" ] && { echo "skip $out"; continue; }
   NODE_PATH=$(npm root -g) node capture3d.cjs seg $a $b "$out" || { echo "FAILED $a"; exit 1; }
 done
-ls segs/seg_*.mp4 | sed "s/^/file '/;s/$/'/" > segs/list.txt
+(cd segs && ls seg_*.mp4 | sed "s/^/file '/;s/$/'/") > segs/list.txt
 ffmpeg -y -loglevel error -f concat -safe 0 -i segs/list.txt -c copy video3d_noaudio.mp4 && echo "ALL DONE"
