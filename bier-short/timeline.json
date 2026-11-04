@@ -1,0 +1,276 @@
+{
+ "total": 58.98,
+ "lines": [
+  {
+   "id": 0,
+   "scene": "hook",
+   "say": "Im Jahr fünfzehnhundertsechzehn verbot ein bayerischer Herzog, Bier aus Weizen zu brauen.",
+   "cap": "Im Jahr 1516 verbot ein bayerischer Herzog, Bier aus Weizen zu brauen.",
+   "dur": 4.439,
+   "start": 0.25
+  },
+  {
+   "id": 1,
+   "scene": "tavern",
+   "say": "Klingt streng? Na ja. In Deutschland war Bier damals kein Luxus.",
+   "cap": "Klingt streng? Na ja. In Deutschland war Bier damals kein Luxus.",
+   "dur": 4.001,
+   "start": 4.929
+  },
+  {
+   "id": 2,
+   "scene": "tavern",
+   "say": "Es war Alltag.",
+   "cap": "Es war Alltag.",
+   "dur": 0.8,
+   "start": 9.06
+  },
+  {
+   "id": 3,
+   "scene": "monks",
+   "say": "Schon im Mittelalter brauten Mönche in ihren Klöstern.",
+   "cap": "Schon im Mittelalter brauten Mönche in ihren Klöstern.",
+   "dur": 2.295,
+   "start": 10.1
+  },
+  {
+   "id": 4,
+   "scene": "lent",
+   "say": "In der Fastenzeit war feste Nahrung tabu. Trinken aber nicht.",
+   "cap": "In der Fastenzeit war feste Nahrung tabu. Trinken aber nicht.",
+   "dur": 3.071,
+   "start": 12.635
+  },
+  {
+   "id": 5,
+   "scene": "lent",
+   "say": "Also brauten sie ihr Bier extra stark. Flüssiges Brot.",
+   "cap": "Also brauten sie ihr Bier extra stark. Flüssiges Brot.",
+   "dur": 2.769,
+   "start": 15.836
+  },
+  {
+   "id": 6,
+   "scene": "map",
+   "say": "Bald braute ein Kloster. Dann jedes Dorf. Dann jede Stadt.",
+   "cap": "Bald braute ein Kloster. Dann jedes Dorf. Dann jede Stadt.",
+   "dur": 3.429,
+   "start": 18.845
+  },
+  {
+   "id": 7,
+   "scene": "cauldron",
+   "say": "Und manche Brauer kippten rein, was sie fanden. Kräuter, Rinde, sogar giftiges Bilsenkraut.",
+   "cap": "Und manche Brauer kippten rein, was sie fanden: Kräuter, Rinde, sogar giftiges Bilsenkraut.",
+   "dur": 4.918,
+   "start": 22.514
+  },
+  {
+   "id": 8,
+   "scene": "decree",
+   "say": "Also sagte der Herzog: Ab jetzt nur noch Gerste, Hopfen und Wasser.",
+   "cap": "Also sagte der Herzog: Ab jetzt nur noch Gerste, Hopfen und Wasser.",
+   "dur": 3.626,
+   "start": 27.672
+  },
+  {
+   "id": 9,
+   "scene": "yeast",
+   "say": "Moment. Keine Hefe?",
+   "cap": "Moment. Keine Hefe?",
+   "dur": 1.533,
+   "start": 31.538
+  },
+  {
+   "id": 10,
+   "scene": "yeast",
+   "say": "Die kannte damals noch niemand.",
+   "cap": "Die kannte damals noch niemand.",
+   "dur": 1.36,
+   "start": 33.201
+  },
+  {
+   "id": 11,
+   "scene": "summer",
+   "say": "Im Sommer wurde das Brauen bald ganz verboten. Zu heiß. Das Bier verdarb.",
+   "cap": "Im Sommer wurde das Brauen bald ganz verboten. Zu heiß. Das Bier verdarb.",
+   "dur": 3.937,
+   "start": 34.801
+  },
+  {
+   "id": 12,
+   "scene": "cellar",
+   "say": "Also gruben die Brauer tiefe Keller und pflanzten Kastanien darüber. Für Schatten.",
+   "cap": "Also gruben die Brauer tiefe Keller und pflanzten Kastanien darüber. Für Schatten.",
+   "dur": 3.993,
+   "start": 38.978
+  },
+  {
+   "id": 13,
+   "scene": "garden",
+   "say": "Und weil es unter den Bäumen so schön kühl war, schenkten sie gleich dort aus.",
+   "cap": "Und weil es unter den Bäumen so schön kühl war, schenkten sie gleich dort aus.",
+   "dur": 3.449,
+   "start": 43.211
+  },
+  {
+   "id": 14,
+   "scene": "garden",
+   "say": "Der Biergarten war geboren.",
+   "cap": "Der Biergarten war geboren.",
+   "dur": 1.234,
+   "start": 46.79
+  },
+  {
+   "id": 15,
+   "scene": "counter",
+   "say": "Heute gibt es in Deutschland rund fünfzehnhundert Brauereien.",
+   "cap": "Heute gibt es in Deutschland rund 1.500 Brauereien.",
+   "dur": 2.768,
+   "start": 48.264
+  },
+  {
+   "id": 16,
+   "scene": "bakery",
+   "say": "Aber warum eigentlich kein Weizen?",
+   "cap": "Aber warum eigentlich kein Weizen?",
+   "dur": 1.627,
+   "start": 51.272
+  },
+  {
+   "id": 17,
+   "scene": "bakery",
+   "say": "Weil die Bäcker ihn für ihr Brot brauchten.",
+   "cap": "Weil die Bäcker ihn für ihr Brot brauchten.",
+   "dur": 1.659,
+   "start": 53.029
+  },
+  {
+   "id": 18,
+   "scene": "twist",
+   "say": "Das berühmteste Biergesetz der Welt war also vielleicht ein Brotgesetz.",
+   "cap": "Das berühmteste Biergesetz der Welt war also vielleicht … ein Brotgesetz.",
+   "dur": 3.15,
+   "start": 54.928
+  }
+ ],
+ "scenes": [
+  {
+   "name": "hook",
+   "start": 0,
+   "lines": [
+    0
+   ],
+   "end": 4.809
+  },
+  {
+   "name": "tavern",
+   "start": 4.809,
+   "lines": [
+    1,
+    2
+   ],
+   "end": 9.98
+  },
+  {
+   "name": "monks",
+   "start": 9.98,
+   "lines": [
+    3
+   ],
+   "end": 12.515
+  },
+  {
+   "name": "lent",
+   "start": 12.515,
+   "lines": [
+    4,
+    5
+   ],
+   "end": 18.725
+  },
+  {
+   "name": "map",
+   "start": 18.725,
+   "lines": [
+    6
+   ],
+   "end": 22.394
+  },
+  {
+   "name": "cauldron",
+   "start": 22.394,
+   "lines": [
+    7
+   ],
+   "end": 27.552
+  },
+  {
+   "name": "decree",
+   "start": 27.552,
+   "lines": [
+    8
+   ],
+   "end": 31.418
+  },
+  {
+   "name": "yeast",
+   "start": 31.418,
+   "lines": [
+    9,
+    10
+   ],
+   "end": 34.681
+  },
+  {
+   "name": "summer",
+   "start": 34.681,
+   "lines": [
+    11
+   ],
+   "end": 38.858
+  },
+  {
+   "name": "cellar",
+   "start": 38.858,
+   "lines": [
+    12
+   ],
+   "end": 43.091
+  },
+  {
+   "name": "garden",
+   "start": 43.091,
+   "lines": [
+    13,
+    14
+   ],
+   "end": 48.144
+  },
+  {
+   "name": "counter",
+   "start": 48.144,
+   "lines": [
+    15
+   ],
+   "end": 51.152
+  },
+  {
+   "name": "bakery",
+   "start": 51.152,
+   "lines": [
+    16,
+    17
+   ],
+   "end": 54.808
+  },
+  {
+   "name": "twist",
+   "start": 54.808,
+   "lines": [
+    18
+   ],
+   "end": 58.98
+  }
+ ]
+}
