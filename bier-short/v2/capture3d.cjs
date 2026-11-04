@@ -15,6 +15,17 @@ const fs = require('fs'); const { spawn } = require('child_process');
       const url = await page.evaluate(f => renderFrame(f), Math.round(t * 30));
       fs.writeFileSync(`${__dirname}/frames/p_${t.toFixed(2)}.jpg`, Buffer.from(url.split(',')[1], 'base64'));
     }
+  } else if (mode === 'seg') {
+    const a = +process.argv[3], b = +process.argv[4], out = process.argv[5];
+    const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', '30', '-c:v', 'mjpeg', '-i', '-', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', out + '.part.mp4']);
+    for (let f = a; f < b; f++) {
+      const url = await page.evaluate(f => renderFrame(f), f);
+      const buf = Buffer.from(url.split(',')[1], 'base64');
+      if (!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once('drain', r));
+    }
+    ff.stdin.end(); await new Promise(r => ff.on('close', r));
+    fs.renameSync(out + '.part.mp4', out);
+    console.log(`segment ${a}-${b} done`);
   } else {
     const N = Math.ceil(tl.total * 30);
     const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', '30', '-c:v', 'mjpeg', '-i', '-', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', __dirname + '/video3d_noaudio.mp4']);
