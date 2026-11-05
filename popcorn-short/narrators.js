@@ -104,9 +104,11 @@ function drawNarrator(g,kind,pose,F,t=0){g.save();const turn=pose.turn||0;const 
     coin:{}}[kind];
   const hipY=-470+(pose.bob||0),shY=-760+(pose.bob||0);
   if(kind==='coin'){ // the body IS a 2-euro coin
-    const legL=(sd,L)=>{g.save();g.translate(sd*70,-452);g.rotate(L.hip);g.strokeStyle=OUT;g.lineWidth=20;g.lineCap='round';g.beginPath();g.moveTo(0,0);g.lineTo(0,200);g.rotate(L.knee);g.lineTo(0,420);g.stroke();
-      g.translate(0,200);const s=P([-40,190,130,50]);s.moveTo(-30,206);s.quadraticCurveTo(-36,250,-10,250);s.lineTo(80,250);s.quadraticCurveTo(100,246,84,220);s.quadraticCurveTo(50,200,20,204);s.closePath();paint(g,s,'#c4281f',{shadow:false});hl(g,30,218,26,8,0.4);g.restore();};
-    const armC=(sd,A,open)=>{g.save();g.translate(sd*250,-690);g.rotate(A.sh);g.strokeStyle=OUT;g.lineWidth=18;g.lineCap='round';g.beginPath();g.moveTo(0,0);g.lineTo(0,140);g.save();g.translate(0,140);g.rotate(A.el);g.lineTo(0,130);g.stroke();g.translate(0,140);glove(g,open,sd);g.restore();g.restore();};
+    const legL=(sd,L)=>{g.save();g.translate(sd*70,-452);g.rotate(L.hip);g.lineCap='round';g.lineJoin='round';const kx=Math.sin(L.knee)*200;const leg=()=>{g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(-sd*6,110,0,200);g.lineTo(kx*0.0+Math.sin(L.knee)*-0,200);g.save();g.translate(0,200);g.rotate(L.knee);g.lineTo(0,0);g.quadraticCurveTo(sd*5,110,0,196);g.restore();};
+      g.strokeStyle=OUT;g.lineWidth=46;leg();g.stroke();g.strokeStyle='#2c2c36';g.lineWidth=30;leg();g.stroke();g.strokeStyle='rgba(255,255,255,0.10)';g.lineWidth=8;g.save();g.translate(-8,0);leg();g.stroke();g.restore();
+      g.translate(0,200);g.rotate(L.knee);g.fillStyle='#f6f2ea';g.strokeStyle=OUT;g.lineWidth=6;g.beginPath();g.roundRect(-20,150,40,40,8);g.fill();g.stroke();const s=P([-40,190,130,50]);s.moveTo(-30,206);s.quadraticCurveTo(-36,250,-10,250);s.lineTo(80,250);s.quadraticCurveTo(100,246,84,220);s.quadraticCurveTo(50,200,20,204);s.closePath();paint(g,s,'#c4281f',{shadow:false});hl(g,30,218,26,8,0.4);g.restore();};
+    const armC=(sd,A,open)=>{g.save();g.translate(sd*250,-690);g.rotate(A.sh);g.lineCap='round';g.lineJoin='round';const arm=()=>{g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(sd*6,70,0,140);g.save();g.translate(0,140);g.rotate(A.el);g.lineTo(0,0);g.quadraticCurveTo(-sd*5,65,0,128);g.restore();};
+      g.strokeStyle=OUT;g.lineWidth=40;arm();g.stroke();g.strokeStyle='#2c2c36';g.lineWidth=25;arm();g.stroke();g.save();g.translate(0,140);g.rotate(A.el);g.translate(0,128);g.fillStyle='#f6f2ea';g.strokeStyle=OUT;g.lineWidth=6;g.beginPath();g.roundRect(-24,-6,48,24,8);g.fill();g.stroke();g.translate(0,14);glove(g,open,sd);g.restore();g.restore();};
     armC(-1,arms.L,(pose.handOpen||{}).L);legL(-1,legs.L);legL(1,legs.R);
     g.save();g.translate(0,-700);g.rotate(pose.lean||0);
     const outer=P([-270,-270,540,540]);outer.arc(0,0,262,0,7);paint(g,outer,'#d8dce4',{sx:1,shW:0.2,shadeK:0.18});g.save();g.clip(outer);g.strokeStyle='rgba(28,20,16,0.35)';g.lineWidth=4;for(let a=0;a<72;a++){const an=a/72*Math.PI*2;g.beginPath();g.moveTo(Math.cos(an)*250,Math.sin(an)*250);g.lineTo(Math.cos(an)*262,Math.sin(an)*262);g.stroke();}g.restore();
@@ -116,8 +118,9 @@ function drawNarrator(g,kind,pose,F,t=0){g.save();const turn=pose.turn||0;const 
     eyes(g,F,turn*20,-30,{sx:62,rx:30,ry:34,iris:'#3a2a10'});brows(g,F,turn*20,-112,62,'#7a5a1a',13);
     // monocle on the right eye
     g.lineWidth=8;g.strokeStyle='#b8902a';g.beginPath();g.arc(62+turn*20,-30,46,0,7);g.stroke();g.fillStyle='rgba(200,230,255,0.25)';g.fill();g.lineWidth=3;g.strokeStyle='#8a6a1a';g.beginPath();g.moveTo(104+turn*20,-12);g.quadraticCurveTo(150,80,120,160);g.stroke();
-    mouth(g,F,turn*20,70,{w:40});
+    mouth(g,F,turn*20,98,{w:36});
     g.beginPath();g.moveTo(-40+turn*20,40);g.bezierCurveTo(-70,24,-110,50,-124,30);g.bezierCurveTo(-110,70,-60,64,-6+turn*20,52);g.bezierCurveTo(60,64,110,70,124,30);g.bezierCurveTo(110,50,70,24,40+turn*20,40);g.closePath();g.fillStyle='#4a3014';g.fill();g.lineWidth=5;g.strokeStyle=OUT;g.stroke();
+    const bt=P([-80,220,160,80]);bt.moveTo(0,262);bt.lineTo(-74,232);bt.quadraticCurveTo(-84,262,-74,292);bt.closePath();bt.moveTo(0,262);bt.lineTo(74,232);bt.quadraticCurveTo(84,262,74,292);bt.closePath();paint(g,bt,'#c4281f',{shadow:false,lw:7});const kn=P([-20,246,40,34]);kn.roundRect(-18,248,36,30,8);paint(g,kn,'#9a1a14',{shadow:false,lw:6});
     // top hat
     const brm=P([0,0,1,1]);brm.ellipse(10,-262,170,30,0.06,0,7);paint(g,brm,'#1c1c22',{shadow:false});const cr=P([-110,-500,220,250]);cr.moveTo(-96,-264);cr.lineTo(-86,-470);cr.quadraticCurveTo(10,-490,104,-470);cr.lineTo(114,-262);cr.closePath();paint(g,cr,'#1c1c22',{sx:1});
     g.fillStyle='#7a1a2a';g.fillRect(-92,-320,204,40);g.strokeStyle=OUT;g.lineWidth=6;g.strokeRect(-92,-320,204,40);hl(g,-50,-420,16,50,0.18);
@@ -143,5 +146,5 @@ function drawNarrator(g,kind,pose,F,t=0){g.save();const turn=pose.turn||0;const 
     g.fillStyle='#2a1a12';g.fillRect(-102,-170,204,30);g.strokeStyle=OUT;g.lineWidth=6;g.strokeRect(-102,-170,204,30);hl(g,-50,-210,30,10,0.25);}
   g.restore();g.restore();
   drawArm(-back,back<0?arms.R:arms.L,(pose.handOpen||{})[back<0?'R':'L']);g.restore();}
-window.narrators={drawNarrator};
+window.narrators={drawNarrator,H:{paint,P,eyes,brows,mouth,hl,glove,shade,light,mixc}};
 })();

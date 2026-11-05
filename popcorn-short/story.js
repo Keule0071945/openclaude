@@ -87,15 +87,15 @@ function studioVault(sc,x,z){const g=new THREE.Group();g.position.set(x,0,z);sc.
   const clap=new THREE.Group();clap.position.set(0.35,1.42,0.1);clap.rotation.z=-0.15;g.add(clap);box(0.36,0.24,0.04,M('#1c1c22'),0,0,0,clap);const arm=box(0.38,0.07,0.04,M('#f2f2f2'),0,0.16,0,clap);
   g.userData={sg,arm};return g;}
 DEF.ticket={build(){const sc=new THREE.Scene();const L=lobbySet(sc);
-  boxOffice(sc,-3.9,-4.3);const cashier=new Toon2D(sc,-3.9,-4.5,CASHIER,0.9);
+  boxOffice(sc,-3.9,-4.3);const cashier=new Toon2D(sc,-3.9,-4.5,{},0.95,{kind:'kevin'});
   const vault=studioVault(sc,-1.7,-3.3);
-  const kund=new Toon2D(sc,-0.6,0.8,KUNDIN,0.95);
+  const kund=new Toon2D(sc,-0.6,0.8,{},0.95,{kind:'jule',flipBase:true});
   const t={kauf:WT('kaufst','ticket'),teil:WT('Teil','ticket'),studio:WT('Filmstudio','ticket'),half:WT('Hälfte','ticket')};
-  kund.plan([{type:'walk',t:0,dur:2.0,from:[-0.6,0.8],to:[-3.55,-3.05]},{type:'g',g:'pay',t:t.kauf-0.35}]);cashier.plan([{type:'g',g:'nod',t:t.kauf+0.2},{type:'g',g:'pay',t:t.teil-0.4}]);
+  kund.plan([{type:'walk',t:0,dur:2.0,from:[-0.6,0.8],to:[-2.95,-3.0]},{type:'g',g:'pay',t:t.kauf-0.35}]);cashier.plan([{type:'g',g:'nod',t:t.kauf+0.2},{type:'g',g:'pay',t:t.teil-0.4}]);
   const coins=[];for(let i=0;i<14;i++){const g=new THREE.Group();sc.add(g);coin3d(g,1.3);coins.push(g);}
   const split=new Flat(sc,2.6,0.9,780,270,(g,lt)=>{const u=easeOut(clamp((lt-t.half+0.3)/0.8));rr(10,40,760,120,20);fillS('#2a2a30',6);rr(10,40,Math.max(40,760*0.6*u),120,20);g.fillStyle='#d62828';g.fill();
     text('STUDIO  50 %+',230,100,52,'#ffffff',{ol:false});text('KINO',650,100,52,'#ffe8b0',{ol:false});text('VOM TICKETPREIS',390,220,48,'#ffe8b0');},{bill:true});split.mesh.castShadow=false;
-  const ST0=new THREE.Vector3(-3.55,1.25,-3.55),SLOT=new THREE.Vector3(-1.7,1.33,-3.3);
+  const ST0=new THREE.Vector3(-3.4,1.25,-3.55),SLOT=new THREE.Vector3(-1.7,1.33,-3.3);
   return {sc,anchors:{kund,cashier},grade:{mul:'#ffd8e0',a:0.05,vig:0.4,vigCol:'#120610'},
     shots:[[0,0,['kund:top','kund:feet',[-3.9,2.9,-3.7]],-16,6,0,{follow:'kund'}],[t.kauf-0.35,0,['kund:top','cashier:top','kund:knee',[-3.9,1.0,-3.6]],14,6,0],
       [t.teil-0.3,0,[[-3.7,2.2,-3.6],[-1.7,1.9,-3.3],[-1.7,0.1,-3.3],[-2.6,2.4,-3.4]],-4,6,0],[t.half-0.45,0,[[-3.9,3.75,-2.8],[-1.3,3.4,-2.8],[-1.7,1.0,-3.3]],2,4,0]],
@@ -116,7 +116,7 @@ DEF.costs={build(){const sc=new THREE.Scene();sc.background=gradBg(['#3a2a1a','#
   const desk=box(3.2,0.9,1.1,M('#7a4a2a'),0,0.45,-1.8,sc);box(3.3,0.06,1.2,M('#4a2a14'),0,0.93,-1.8,sc);
   const lamp=candle3d(sc,-1.2,0.96,-2.0,1.4,'#ffcf86',1.0,6);
   const papers=[];for(let i=0;i<5;i++){const p=box(0.32,0.012,0.42,M('#f6f0e0'),0.9+rnd(i)*0.3,0.97+i*0.013,-1.8+rnd(i*3)*0.1,sc);p.rotation.y=(rnd(i*7)-0.5)*0.6;}
-  const mgr=new Toon2D(sc,0.2,-2.9,MANAGER,1.12);
+  const mgr=new Toon2D(sc,0.2,-2.9,{},1.0,{kind:'brandt'});
   const t={rest:WT('Rest','costs'),miete:WT('Miete','costs'),pers:WT('Personal','costs'),strom:WT('Strom','costs'),proj:WT('Projektor','costs')};
   mgr.plan([{type:'g',g:'explain',t:Math.max(0.1,t.rest-0.3)},{type:'g',g:'shrug',t:t.proj+0.3}]);
   const pile=[];for(let i=0;i<4;i++){const g=new THREE.Group();sc.add(g);coin3d(g,1.4);g.position.set(0.15+(i%2)*0.22,0.98+Math.floor(i/2)*0.03,-1.5+Math.floor(i/2)*0.05);pile.push(g);}
@@ -160,7 +160,7 @@ DEF.smell={build(){const sc=new THREE.Scene();const L=lobbySet(sc);
   // entrance doors (daylight) on the right wall
   const door=box(0.1,2.6,2.4,NO(new THREE.MeshBasicMaterial({color:'#e8c890'})),5.78,1.3,-0.6,sc);door.castShadow=false;const dG=glowSprite('#ffe0a0',3,0.28);dG.position.set(5.5,1.4,-0.6);sc.add(dG);
   const sh2=shaft(8,0.9,2.4,'#ffe8c0',0.1);sh2.position.set(5.7,2.2,-0.6);sh2.rotation.set(0,0,1.1);sc.add(sh2);
-  const kund=new Toon2D(sc,5.2,-0.4,KUNDIN,0.95);const t={riecht:WT('riecht','smell'),eingang:WT('Eingang','smell'),duft:WT('Duft','smell'),werb:WT('Werbung','smell')};
+  const kund=new Toon2D(sc,5.2,-0.4,{},0.95,{kind:'jule'});const t={riecht:WT('riecht','smell'),eingang:WT('Eingang','smell'),duft:WT('Duft','smell'),werb:WT('Werbung','smell')};
   kund.plan([{type:'walk',t:0,dur:1.5,from:[5.0,-0.3],to:[3.4,-1.2]},{type:'g',g:'sniff',t:1.55},{type:'walk',t:t.duft+0.3,dur:2.2,to:[1.6,-3.2]}]);
   const ribbons=[];for(let r=0;r<3;r++){const arr=[];for(let i=0;i<26;i++){const s=glowSprite('#ffd890',0.5,0.0);sc.add(s);arr.push(s);}ribbons.push(arr);}
   const werb=badge(sc,1.5,0.42,'WERBUNG','#ffffff','#c4281f');

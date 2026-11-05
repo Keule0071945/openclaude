@@ -28,7 +28,7 @@ class Toon2D{
       if(lt<a.t){if(a===first&&a.from)pos=from;break;}const u=clamp((lt-a.t)/a.dur);const e=u<0.5?2*u*u:1-Math.pow(-2*u+2,2)/2;pos=from.clone().lerp(to,e);dist=from.distanceTo(to)*e;dir=Math.sign(to.x-from.x)||dir;
       if(u<1)k=Math.min(1,Math.min(lt-a.t,a.t+a.dur-lt)/0.25);}
     return {pos,k,dist,dir,ry:this.homeRy};}
-  _gesture(lt,base){let g=null;for(const a of this.acts)if(a.type==='g'&&lt>=a.t)g=a;const B={L:base.L,R:base.R,lean:0,head:0};if(!g)return {P:B,open:''};
+  _gesture(lt,base){let g=null;for(const a of this.acts)if(a.type==='g'&&lt>=a.t)g=a;const B={L:{...base.L},R:{...base.R},lean:0,head:0};/* copies: walk swing adds onto P and must never mutate BASE2 */if(!g)return {P:B,open:''};
     const G=G2[g.g];const u=(lt-g.t)/G.dur;const K=G.keys.map(([k,v])=>[k,v==='cur'||v==='base'?B:{L:v.L||base.L,R:v.R||base.R,lean:v.lean||0,head:v.head||0}]);
     if(!G.hold)K.push([1+0.45/G.dur,B]);if(u>K[K.length-1][0])return {P:B,open:''};const uu=clamp(u,0,K[K.length-1][0]);let i=0;while(i<K.length-2&&uu>K[i+1][0])i++;
     const A=K[i][1],Bk=K[i+1][1],w=smooth(clamp((uu-K[i][0])/(K[i+1][0]-K[i][0])));const L=(s2,k2)=>lerp(A[s2][k2],Bk[s2][k2],w);
@@ -41,7 +41,7 @@ class Toon2D{
   _step(lt,o){const T=this._targets(lt,o);const WN=[15,17,15,17,10,8],Z=[0.68,0.66,0.68,0.66,0.85,0.8];if(!this._dyn)this._dyn={x:T.flat.slice(),v:T.flat.map(()=>0)};const D=this._dyn;
     for(let s2=0;s2<4;s2++){const h=1/120;for(let i=0;i<T.flat.length;i++){const a=WN[i]*WN[i]*(T.flat[i]-D.x[i])-2*Z[i]*WN[i]*D.v[i];D.v[i]+=a*h;D.x[i]+=D.v[i]*h;}}return T;}
   anchor(n){const p=this.mesh.position; // fitShot places the mesh at the shot time before asking for anchors
-    const top=this.kind==='coin'?2.15:(this.spec.hat?2.05:1.95);const y={feet:0,knee:0.45,chest:1.15,face:1.62,top}[n]*this.s;return new THREE.Vector3(p.x,p.y+y,p.z);}
+    const C=window.cast2d,ck=C&&C.draw[this.kind];const top=ck?C.top[this.kind]:this.kind==='coin'?2.15:(this.spec.hat?2.05:1.95);const y={feet:0,knee:0.45,chest:1.15,face:ck?C.face[this.kind]:1.62,top}[n]*this.s;return new THREE.Vector3(p.x,p.y+y,p.z);}
   update(lt,st={}){const o={...st};if(this._lastT===undefined||Math.abs(lt-this._lastT)>1e-6){const seq=this._lastT!==undefined&&Math.abs(lt-this._lastT-1/30)<0.002;
       if(!seq){this._dyn=null;for(let k2=45;k2>=1;k2--)this._step(lt-k2/30,o);}this._last=this._step(lt,o);this._lastT=lt;}
     const T=this._last,D=this._dyn.x;this.mesh.position.copy(T.W.pos);
@@ -52,5 +52,5 @@ class Toon2D{
     const F={...(o.f||{face:'neutral',eye:1})};F.look=o.look!==undefined?o.look:((rnd(Math.floor((lt+this.home.x)/1.2)*3.7)-0.5)*0.8);if(o.talk!==undefined)F.talk=o.talk;
     const pose={arms:{L:{sh:D[0],el:D[1]},R:{sh:D[2],el:D[3]}},legs:T.legs,lean:D[4],headTilt:D[5],turn,bob:T.bob,handOpen:{L:T.open.includes('L'),R:T.open.includes('R')},hold:o.hold};
     this.mat.color.copy(this.tint);
-    this.tex.paint(g=>{g.translate(384,1122);g.scale(0.75*(this.flipBase?-1:1),0.75);if(this.kind)window.narrators.drawNarrator(g,this.kind,pose,F,lt);else window.cartoon2d.drawRig2D(g,this.spec,pose,F);});}
+    this.tex.paint(g=>{g.translate(384,1122);g.scale(0.75*(this.flipBase?-1:1),0.75);if(this.kind&&window.cast2d&&window.cast2d.draw[this.kind])window.cast2d.draw[this.kind](g,pose,F,lt);else if(this.kind)window.narrators.drawNarrator(g,this.kind,pose,F,lt);else window.cartoon2d.drawRig2D(g,this.spec,pose,F);});}
 }

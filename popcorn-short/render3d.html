@@ -9,6 +9,7 @@ html,body{margin:0;background:#000}
 <script src="lib2d.js"></script>
 <script src="cartoon2d.js"></script>
 <script src="narrators.js"></script>
+<script src="cast2d.js"></script>
 </head>
 <body>
 <canvas id="gl" width="1080" height="1920" style="display:none"></canvas>
@@ -417,7 +418,7 @@ class Toon2D{
       if(lt<a.t){if(a===first&&a.from)pos=from;break;}const u=clamp((lt-a.t)/a.dur);const e=u<0.5?2*u*u:1-Math.pow(-2*u+2,2)/2;pos=from.clone().lerp(to,e);dist=from.distanceTo(to)*e;dir=Math.sign(to.x-from.x)||dir;
       if(u<1)k=Math.min(1,Math.min(lt-a.t,a.t+a.dur-lt)/0.25);}
     return {pos,k,dist,dir,ry:this.homeRy};}
-  _gesture(lt,base){let g=null;for(const a of this.acts)if(a.type==='g'&&lt>=a.t)g=a;const B={L:base.L,R:base.R,lean:0,head:0};if(!g)return {P:B,open:''};
+  _gesture(lt,base){let g=null;for(const a of this.acts)if(a.type==='g'&&lt>=a.t)g=a;const B={L:{...base.L},R:{...base.R},lean:0,head:0};/* copies: walk swing adds onto P and must never mutate BASE2 */if(!g)return {P:B,open:''};
     const G=G2[g.g];const u=(lt-g.t)/G.dur;const K=G.keys.map(([k,v])=>[k,v==='cur'||v==='base'?B:{L:v.L||base.L,R:v.R||base.R,lean:v.lean||0,head:v.head||0}]);
     if(!G.hold)K.push([1+0.45/G.dur,B]);if(u>K[K.length-1][0])return {P:B,open:''};const uu=clamp(u,0,K[K.length-1][0]);let i=0;while(i<K.length-2&&uu>K[i+1][0])i++;
     const A=K[i][1],Bk=K[i+1][1],w=smooth(clamp((uu-K[i][0])/(K[i+1][0]-K[i][0])));const L=(s2,k2)=>lerp(A[s2][k2],Bk[s2][k2],w);
@@ -430,7 +431,7 @@ class Toon2D{
   _step(lt,o){const T=this._targets(lt,o);const WN=[15,17,15,17,10,8],Z=[0.68,0.66,0.68,0.66,0.85,0.8];if(!this._dyn)this._dyn={x:T.flat.slice(),v:T.flat.map(()=>0)};const D=this._dyn;
     for(let s2=0;s2<4;s2++){const h=1/120;for(let i=0;i<T.flat.length;i++){const a=WN[i]*WN[i]*(T.flat[i]-D.x[i])-2*Z[i]*WN[i]*D.v[i];D.v[i]+=a*h;D.x[i]+=D.v[i]*h;}}return T;}
   anchor(n){const p=this.mesh.position; // fitShot places the mesh at the shot time before asking for anchors
-    const top=this.kind==='coin'?2.15:(this.spec.hat?2.05:1.95);const y={feet:0,knee:0.45,chest:1.15,face:1.62,top}[n]*this.s;return new THREE.Vector3(p.x,p.y+y,p.z);}
+    const C=window.cast2d,ck=C&&C.draw[this.kind];const top=ck?C.top[this.kind]:this.kind==='coin'?2.15:(this.spec.hat?2.05:1.95);const y={feet:0,knee:0.45,chest:1.15,face:ck?C.face[this.kind]:1.62,top}[n]*this.s;return new THREE.Vector3(p.x,p.y+y,p.z);}
   update(lt,st={}){const o={...st};if(this._lastT===undefined||Math.abs(lt-this._lastT)>1e-6){const seq=this._lastT!==undefined&&Math.abs(lt-this._lastT-1/30)<0.002;
       if(!seq){this._dyn=null;for(let k2=45;k2>=1;k2--)this._step(lt-k2/30,o);}this._last=this._step(lt,o);this._lastT=lt;}
     const T=this._last,D=this._dyn.x;this.mesh.position.copy(T.W.pos);
@@ -441,7 +442,7 @@ class Toon2D{
     const F={...(o.f||{face:'neutral',eye:1})};F.look=o.look!==undefined?o.look:((rnd(Math.floor((lt+this.home.x)/1.2)*3.7)-0.5)*0.8);if(o.talk!==undefined)F.talk=o.talk;
     const pose={arms:{L:{sh:D[0],el:D[1]},R:{sh:D[2],el:D[3]}},legs:T.legs,lean:D[4],headTilt:D[5],turn,bob:T.bob,handOpen:{L:T.open.includes('L'),R:T.open.includes('R')},hold:o.hold};
     this.mat.color.copy(this.tint);
-    this.tex.paint(g=>{g.translate(384,1122);g.scale(0.75*(this.flipBase?-1:1),0.75);if(this.kind)window.narrators.drawNarrator(g,this.kind,pose,F,lt);else window.cartoon2d.drawRig2D(g,this.spec,pose,F);});}
+    this.tex.paint(g=>{g.translate(384,1122);g.scale(0.75*(this.flipBase?-1:1),0.75);if(this.kind&&window.cast2d&&window.cast2d.draw[this.kind])window.cast2d.draw[this.kind](g,pose,F,lt);else if(this.kind)window.narrators.drawNarrator(g,this.kind,pose,F,lt);else window.cartoon2d.drawRig2D(g,this.spec,pose,F);});}
 }
 
 // ================= STORY: Warum Kinos so teures Popcorn haben =================
@@ -533,15 +534,15 @@ function studioVault(sc,x,z){const g=new THREE.Group();g.position.set(x,0,z);sc.
   const clap=new THREE.Group();clap.position.set(0.35,1.42,0.1);clap.rotation.z=-0.15;g.add(clap);box(0.36,0.24,0.04,M('#1c1c22'),0,0,0,clap);const arm=box(0.38,0.07,0.04,M('#f2f2f2'),0,0.16,0,clap);
   g.userData={sg,arm};return g;}
 DEF.ticket={build(){const sc=new THREE.Scene();const L=lobbySet(sc);
-  boxOffice(sc,-3.9,-4.3);const cashier=new Toon2D(sc,-3.9,-4.5,CASHIER,0.9);
+  boxOffice(sc,-3.9,-4.3);const cashier=new Toon2D(sc,-3.9,-4.5,{},0.95,{kind:'kevin'});
   const vault=studioVault(sc,-1.7,-3.3);
-  const kund=new Toon2D(sc,-0.6,0.8,KUNDIN,0.95);
+  const kund=new Toon2D(sc,-0.6,0.8,{},0.95,{kind:'jule',flipBase:true});
   const t={kauf:WT('kaufst','ticket'),teil:WT('Teil','ticket'),studio:WT('Filmstudio','ticket'),half:WT('Hälfte','ticket')};
-  kund.plan([{type:'walk',t:0,dur:2.0,from:[-0.6,0.8],to:[-3.55,-3.05]},{type:'g',g:'pay',t:t.kauf-0.35}]);cashier.plan([{type:'g',g:'nod',t:t.kauf+0.2},{type:'g',g:'pay',t:t.teil-0.4}]);
+  kund.plan([{type:'walk',t:0,dur:2.0,from:[-0.6,0.8],to:[-2.95,-3.0]},{type:'g',g:'pay',t:t.kauf-0.35}]);cashier.plan([{type:'g',g:'nod',t:t.kauf+0.2},{type:'g',g:'pay',t:t.teil-0.4}]);
   const coins=[];for(let i=0;i<14;i++){const g=new THREE.Group();sc.add(g);coin3d(g,1.3);coins.push(g);}
   const split=new Flat(sc,2.6,0.9,780,270,(g,lt)=>{const u=easeOut(clamp((lt-t.half+0.3)/0.8));rr(10,40,760,120,20);fillS('#2a2a30',6);rr(10,40,Math.max(40,760*0.6*u),120,20);g.fillStyle='#d62828';g.fill();
     text('STUDIO  50 %+',230,100,52,'#ffffff',{ol:false});text('KINO',650,100,52,'#ffe8b0',{ol:false});text('VOM TICKETPREIS',390,220,48,'#ffe8b0');},{bill:true});split.mesh.castShadow=false;
-  const ST0=new THREE.Vector3(-3.55,1.25,-3.55),SLOT=new THREE.Vector3(-1.7,1.33,-3.3);
+  const ST0=new THREE.Vector3(-3.4,1.25,-3.55),SLOT=new THREE.Vector3(-1.7,1.33,-3.3);
   return {sc,anchors:{kund,cashier},grade:{mul:'#ffd8e0',a:0.05,vig:0.4,vigCol:'#120610'},
     shots:[[0,0,['kund:top','kund:feet',[-3.9,2.9,-3.7]],-16,6,0,{follow:'kund'}],[t.kauf-0.35,0,['kund:top','cashier:top','kund:knee',[-3.9,1.0,-3.6]],14,6,0],
       [t.teil-0.3,0,[[-3.7,2.2,-3.6],[-1.7,1.9,-3.3],[-1.7,0.1,-3.3],[-2.6,2.4,-3.4]],-4,6,0],[t.half-0.45,0,[[-3.9,3.75,-2.8],[-1.3,3.4,-2.8],[-1.7,1.0,-3.3]],2,4,0]],
@@ -562,7 +563,7 @@ DEF.costs={build(){const sc=new THREE.Scene();sc.background=gradBg(['#3a2a1a','#
   const desk=box(3.2,0.9,1.1,M('#7a4a2a'),0,0.45,-1.8,sc);box(3.3,0.06,1.2,M('#4a2a14'),0,0.93,-1.8,sc);
   const lamp=candle3d(sc,-1.2,0.96,-2.0,1.4,'#ffcf86',1.0,6);
   const papers=[];for(let i=0;i<5;i++){const p=box(0.32,0.012,0.42,M('#f6f0e0'),0.9+rnd(i)*0.3,0.97+i*0.013,-1.8+rnd(i*3)*0.1,sc);p.rotation.y=(rnd(i*7)-0.5)*0.6;}
-  const mgr=new Toon2D(sc,0.2,-2.9,MANAGER,1.12);
+  const mgr=new Toon2D(sc,0.2,-2.9,{},1.0,{kind:'brandt'});
   const t={rest:WT('Rest','costs'),miete:WT('Miete','costs'),pers:WT('Personal','costs'),strom:WT('Strom','costs'),proj:WT('Projektor','costs')};
   mgr.plan([{type:'g',g:'explain',t:Math.max(0.1,t.rest-0.3)},{type:'g',g:'shrug',t:t.proj+0.3}]);
   const pile=[];for(let i=0;i<4;i++){const g=new THREE.Group();sc.add(g);coin3d(g,1.4);g.position.set(0.15+(i%2)*0.22,0.98+Math.floor(i/2)*0.03,-1.5+Math.floor(i/2)*0.05);pile.push(g);}
@@ -606,7 +607,7 @@ DEF.smell={build(){const sc=new THREE.Scene();const L=lobbySet(sc);
   // entrance doors (daylight) on the right wall
   const door=box(0.1,2.6,2.4,NO(new THREE.MeshBasicMaterial({color:'#e8c890'})),5.78,1.3,-0.6,sc);door.castShadow=false;const dG=glowSprite('#ffe0a0',3,0.28);dG.position.set(5.5,1.4,-0.6);sc.add(dG);
   const sh2=shaft(8,0.9,2.4,'#ffe8c0',0.1);sh2.position.set(5.7,2.2,-0.6);sh2.rotation.set(0,0,1.1);sc.add(sh2);
-  const kund=new Toon2D(sc,5.2,-0.4,KUNDIN,0.95);const t={riecht:WT('riecht','smell'),eingang:WT('Eingang','smell'),duft:WT('Duft','smell'),werb:WT('Werbung','smell')};
+  const kund=new Toon2D(sc,5.2,-0.4,{},0.95,{kind:'jule'});const t={riecht:WT('riecht','smell'),eingang:WT('Eingang','smell'),duft:WT('Duft','smell'),werb:WT('Werbung','smell')};
   kund.plan([{type:'walk',t:0,dur:1.5,from:[5.0,-0.3],to:[3.4,-1.2]},{type:'g',g:'sniff',t:1.55},{type:'walk',t:t.duft+0.3,dur:2.2,to:[1.6,-3.2]}]);
   const ribbons=[];for(let r=0;r<3;r++){const arr=[];for(let i=0;i<26;i++){const s=glowSprite('#ffd890',0.5,0.0);sc.add(s);arr.push(s);}ribbons.push(arr);}
   const werb=badge(sc,1.5,0.42,'WERBUNG','#ffffff','#c4281f');

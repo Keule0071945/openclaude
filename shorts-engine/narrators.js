@@ -146,5 +146,5 @@ function drawNarrator(g,kind,pose,F,t=0){g.save();const turn=pose.turn||0;const 
     g.fillStyle='#2a1a12';g.fillRect(-102,-170,204,30);g.strokeStyle=OUT;g.lineWidth=6;g.strokeRect(-102,-170,204,30);hl(g,-50,-210,30,10,0.25);}
   g.restore();g.restore();
   drawArm(-back,back<0?arms.R:arms.L,(pose.handOpen||{})[back<0?'R':'L']);g.restore();}
-window.narrators={drawNarrator};
+window.narrators={drawNarrator,H:{paint,P,eyes,brows,mouth,hl,glove,shade,light,mixc}};
 })();
