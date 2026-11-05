@@ -57,16 +57,16 @@ DEF.kasse={build(){const sc=new THREE.Scene();const L=lobbySet(sc);boxOffice(sc,
   const disp=new Flat(sc,0.78,0.3,312,120,(g,lt)=>{g.fillStyle='#0e1a12';g.fillRect(0,0,312,120);g.strokeStyle='#5a5a62';g.lineWidth=10;g.strokeRect(0,0,312,120);text(lt>t.zwoelf-0.1?'12,00 €':'--,-- €',156,66,64,'#6aff8a',{ol:false});});
   disp.mesh.position.set(-4.75,1.3,-3.63);
   // pneumatic tube to the studio
-  const TX=-2.15,TZ=-4.72;const glass=NO(new THREE.MeshToonMaterial({color:'#d8f0ff',gradientMap:gm,transparent:true,opacity:0.28}));const tube=cyl(0.17,0.17,3.6,glass,TX,2.7,TZ,sc,20);glass.opacity=0.5;glass.color.set('#bfe4ff');tube.castShadow=false;
+  const TX=-5.55,TZ=-4.0;const glass=NO(new THREE.MeshToonMaterial({color:'#d8f0ff',gradientMap:gm,transparent:true,opacity:0.28}));const tube=cyl(0.17,0.17,3.6,glass,TX,2.7,TZ,sc,20);glass.opacity=0.42;glass.color.set('#9fd4ff');tube.castShadow=false;
   [1.0,1.8,2.6,3.4,4.2].forEach(y=>cyl(0.2,0.2,0.07,M('#c8a050'),TX,y,TZ,sc,20));const fun=cyl(0.36,0.17,0.32,M('#c8a050'),TX,0.86,TZ,sc,20);
-  const tag=stickerNote(sc,0.85,0.5,[['ROHRPOST',40],['→ FILMSTUDIO',40,'#c4281f']]);tag.mesh.position.set(TX+0.62,1.7,TZ-0.08);tag.update(0,1);
-  const coins=[];for(let i=0;i<12;i++){const g=new THREE.Group();sc.add(g);coin3d(g,1.3);coins.push(g);}
+  const tag=stickerNote(sc,0.85,0.5,[['ROHRPOST',40],['→ FILMSTUDIO',40,'#c4281f']]);tag.mesh.position.set(TX+0.05,2.2,TZ+0.45);tag.update(0,1);
+  const coins=[];for(let i=0;i<12;i++){const g=new THREE.Group();sc.add(g);coin3d(g,i<6?2.0:1.3);coins.push(g);}
   const W0=V(-3.4,1.22,-3.55),IN=V(TX,1.12,TZ),TOP=V(TX,4.7,TZ);
-  const flyPos=(i,lt)=>{const t0=t.fliegt-0.35+i*0.13;const u=(lt-t0);if(u<0)return W0.clone();if(u<0.5)return arc(W0,IN,u/0.5,0.7);const v=clamp((u-0.5)/0.9);return IN.clone().lerp(TOP,v*v);};
+  const flyPos=(i,lt)=>{const t0=t.fliegt-0.35+i*0.13;const u=(lt-t0);if(u<0)return W0.clone();if(u<0.5)return arc(W0,IN,u/0.5,1.4);const v=clamp((u-0.5)/0.9);return IN.clone().lerp(TOP,v*v);};
   const lead=track(lt=>flyPos(2,lt));
   return {sc,anchors:{jule,kevin,lead},grade:{mul:'#ffe0d0',a:0.04,vig:0.2,vigCol:'#3a1010'},
     shots:[[0,0,['jule:top','jule:feet',[-3.9,2.9,-3.7]],-16,6,0,{follow:'jule'}],[t.zwoelf-0.35,0,[[-4.75,1.5,-3.63],[-4.75,1.05,-3.63],'jule:face'],18,4,0.95],
-      [t.kevin-0.3,0,['kevin:top','kevin:chest'],-8,2,0.95],[t.sofort-0.3,0,[[-3.4,1.5,-3.55],[TX,2.4,TZ],[TX,0.8,TZ]],-6,6,0],[t.haelfte-0.25,0,[[TX,0.75,TZ],[TX,4.3,TZ],[TX+0.62,1.7,TZ]],-10,2,0]],
+      [t.kevin-0.3,0,['kevin:top','kevin:chest'],-8,2,0.95],[t.sofort-0.3,0,[[-3.5,1.5,-3.55],[TX,2.6,TZ],[TX,0.8,TZ],[TX,3.2,TZ]],14,6,0],[t.haelfte-0.25,0,[[TX,0.75,TZ],[TX,4.3,TZ],[TX+0.05,2.2,TZ+0.45]],22,0,0]],
     update(lt){jule.update(lt,{f:faceAt(lt,[[0,'happy'],[t.fliegt,'shock'],[t.haelfte+0.3,'worried']],1)});kevin.update(lt,{f:faceAt(lt,[[0,'tired'],[t.nimmt,'neutral'],[t.sofort,'smirk']],4)});
       animMachine(L.mach,lt);L.menu.update(lt,1);disp.update(lt,lt>t.zwoelf-0.1?1:0);
       coins.forEach((c,i)=>{if(i<6){c.visible=lt>t.fliegt-0.35+i*0.13-0.01&&flyPos(i,lt).y<4.65;c.position.copy(flyPos(i,lt));c.rotation.set(lt*9+i,lt*5,0);return;}
