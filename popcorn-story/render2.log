@@ -1,1 +1,12 @@
 font ok true gl:WebGL 2.0 (OpenGL ES 3.0 Chromium)
+segment 0-300 done
+font ok true gl:WebGL 2.0 (OpenGL ES 3.0 Chromium)
+segment 300-600 done
+font ok true gl:WebGL 2.0 (OpenGL ES 3.0 Chromium)
+segment 600-900 done
+skip segs/seg_00900.mp4
+font ok true gl:WebGL 2.0 (OpenGL ES 3.0 Chromium)
+segment 1200-1500 done
+font ok true gl:WebGL 2.0 (OpenGL ES 3.0 Chromium)
+segment 1500-1515 done
+ALL DONE
