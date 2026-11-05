@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"><style>@font-face{font-family:'Nunito';font-weight:900;src:url(nunito-latin-900-normal.woff2)}body{margin:0}</style>
+<script src="../cartoon2d.js"></script><script src="../narrators.js"></script></head><body><canvas id="c" width="2400" height="3000"></canvas><script>
+document.fonts.load('900 60px Nunito').then(()=>{
+const g=document.getElementById('c').getContext('2d');const N=window.narrators;
+g.fillStyle='#f3ead8';g.fillRect(0,0,2400,3000);
+const T=(t,x,y,s=56,c='#2a1a10')=>{g.font=`900 ${s}px Nunito`;g.fillStyle=c;g.textAlign='center';g.fillText(t,x,y);};
+const mag=g2=>{g2.save();g2.translate(10,40);g2.rotate(-0.5);g2.strokeStyle='#1c1410';g2.lineWidth=20;g2.beginPath();g2.moveTo(0,0);g2.lineTo(0,-120);g2.stroke();g2.strokeStyle='#6a4a2a';g2.lineWidth=10;g2.stroke();g2.beginPath();g2.arc(0,-180,62,0,7);g2.fillStyle='rgba(190,225,255,0.5)';g2.fill();g2.lineWidth=16;g2.strokeStyle='#1c1410';g2.stroke();g2.lineWidth=8;g2.strokeStyle='#c8a050';g2.stroke();g2.restore();};
+const bag=g2=>{g2.save();g2.translate(0,60);g2.fillStyle='#d8b06a';g2.strokeStyle='#1c1410';g2.lineWidth=8;g2.beginPath();g2.roundRect(-70,0,140,150,14);g2.fill();g2.stroke();g2.beginPath();g2.arc(0,0,40,Math.PI,0);g2.stroke();g2.fillStyle='#7ad04a';g2.beginPath();g2.ellipse(-20,-6,22,40,0.3,0,7);g2.fill();g2.stroke();g2.restore();};
+const items=[
+ ['ROCCO','der Waschbär-Detektiv','raccoon',{arms:{L:{sh:0.16,el:0.1},R:{sh:-1.3,el:-0.9}},legs:{L:{hip:0.06,knee:0},R:{hip:-0.08,knee:0.06}},turn:0.25,hold:{R:mag}},{face:'smug'}],
+ ['HERR GROSCHEN','die 2-Euro-Münze','coin',{arms:{L:{sh:0.5,el:-1.6},R:{sh:-2.4,el:-0.3}},handOpen:{R:true,L:true},legs:{L:{hip:0.1,knee:0},R:{hip:-0.12,knee:0.08}}},{face:'happy'}],
+ ['GURR','die Tauben-Bankerin','pigeon',{arms:{L:{sh:0.25,el:0},R:{sh:-0.6,el:0}},legs:{L:{hip:0.05,knee:0},R:{hip:-0.05,knee:0}},turn:-0.2},{face:'stern'}],
+ ['OMA INGRID','die Einkaufs-Veteranin','granny',{arms:{L:{sh:0.2,el:-0.3},R:{sh:-0.25,el:-1.4}},legs:{L:{hip:0.04,knee:0},R:{hip:-0.06,knee:0.04}},hold:{R:bag},turn:0.2},{face:'smug'}]];
+items.forEach(([n,d,k,p,f],i)=>{const x=i%2?1700:700,y=i<2?1300:2650;g.save();g.translate(x,y);g.scale(i===1?0.95:1,i===1?0.95:1);N.drawNarrator(g,k,p,f,0.6);g.restore();T(n,x,y+90,64);T(d,x,y+150,40,'#6a5040');});
+T('ERZÄHLER-KONZEPTE',1200,90,76);window.done=true;});
+</script></body></html>
