@@ -14,7 +14,8 @@ a = '<script src="lib2d.js"></script>'
 assert a in s
 s = s.replace(a, a + '\n<script src="cartoon2d.js"></script>\n<script src="narrators.js"></script>\n<script src="cast2d.js"></script>', 1)
 for a, b in [("const SAFE={x:0.84,y:0.5};", "const SAFE={x:0.84,y:0.6};"), ("const LOOKY=0.33;", "const LOOKY=0.37;"),
-             ("mctx.translate(W/2,H*0.645)", "mctx.translate(W/2,H*0.70)")]:
+             ("mctx.translate(W/2,H*0.645)", "mctx.translate(W/2,H*0.70)"),
+             ("g.filter='contrast(1.08) saturate(0.86)';g.drawImage(glc,0,0)", "g.filter='contrast(1.06) saturate(0.92) brightness(1.08)';g.drawImage(glc,0,0)")]:
     assert a in s, a
     s = s.replace(a, b, 1)
 open('render3d.html', 'w').write(s)
