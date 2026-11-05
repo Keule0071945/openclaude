@@ -2,3 +2,4 @@ frames/
 audio/
 segs/
 *.part.mp4
+render.log
