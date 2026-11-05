@@ -58,7 +58,7 @@ function buildKitchen(ending){const sc=new THREE.Scene();sc.background=gradBg(['
   const photo=new Flat(door,0.32,0.4,256,320,()=>{const g=getCtx();rr(6,6,244,308,8);fillS('#fffaf0',6);g.fillStyle='#ffd8c8';g.fillRect(26,26,204,200);ell(128,140,62,58);fillS('#f3c9a5',5);
     [-1,1].forEach(sd=>{ell(128+sd*22,132,6,8);g.fillStyle='#2a1a10';g.fill();});g.beginPath();g.moveTo(112,166);g.quadraticCurveTo(128,178,144,166);stroke(4);ell(128,92,46,22);fillS('#e8d0b8',0);text('TOM, 1 TAG',128,268,30,'#5b3416',{ol:false});});
   photo.mesh.position.set(-0.45,1.55,0.09);photo.update(0,1);
-  const fL=new THREE.PointLight('#fff2d8',0,7,2);fL.position.set(fx,1.3,fz+0.9);sc.add(fL);const fG=glowSprite('#fff2d8',3.2,0);fG.position.set(fx,1.2,fz+0.6);sc.add(fG);
+  const fL=new THREE.PointLight('#ffe2b8',0,7,2);fL.position.set(fx,1.3,fz+0.9);sc.add(fL);const fG=glowSprite('#fff2d8',3.2,0);fG.position.set(fx,1.2,fz+0.6);sc.add(fG);
   const tom=new Char3D(sc,ending?1.75:-3.4,ending?-3.35:0.6,{...TOM,ry:ending?-0.5:0.4},1);
   const tDoor=ending?-1:(WT('Kühlschrank','kitchen')-0.05),tStop=1.75;
   if(!ending){tom.plan([{type:'walk',t:0.05,dur:tStop,from:[-3.4,0.6],to:[1.75,-3.35],endRy:2.55},{type:'g',g:'pull',t:tDoor-0.35},{type:'look',t:tDoor+0.3,at:[fx,1.25,fz+0.3]},{type:'look',t:WT('Hunger','kitchen')-0.25,at:null}]);}
@@ -67,7 +67,7 @@ function buildKitchen(ending){const sc=new THREE.Scene();sc.background=gradBg(['
   const shots=ending?[[0,0,['tom:top','tom:chest',[fx+0.05,1.6,fz+0.9]],-25,8,0],[2.3,0,[[3.27,1.78,-3.64],[3.27,1.32,-3.64]],100,4,0.45]]
     :[[0,0,['tom:top','tom:feet',[0.9,2.6,-4.9]],-6,6,0,{follow:'tom'}],[WT('Kühlschrank','kitchen')-0.05,0,['tom:top','tom:chest',[2.6,1.9,-4.4],[2.6,0.6,-4.0]],-18,8,0],[WT('Hunger','kitchen')-0.4,0,['tom:top','tom:face'],188,6,0.5]];
   return {sc,anchors:{tom},shots,grade:{mul:'#6a7aa8',a:0.06,vig:0.4,vigCol:'#05080f'},
-    update(lt){const open=ending?1:smooth(clamp((lt-tDoor)/0.6));door.rotation.y=open*1.75;fL.intensity=open*1.05;fG.material.opacity=open*0.55;
+    update(lt){const open=ending?1:smooth(clamp((lt-tDoor)/0.6));door.rotation.y=open*1.75;fL.intensity=open*0.62;fG.material.opacity=open*0.55;
       tom.update(lt,{f:faceAt(lt,ending?[[0,'smug'],[WT('allerersten','ending')-0.2,'happy'],[WT('Schluck','ending')+0.5,'wink']]:[[0,'neutral'],[tDoor+0.25,'dreamy'],[WT('Hunger','kitchen'),'worried']],2),pose:'down',item:ending?'donut':null});
       if(!ending)dz.visible=true;else dz.visible=false;}};}
 DEF.kitchen={build(){return buildKitchen(false);}};
