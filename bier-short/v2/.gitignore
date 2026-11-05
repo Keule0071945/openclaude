@@ -5,3 +5,5 @@ voice_trim.wav
 qa/
 qa_report.json
 segs/
+qaf/
+qa_frames.json
