@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8"><style>@font-face{font-family:'Nunito';font-weight:900;src:url(nunito-latin-900-normal.woff2)}body{margin:0}</style>
+<script src="../cartoon2d.js"></script></head><body><canvas id="c" width="2400" height="3200"></canvas><script>
+const g=document.getElementById('c').getContext('2d');const C=window.cartoon2d;
+g.fillStyle='#f3ead8';g.fillRect(0,0,2400,3200);
+const T=(t,x,y,s=56,c='#2a1a10')=>{g.font=`900 ${s}px Nunito`;g.fillStyle=c;g.textAlign='center';g.fillText(t,x,y);};
+const pose={idle:{arms:{L:{sh:0.14,el:0.12},R:{sh:-0.14,el:-0.12}},legs:{L:{hip:0.04,knee:0},R:{hip:-0.04,knee:0}}},
+ point:{arms:{L:{sh:0.14,el:0.12},R:{sh:-2.3,el:-0.3}},handOpen:{R:true},legs:{L:{hip:0.05,knee:0},R:{hip:-0.08,knee:0.05}}},
+ shrug:{arms:{L:{sh:0.9,el:-1.9},R:{sh:-0.9,el:1.9}},handOpen:{L:true,R:true},legs:{L:{hip:0.05,knee:0},R:{hip:-0.05,knee:0}},headTilt:0.08},
+ explain:{arms:{L:{sh:0.3,el:-1.2},R:{sh:-0.5,el:1.4}},handOpen:{L:true,R:true},legs:{L:{hip:0.06,knee:0},R:{hip:-0.02,knee:0}},turn:0.35}};
+const SKIN=['#f3c9a5','#e8b48c','#c98b5e','#a8724a','#f6d3b8','#8a5a3a'];
+const narr=[
+ ['A · DER PROFESSOR',{skin:SKIN[0],hair:{style:'side',color:'#6a6a70'},mustache:true,glasses:true,iris:'#3a5a7a',top:{type:'jacket',color:'#5a4a6a',shirt:'#f2efe6',tie:'#c4281f'},pants:'#3a3446',shoes:'#2a1c14'},pose.point,{face:'smug'}],
+ ['B · DIE ANALYSTIN',{skin:SKIN[2],hair:{style:'curly',color:'#2a1a12'},glasses:true,iris:'#3a2a1a',top:{type:'jacket',color:'#2f6a6a',shirt:'#f6e8c8'},pants:'#2a2e3a',shoes:'#5a2a1a'},pose.explain,{face:'happy'}],
+ ['C · DER KUMPEL',{skin:SKIN[1],hair:{style:'short',color:'#3a2416'},beard:true,hat:'cap',hatC:'#d6603a',iris:'#3a5a2a',top:{type:'hoodie',color:'#4a5a7a'},pants:'#2a2a30',shoes:'#e8e8e8'},pose.shrug,{face:'laugh'}]];
+narr.forEach(([n,s,p,f],i)=>{const x=400+i*800;g.save();g.translate(x,1260);C.drawRig2D(g,s,p,f);g.restore();T(n,x,1350,52);});
+T('ERZÄHLER-VORSCHLÄGE',1200,110,72);
+const cast=[
+ ['Händler',{skin:SKIN[4],hair:{style:'bald',color:'#8a7a6a'},beard:true,beardC:'#b8b0a8',top:{type:'apron',color:'#7a9a5a',apron:'#f6f2ea'},pants:'#4a3a2a',iris:'#3a2a1a'},pose.idle,{face:'worried'}],
+ ['Managerin',{skin:SKIN[0],hair:{style:'bun',color:'#8a4a2a'},top:{type:'jacket',color:'#2a2a3a',shirt:'#ffffff'},pants:'#2a2a3a',iris:'#2a5a3a'},pose.point,{face:'stern'}],
+ ['Kundin',{skin:SKIN[3],hair:{style:'long',color:'#1a1210'},top:{type:'dress',color:'#c4504a'},iris:'#2a1a10'},pose.explain,{face:'shock'}],
+ ['Arbeiter',{skin:SKIN[5],hair:{style:'short',color:'#1a1210'},hat:'hat',hatC:'#3a3a40',top:{type:'shirt',color:'#d8a83a',rolled:true},pants:'#3a4a6a',iris:'#2a1a10'},pose.shrug,{face:'tired'}]];
+cast.forEach(([n,s,p,f],i)=>{const x=330+i*580;g.save();g.translate(x,2470);g.scale(0.82,0.82);C.drawRig2D(g,s,p,f);g.restore();T(n,x,2560,46);});
+T('BEISPIEL-FIGUREN',1200,1470,64);
+const faces=['neutral','happy','laugh','shock','worried','stern','smug','wink','tired','sad'];
+faces.forEach((f,i)=>{const x=130+i*236;g.save();g.translate(x,3445);g.scale(0.62,0.62);g.beginPath();g.rect(-190,-1250,380,560);g.clip();C.drawRig2D(g,narr[0][1],pose.idle,{face:f});g.restore();T(f,x,3150,34);});
+T('MIMIK (ERZÄHLER A)',1200,2680,56);
+window.done=true;
+</script></body></html>
