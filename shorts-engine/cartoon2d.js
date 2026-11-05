@@ -2,11 +2,13 @@
 // Units: character is ~1000 px tall, feet at y=0, x=0 centre. drawRig2D(g, spec, pose) draws one frame.
 (function(){
 const OUT='#1c1410', LW=9;
+const GRAIN=(()=>{const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');const d=x.createImageData(128,128);for(let i=0;i<d.data.length;i+=4){const v=120+Math.random()*135;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=255;}x.putImageData(d,0,0);x.globalAlpha=0.35;x.strokeStyle='#000';for(let i=0;i<40;i++){x.beginPath();const y=Math.random()*128;x.moveTo(0,y);x.lineTo(128,y+Math.random()*6-3);x.stroke();}return c;})();let GP=null;
 function hex(c){c=c.replace('#','');return [0,2,4].map(i=>parseInt(c.substr(i,2),16));}
 function mixc(a,b,k){const A=hex(a),B=hex(b);return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*k).toString(16).padStart(2,'0')).join('');}
 const shade=(c,k=0.22)=>mixc(c,'#2a1a3a',k), light=(c,k=0.25)=>mixc(c,'#ffffff',k);
 // fill a path, add one flat shadow step (clipped), outline it
-function paint(g,path,col,{shadow=true,sx=-1,lw=LW,shadeK=0.22,shW=0.38}={}){g.save();g.fillStyle=col;g.fill(path);
+function paint(g,path,col,{shadow=true,sx=-1,lw=LW,shadeK=0.22,shW=0.38,grain=0.09}={}){g.save();g.fillStyle=col;g.fill(path);
+  if(grain){if(!GP)GP=g.createPattern(GRAIN,'repeat');g.save();g.clip(path);g.globalCompositeOperation='multiply';g.globalAlpha=grain;g.fillStyle=GP;g.fill(path);g.restore();}
   if(shadow){g.save();g.clip(path);g.fillStyle=shade(col,shadeK);g.beginPath();const b=path._b||[-400,-1200,800,1400];const off=(0.38-shW)*b[2];
     if(sx<0){g.ellipse(b[0]+b[2]*0.15-off,b[1]+b[3]*0.55,b[2]*shW,b[3]*0.78,0,0,7);}else{g.ellipse(b[0]+b[2]*0.85+off,b[1]+b[3]*0.55,b[2]*shW,b[3]*0.78,0,0,7);}g.fill();g.restore();}
   g.lineWidth=lw;g.strokeStyle=OUT;g.lineJoin='round';g.lineCap='round';g.stroke(path);g.restore();}
@@ -22,18 +24,18 @@ function hand(g,skin,open,side){g.save();const p=P([-34,-10,68,80]);
   if(open){g.strokeStyle=OUT;g.lineWidth=5;[-10,6].forEach(x=>{g.beginPath();g.moveTo(x,46);g.lineTo(x,68);g.stroke();});}
   g.restore();}
 // ---- face ----
-function face(g,spec,F,turn){const f=F.face||'neutral',eye=F.eye===undefined?1:F.eye;const tx=turn*26;const look=(F.look||0)*7+turn*4;
+function face(g,spec,F,turn){const f=F.face||'neutral',eye=F.eye===undefined?1:F.eye;const tx=turn*26;const look=(f==='sideeye'?1.6:(F.look||0))*7+turn*4;const lookY=f==='eyeroll'?-12:0;
   const eyeY=-6,ex=46;const brow=spec.browC||mixc(spec.hair?.color||'#3a2416','#000000',0.25);
   [-1,1].forEach(sd=>{const x=sd*ex+tx+(sd*turn>0?-sd*6*Math.abs(turn):0);const sz=1-(sd*turn<0?0.12*Math.abs(turn):0);
     const closed=f==='laugh'||(f==='wink'&&sd<0)||eye<0.2;
     if(closed){g.beginPath();g.moveTo(x-22,eyeY+3);g.quadraticCurveTo(x,eyeY+(f==='laugh'?-14:10),x+22,eyeY+3);g.lineWidth=7;g.strokeStyle=OUT;g.stroke();}
-    else{const open=eye*(f==='shock'?1.3:f==='smug'?0.62:f==='tired'?0.5:1);const rx=21*sz,ry=(24*open+3)*sz;
+    else{const open=eye*(f==='shock'?1.3:(f==='smug'||f==='sideeye'||f==='smirk')?0.62:f==='tired'?0.5:1);const rx=21*sz,ry=(24*open+3)*sz;
       g.beginPath();g.ellipse(x,eyeY,rx,ry,0,0,7);g.fillStyle='#fffaf2';g.fill();g.lineWidth=6;g.strokeStyle=OUT;g.stroke();
-      g.save();g.beginPath();g.ellipse(x,eyeY,rx,ry,0,0,7);g.clip();g.beginPath();g.arc(x+look,eyeY+3,11*sz,0,7);g.fillStyle=spec.iris||'#3a2a1a';g.fill();
+      g.save();g.beginPath();g.ellipse(x,eyeY,rx,ry,0,0,7);g.clip();g.beginPath();g.arc(x+look,eyeY+3+lookY,11*sz,0,7);g.fillStyle=spec.iris||'#3a2a1a';g.fill();
       g.beginPath();g.arc(x+look+4,eyeY-2,4,0,7);g.fillStyle='#fff';g.fill();if(f==='tired'||f==='smug'){g.fillStyle=spec.skin;g.fillRect(x-rx-2,eyeY-ry-2,2*rx+4,ry*0.9);g.beginPath();g.moveTo(x-rx,eyeY-ry*0.1);g.lineTo(x+rx,eyeY-ry*0.1);g.lineWidth=6;g.stroke();}g.restore();}
     // brows: thick, shape per expression
     const by=-46;g.beginPath();g.lineWidth=11;g.strokeStyle=brow;g.lineCap='round';
-    const a={neutral:[0,-6,0],happy:[2,-10,2],laugh:[4,-12,4],shock:[-10,-20,-10],worried:[sd*-1*8+4,-6,sd*8+4],stern:[sd*10-6,0,-sd*10-6],smug:[sd>0?-6:2,sd>0?-14:-2,sd>0?-2:2],wink:[2,-8,2],tired:[4,0,6],sad:[sd*-8,-4,sd*8]}[f]||[0,-6,0];
+    const a={neutral:[0,-6,0],happy:[2,-10,2],laugh:[4,-12,4],shock:[-10,-20,-10],worried:[sd*-1*8+4,-6,sd*8+4],stern:[sd*10-6,0,-sd*10-6],smug:[sd>0?-6:2,sd>0?-14:-2,sd>0?-2:2],wink:[2,-8,2],tired:[4,0,6],sad:[sd*-8,-4,sd*8],raised:sd>0?[-14,-26,-10]:[2,-4,4],eyeroll:[-4,-12,-4],sideeye:[sd*6,-2,-sd*2],smirk:[sd>0?-8:2,sd>0?-14:-4,sd>0?-4:2]}[f]||[0,-6,0];
     g.moveTo(x-24,by+a[0]);g.quadraticCurveTo(x,by+a[1],x+24,by+a[2]);g.stroke();});
   // nose
   g.beginPath();g.moveTo(tx+turn*14-4,26);g.quadraticCurveTo(tx+turn*30+14,46,tx+turn*16-2,52);g.lineWidth=6;g.strokeStyle=OUT;g.stroke();
@@ -42,7 +44,8 @@ function face(g,spec,F,turn){const f=F.face||'neutral',eye=F.eye===undefined?1:F
   if(f==='happy'||f==='laugh'){const h=f==='laugh'?40:30;g.moveTo(mx-34,my-6);g.quadraticCurveTo(mx,my+h,mx+34,my-6);g.quadraticCurveTo(mx,my+4,mx-34,my-6);g.closePath();g.fillStyle='#6a2018';g.fill();g.stroke();
     g.save();g.clip();g.fillStyle='#f6f0e4';g.fillRect(mx-36,my-10,72,14);g.fillStyle='#e0605a';g.beginPath();g.ellipse(mx,my+h*0.7,16,9,0,0,7);g.fill();g.restore();}
   else if(f==='shock'){g.ellipse(mx,my+8,15,20,0,0,7);g.fillStyle='#4a1a12';g.fill();g.stroke();}
-  else if(f==='smug'||f==='wink'){g.moveTo(mx-26,my+4);g.quadraticCurveTo(mx+8,my+12,mx+30,my-8);g.stroke();}
+  else if(F.talk>0.08&&f!=='laugh'&&f!=='happy'){g.ellipse(mx,my+6,22,4+F.talk*20,0,0,7);g.fillStyle='#5a1a14';g.fill();g.stroke();}
+  else if(f==='smug'||f==='wink'||f==='smirk'||f==='raised'){g.moveTo(mx-26,my+4);g.quadraticCurveTo(mx+8,my+12,mx+30,my-8);g.stroke();}
   else if(f==='worried'||f==='sad'){g.moveTo(mx-24,my+10);g.quadraticCurveTo(mx,my-6,mx+24,my+10);g.stroke();}
   else if(f==='stern'){g.moveTo(mx-22,my+4);g.lineTo(mx+22,my+4);g.stroke();}
   else if(F.talk){const o=F.talk;g.ellipse(mx,my+4,20,4+o*16,0,0,7);g.fillStyle='#5a1a14';g.fill();g.stroke();}

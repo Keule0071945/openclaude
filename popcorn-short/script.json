@@ -1,0 +1,56 @@
+[
+ {
+  "scene": "lobby",
+  "text": "Ein Eimer Popcorn kostet im Kino locker acht Euro. Der Mais darin? Ein paar Cent.",
+  "start": 0.35,
+  "dur": 5.16
+ },
+ {
+  "scene": "lobby",
+  "text": "Klingt nach Abzocke? Na ja. Eigentlich ist das Popcorn der Grund, warum es Kinos überhaupt noch gibt.",
+  "start": 5.81,
+  "dur": 6.18
+ },
+ {
+  "scene": "ticket",
+  "text": "Wenn du ein Ticket kaufst, geht ein großer Teil davon an das Filmstudio. In den ersten Wochen oft mehr als die Hälfte.",
+  "start": 12.441,
+  "dur": 6.616
+ },
+ {
+  "scene": "costs",
+  "text": "Vom Rest muss das Kino Miete zahlen, Personal, Strom, den Projektor.",
+  "start": 19.507,
+  "dur": 4.456
+ },
+ {
+  "scene": "three",
+  "text": "Ticket? Kaum Gewinn. Cola? Schon besser. Popcorn? Fast reiner Gewinn.",
+  "start": 24.412,
+  "dur": 6.212
+ },
+ {
+  "scene": "smell",
+  "text": "Darum riecht es schon am Eingang nach Popcorn. Der Duft ist kein Zufall. Er ist die Werbung.",
+  "start": 31.075,
+  "dur": 5.586
+ },
+ {
+  "scene": "buckets",
+  "text": "Moment. Und warum gibt es dann diese riesigen Eimer?",
+  "start": 37.111,
+  "dur": 3.048
+ },
+ {
+  "scene": "buckets",
+  "text": "Weil der große Eimer das Kino kaum mehr kostet als der kleine. Ein Euro mehr für dich ist fast ein Euro mehr Gewinn.",
+  "start": 40.459,
+  "dur": 5.982
+ },
+ {
+  "scene": "outro",
+  "text": "Du gehst also nicht für den Film ins Kino bezahlen. Du bezahlst den Mais. Und den Film gibt es fast gratis dazu.",
+  "start": 46.891,
+  "dur": 6.946
+ }
+]
