@@ -1,0 +1,9 @@
+frames/
+segs/
+qaf/
+qa/
+qa_frames.json
+qa_report.json
+video3d_noaudio.mp4
+audio/raw*.wav
+audio/mix_raw.wav

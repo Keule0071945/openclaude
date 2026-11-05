@@ -1,0 +1,100 @@
+[
+ {
+  "scene": "kitchen",
+  "text": "Um drei Uhr nachts steht Tom vor dem Kühlschrank. Obwohl er gar keinen Hunger hat.",
+  "say": "Um drei Uhr nachts steht Tom vor dem Kühlschrank. Obwohl er gar keinen Hunger hat.",
+  "start": 0.3,
+  "dur": 4.086
+ },
+ {
+  "scene": "brain",
+  "text": "Schuld ist ein winziger Botenstoff in seinem Kopf: Dopamin.",
+  "say": "Schuld ist ein winziger Botenstoff in seinem Kopf: Dopamin.",
+  "start": 4.666,
+  "dur": 3.088
+ },
+ {
+  "scene": "brain",
+  "text": "Er sagt dem Gehirn: Das war gut. Mach das nochmal.",
+  "say": "Er sagt dem Gehirn: Das war gut. Mach das nochmal.",
+  "start": 7.913,
+  "dur": 3.332
+ },
+ {
+  "scene": "savanna",
+  "text": "Für unsere Vorfahren war das überlebenswichtig.",
+  "say": "Für unsere Vorfahren war das überlebenswichtig.",
+  "start": 11.526,
+  "dur": 2.153
+ },
+ {
+  "scene": "savanna",
+  "text": "Süße Beeren? Selten. Fettes Fleisch? Noch seltener. Beides zusammen? Fast nie.",
+  "say": "Süße Beeren? Selten. Fettes Fleisch? Noch seltener. Beides zusammen? Fast nie.",
+  "start": 13.839,
+  "dur": 6.549
+ },
+ {
+  "scene": "savanna",
+  "text": "Also lernte das Gehirn: Findest du so etwas, iss alles auf.",
+  "say": "Also lernte das Gehirn: Findest du so etwas, iss alles auf.",
+  "start": 20.548,
+  "dur": 3.254
+ },
+ {
+  "scene": "market",
+  "text": "Heute liegt es in jedem Supermarkt. Chips, Donuts, Pizza.",
+  "say": "Heute liegt es in jedem Supermarkt. Tschips, Donats, Pizza.",
+  "start": 24.082,
+  "dur": 4.302
+ },
+ {
+  "scene": "market",
+  "text": "Zucker und Fett, genau in der Mischung, auf die das Belohnungssystem am stärksten anspringt.",
+  "say": "Zucker und Fett, genau in der Mischung, auf die das Belohnungssystem am stärksten anspringt.",
+  "start": 28.544,
+  "dur": 4.382
+ },
+ {
+  "scene": "lab",
+  "text": "Lebensmittelentwickler nennen das den Bliss Point.",
+  "say": "Lebensmittelentwickler nennen das den Bliss Peunt.",
+  "start": 33.206,
+  "dur": 2.223
+ },
+ {
+  "scene": "sofa",
+  "text": "Bei manchen Menschen stumpft das System dabei ab. Sie brauchen immer mehr, damit es sich gleich gut anfühlt.",
+  "say": "Bei manchen Menschen stumpft das System dabei ab. Sie brauchen immer mehr, damit es sich gleich gut anfühlt.",
+  "start": 35.709,
+  "dur": 5.498
+ },
+ {
+  "scene": "freeze",
+  "text": "Moment. Zucker und Fett zusammen gibt es in der Natur fast nie?",
+  "say": "Moment. Zucker und Fett zusammen gibt es in der Natur fast nie?",
+  "start": 41.487,
+  "dur": 3.392
+ },
+ {
+  "scene": "nursery",
+  "text": "Fast. Ein natürliches Lebensmittel kombiniert beides fast perfekt:",
+  "say": "Fast. Ein natürliches Lebensmittel kombiniert beides fast perfekt.",
+  "start": 45.159,
+  "dur": 3.566
+ },
+ {
+  "scene": "nursery",
+  "text": "Muttermilch.",
+  "say": "Muttermilch.",
+  "start": 48.885,
+  "dur": 0.423
+ },
+ {
+  "scene": "ending",
+  "text": "Toms Gehirn liebt diese Mischung also schon seit seinem allerersten Schluck.",
+  "say": "Toms Gehirn liebt diese Mischung also schon seit seinem allerersten Schluck.",
+  "start": 49.587,
+  "dur": 3.141
+ }
+]
