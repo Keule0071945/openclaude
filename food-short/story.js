@@ -2,7 +2,7 @@
 const STORY={
   title:['3:00 UHR NACHTS','WARUM ISST TOM OHNE HUNGER?'],
   keywords:['Kühlschrank','Hunger','Dopamin','nochmal','Vorfahren','Beeren','Selten','Fleisch','seltener','nie','Supermarkt','Chips','Donuts','Pizza','Zucker','Fett','Belohnungssystem','Bliss','Point','mehr','Moment','Natur','Muttermilch','Schluck'],
-  rim:{kitchen:'#9bb8ff',brain:'#ff6ad5',savanna:'#ffc070',market:'#e8f4ff',lab:'#bfe8ff',sofa:'#7aa8ff',freeze:'#c8d0e0',nursery:'#ffc0b0',ending:'#ffe0b0'},
+  rim:{kitchen:'#9bb8ff',brain:'#b48aff',savanna:'#ffc070',market:'#e8f4ff',lab:'#bfe8ff',sofa:'#7aa8ff',freeze:'#c8d0e0',nursery:'#ffc0b0',ending:'#ffe0b0'},
 };
 const S={};
 const TOM={robe:'#33507e',pattern:'stripes',pants:'#33507e',hair:'#3a2416',skin:SKIN[0],iris:'#3a5a7a'};
@@ -63,18 +63,18 @@ function buildKitchen(ending){const sc=new THREE.Scene();sc.background=gradBg(['
   const tDoor=ending?-1:(WT('Kühlschrank','kitchen')-0.05),tStop=1.75;
   if(!ending){tom.plan([{type:'walk',t:0.05,dur:tStop,from:[-3.4,0.6],to:[1.75,-3.35],endRy:2.55},{type:'g',g:'pull',t:tDoor-0.35},{type:'look',t:tDoor+0.3,at:[fx,1.25,fz+0.3]},{type:'look',t:WT('Hunger','kitchen')-0.25,at:null}]);}
   else{tom.plan([{type:'look',t:0,at:null},{type:'g',g:'eat',t:0.4},{type:'look',t:WT('allerersten','ending')-0.6,at:[fx+0.05,1.55,fz+0.85]},{type:'look',t:WT('Schluck','ending')+0.4,at:null}]);}
-  lightsBasic(sc,{hemi:['#5a6a98','#0a0810',0.62],sun:{c:'#8fb0ff',i:0.8,p:[-4,5,-2],t:[0,0,-2],r:7}});
+  lightsBasic(sc,{hemi:['#6a7aa8','#0a0810',0.95],sun:{c:'#9fbcff',i:1.0,p:[-4,5,-2],t:[0,0,-2],r:7}});
   const shots=ending?[[0,0,['tom:top','tom:chest',[fx+0.05,1.6,fz+0.9]],-25,8,0],[2.3,0,[[3.27,1.78,-3.64],[3.27,1.32,-3.64]],100,4,0.45]]
-    :[[0,0,['tom:top','tom:feet',[0.9,2.6,-4.9],[2.6,2.1,-4.4]],-6,6,0],[WT('Kühlschrank','kitchen')-0.05,0,['tom:top','tom:chest',[2.6,1.9,-4.4],[2.6,0.6,-4.0]],-18,8,0],[WT('Hunger','kitchen')-0.4,0,['tom:top','tom:face'],188,6,0.5]];
-  return {sc,anchors:{tom},shots,grade:{mul:'#6a7aa8',a:0.12,vig:0.55,vigCol:'#05080f'},
-    update(lt){const open=ending?1:smooth(clamp((lt-tDoor)/0.6));door.rotation.y=open*1.75;fL.intensity=open*1.6;fG.material.opacity=open*0.55;
+    :[[0,0,['tom:top','tom:feet',[0.9,2.6,-4.9]],-6,6,0,{follow:'tom'}],[WT('Kühlschrank','kitchen')-0.05,0,['tom:top','tom:chest',[2.6,1.9,-4.4],[2.6,0.6,-4.0]],-18,8,0],[WT('Hunger','kitchen')-0.4,0,['tom:top','tom:face'],188,6,0.5]];
+  return {sc,anchors:{tom},shots,grade:{mul:'#6a7aa8',a:0.06,vig:0.4,vigCol:'#05080f'},
+    update(lt){const open=ending?1:smooth(clamp((lt-tDoor)/0.6));door.rotation.y=open*1.75;fL.intensity=open*1.05;fG.material.opacity=open*0.55;
       tom.update(lt,{f:faceAt(lt,ending?[[0,'smug'],[WT('allerersten','ending')-0.2,'happy'],[WT('Schluck','ending')+0.5,'wink']]:[[0,'neutral'],[tDoor+0.25,'dreamy'],[WT('Hunger','kitchen'),'worried']],2),pose:'down',item:ending?'donut':null});
       if(!ending)dz.visible=true;else dz.visible=false;}};}
 DEF.kitchen={build(){return buildKitchen(false);}};
 DEF.ending={build(){return buildKitchen(true);}};
 
 // ---------- 2 BRAIN CONTROL ROOM ----------
-DEF.brain={build(){const sc=new THREE.Scene();sc.background=gradBg(['#12061e','#05020a']);sc.fog=new THREE.Fog('#0a0414',8,24);
+DEF.brain={build(){const sc=new THREE.Scene();sc.background=gradBg(['#12061e','#05020a']);sc.fog=new THREE.Fog('#140a24',16,44);
   const grid=tiled(256,256,10,10,g=>{g.fillStyle='#1a1424';g.fillRect(0,0,256,256);g.strokeStyle='#3a2a5a';g.lineWidth=4;g.strokeRect(0,0,256,256);});
   const fl=mesh(new THREE.PlaneGeometry(30,30),M('#ffffff',{map:grid}),0,0,-3,sc);fl.rotation.x=-Math.PI/2;fl.castShadow=false;
   const icons=[(g)=>{rr(60,40,136,176,20);fillS('#e8b81a',8);text('CHIPS',128,128,40,'#c4281f',{ol:false});},(g)=>{ell(128,128,80,80);fillS('#f28ab8',10);ell(128,128,30,30);fillS('#1a0a2a',8);},
@@ -82,7 +82,7 @@ DEF.brain={build(){const sc=new THREE.Scene();sc.background=gradBg(['#12061e','#
     (g)=>{rr(40,70,176,40,20);fillS('#d9a05a',8);rr(36,110,184,26,8);fillS('#5a2a1a',6);rr(40,136,176,40,18);fillS('#d9a05a',8);},(g)=>{ell(128,140,70,80);fillS('#8a4a2a',8);ell(128,80,30,20);fillS('#fff',6);}];
   const screens=[];for(let i=0;i<7;i++){const a=(i-3)*0.32;const f=new Flat(sc,1.5,1.1,300,220,(g,lt)=>{g.fillStyle='#0a1a2a';g.fillRect(0,0,300,220);g.strokeStyle='#5ad8ff';g.lineWidth=8;g.strokeRect(4,4,292,212);g.save();g.translate(22,-18);g.scale(1,1);icons[i%5](g);g.restore();
       const fl2=(lt>S.br.slam&&lt<S.br.slam+0.5)?0.5:0;if(fl2){g.fillStyle='rgba(255,255,255,0.45)';g.fillRect(0,0,300,220);}});
-    f.mesh.position.set(Math.sin(a)*5.2,2.0+(i%2)*0.2,-3.4-Math.cos(a)*1.6);f.mesh.rotation.y=-a;screens.push(f);const gs=glowSprite('#5ad8ff',2.2,0.25);gs.position.copy(f.mesh.position);sc.add(gs);}
+    f.mesh.position.set(Math.sin(a)*5.2,2.0+(i%2)*0.2,-3.4-Math.cos(a)*1.6);f.mesh.rotation.y=-a;screens.push(f);const gs=glowSprite('#5ad8ff',2.4,0.45);gs.position.copy(f.mesh.position);sc.add(gs);}
   const sign=new Flat(sc,3.4,0.9,900,240,(g,lt)=>{const on=lt>S.br.dop?(Math.sin(lt*60)>-0.2||lt>S.br.dop+0.35?1:0):0;text('DOPAMIN',450,120,170,on?'#ffe066':'#3a2a4a',{olc:on?'#ff8a1a':'#1a1024',olw:14});});sign.mesh.position.set(0,3.7,-4.6);
   const signG=glowSprite('#ffb84a',6,0);signG.position.set(0,3.7,-4.4);sc.add(signG);
   const desk=box(2.4,0.95,0.8,M('#2a2438'),0,0.475,0.45,sc);box(2.5,0.06,0.9,M('#4a3e64'),0,0.98,0.45,sc);
@@ -94,7 +94,7 @@ DEF.brain={build(){const sc=new THREE.Scene();sc.background=gradBg(['#12061e','#
   S.br={dop:WT('Dopamin','brain')-0.05,slam:WT('nochmal','brain')+0.05};
   worker.plan([{type:'look',t:0,at:[0,2.0,-3.6]},{type:'look',t:S.br.dop-0.4,at:[0,3.7,-4.6]},{type:'look',t:WT('Er','brain')-0.2,at:null},{type:'g',g:'nod',t:WT('gut','brain')-0.1},{type:'look',t:S.br.slam-0.6,at:[0,1.15,0.55]},{type:'g',g:'slam',t:S.br.slam-0.44}]);
   const sparks=particlesSprites(sc,46,'#ffd34d',0.14,1,THREE.AdditiveBlending);
-  lightsBasic(sc,{hemi:['#6a4aa8','#0a0410',0.4]});const n1=new THREE.PointLight('#ff6ad5',1.4,9,2);n1.position.set(-3,3,-2);sc.add(n1);const n2=new THREE.PointLight('#5ad8ff',1.4,9,2);n2.position.set(3,3,-2);sc.add(n2);
+  lightsBasic(sc,{hemi:['#7a5ab8','#0a0410',0.75]});const n1=new THREE.PointLight('#ff6ad5',1.4,9,2);n1.position.set(-3,3,-2);sc.add(n1);const n2=new THREE.PointLight('#5ad8ff',1.4,9,2);n2.position.set(3,3,-2);sc.add(n2);
   spotOn(sc,[0,5,3],[0,1.4,0],'#ffe8d0',0.9,0.5,0.7);
   return {sc,anchors:{w:worker},shakes:[S.br.slam],grade:{mul:'#8a6ab8',a:0.08,vig:0.55,vigCol:'#05020a'},
     shots:[[0,0,[[-3.4,2.6,-2.9],[3.4,2.6,-2.9],'w:top',[0,0.4,0.9]],0,6,0],[S.br.dop-0.3,0,[[-1.8,4.2,-4.6],[1.8,3.2,-4.6],[0,2.4,-3.6]],0,4,0],[WT('Er','brain')-0.25,0,['w:top','w:chest'],8,4,0.95],[S.br.slam-0.55,0,['w:top',[0,1.0,0.55],[0.6,0.6,0.86]],-10,16,0]],
@@ -129,10 +129,10 @@ function buildSavanna(frozen){const sc=new THREE.Scene();const st=ST('savanna');
   const ft=t.nie+0.25;
   return {sc,anchors:{cave},grade:frozen?{mul:'#a0a8b8',a:0.25,vig:0.5}:{mul:'#ffd8a8',a:0.06,scr:'#ff9a50',sa:0.06,vig:0.35,vigCol:'#3a1400'},
     shots:frozen?[[0,0,[[5.2,3.4,-10.6],[8,3.4,-10.6],[6.6,0.4,-10.9],'cave:top'],-8,4,0],[WT('Natur','freeze')-0.4,0,[[5.5,5,-10.6],[7.7,0.7,-10.9]],-4,4,0]]
-      :[[0,0,['cave:top','cave:feet',[-7,3.5,-6],[-2.4,1.0,-1.4]],-10,4,0],[t.beer-0.45,0,['cave:top',[-2.4,0.2,-1.4],[-2.4,2.2,-1.3]],-14,10,0],[t.fl-0.45,0,[[1.2,2.3,-2.2],[1.2,0.3,-2.3],'cave:chest'],-8,10,0],
-       [t.bz-0.5,0,[[5.0,3.3,-10.6],[8.2,3.3,-10.6],[6.6,0.4,-10.9],'cave:top'],-12,4,0],[t.also+0.4,0,['cave:top','cave:chest'],10,6,0.95]],
+      :[[0,0,['cave:top','cave:feet',[-7,3.5,-6],[-2.4,1.0,-1.4]],-10,4,0],[t.beer-0.45,0,['cave:top','cave:chest',[-2.4,0.2,-1.4],[-2.4,1.3,-1.3]],160,10,0],[t.fl-0.45,0,[[1.2,2.3,-2.2],[1.2,0.3,-2.3],'cave:top','cave:chest'],150,10,0,{follow:'cave'}],
+       [t.bz-0.5,0,[[5.0,3.3,-10.6],[8.2,3.3,-10.6],[6.6,0.4,-10.9],'cave:top','cave:chest'],-16,4,0],[t.also+0.4,0,['cave:top','cave:chest'],10,6,0.95]],
     update(lt){const L=frozen?ft:lt;cave.update(L,{f:faceAt(L,[[0,'neutral'],[t.beer,'happy'],[t.fl,'happy'],[t.bz,'shock'],[t.also+0.5,'laugh']],5),pose:'down',item:L>t.also+0.6?'food':null,belly:clamp((L-t.also-0.8)/2.6)});
-      [t.sel,t.ns,t.nie].forEach((s0,i)=>{popS(signs[i].mesh,L,s0-0.05,1);});if(q)popS(q.mesh,lt,0.25,1);
+      [t.sel,t.ns,t.nie].forEach((s0,i)=>{signs[i].update(L,1);popS(signs[i].mesh,L,s0-0.05,1);if(i<2&&L>t.bz-0.3)signs[i].mesh.visible=false;});if(q){q.update(lt,1);popS(q.mesh,lt,0.25,1);}
       bush.scale.setScalar(L>t.also+1.0?Math.max(0.35,1-(L-t.also-1.0)*0.25):1);ham.visible=!(L>t.also+0.6);}};}
 DEF.savanna={build(){return buildSavanna(false);}};
 DEF.freeze={build(){return buildSavanna(true);}};
@@ -150,19 +150,19 @@ DEF.market={build(){const sc=new THREE.Scene();sc.background=gradBg(['#e8eef2','
   const cart=new THREE.Group();sc.add(cart);const wire=M('#b8c0c8');box(0.62,0.04,0.9,wire,0,0.5,0,cart);[-1,1].forEach(s=>{box(0.03,0.42,0.9,wire,s*0.3,0.72,0,cart);});box(0.62,0.42,0.03,wire,0,0.72,0.44,cart);box(0.62,0.42,0.03,wire,0,0.72,-0.44,cart);
   box(0.66,0.04,0.04,M('#e8322b'),0,0.98,0.52,cart);[[-0.25,-0.38],[0.25,-0.38],[-0.25,0.38],[0.25,0.38]].forEach(([x,z])=>sph(0.06,M('#333'),x,0.07,z,cart));chipsBag(cart,0.1,0.52,0.1,0.7);
   const tom=new Char3D(sc,0,2.5,{...TOM,pattern:null,robe:'#4a6a8a',pants:'#2a2e3a'},1);
-  const tS=WT('Supermarkt','market');tom.plan([{type:'walk',t:0,dur:7.0,from:[0,2.6],to:[0,-5.4],endRy:0.35}]);
+  const tS=WT('Supermarkt','market');tom.plan([{type:'walk',t:0,dur:2.6,from:[0,2.6],to:[0,-1.2],endRy:0},{type:'walk',t:5.6,dur:1.6,to:[0,-5.4],endRy:0.35}]);
   // promo end-cap with the three hero items
-  const pz=-8.6;box(2.6,0.9,0.8,M('#c4281f'),0,0.45,pz,sc);const heroes=[chipsBag(sc,-0.8,0.9,pz,1.3),donut3d(sc,0,1.0,pz,1.5),pizzaSlice(sc,0.8,0.98,pz,1.0)];heroes[2].rotation.y=Math.PI;
+  const pz=-8.6;box(2.6,0.9,0.8,M('#c4281f'),0,0.45,pz,sc);const heroes=[chipsBag(sc,-0.85,0.9,pz,2.3),donut3d(sc,0,1.15,pz,2.6),pizzaSlice(sc,0.85,1.0,pz,1.8)];heroes[2].rotation.y=Math.PI;
   const tH=[WT('Chips','market'),WT('Donuts','market'),WT('Pizza','market')];
   const zuck=badge(sc,1.3,0.42,'ZUCKER','#ffffff','#3a7ad6'),fett=badge(sc,1.0,0.42,'FETT','#ffffff','#ff8a1a');const plus=badge(sc,2.6,0.5,'ZUCKER + FETT','#ffffff','#c4281f');
   const tZ=WT('Zucker','market'),tF=WT('Fett','market'),tB=WT('Belohnungssystem','market');
   const gauge=gaugeFlat(sc,1.1,'BELOHNUNG',lt=>easeOut(clamp((lt-tB)/0.9))*1.0+Math.sin(lt*30)*0.02*(lt>tB+0.9?1:0));gauge.mesh.position.set(1.35,1.75,pz+0.6);
   lightsBasic(sc,{hemi:['#ffffff','#a0a8b0',0.75],sun:{c:'#ffffff',i:0.55,p:[2,9,4],t:[0,0,-4],r:14}});
   return {sc,anchors:{tom},grade:{mul:'#e8f0f4',a:0.04,vig:0.3,vigCol:'#1a2028'},
-    shots:[[0,0,['tom:top','tom:feet',[0,0.6,1.6]],-14,8,0,{follow:'tom'}],[tH[0]-0.15,0,[[-1.3,1.6,pz],[1.3,1.6,pz],[0,0.8,pz]],0,14,0],[tZ-0.35,0,[[-1.3,2.4,pz+0.6],[1.3,2.4,pz+0.6],[0,1.4,pz]],0,6,0],[tB-0.5,0,[[1.35,2.3,pz+0.6],[-0.2,3.0,pz+0.7],'tom:top','tom:chest'],-10,6,0]],
+    shots:[[0,0,['tom:top','tom:feet'],-14,8,0,{follow:'tom'}],[tH[0]-0.15,0,[[-1.4,2.1,pz],[1.4,2.1,pz],[0,0.9,pz]],24,16,0],[tZ-0.35,0,[[-1.3,2.4,pz+0.6],[1.3,2.4,pz+0.6],[0,1.4,pz]],0,6,0],[tB-0.5,0,[[1.35,2.3,pz+0.6],[-0.2,3.0,pz+0.7],'tom:top','tom:chest'],-10,6,0]],
     update(lt){const p=tom._walk(lt);cart.position.set(p.pos.x,0,p.pos.z-0.8);
       tom.update(lt,{f:faceAt(lt,[[0,'neutral'],[tH[0],'happy'],[tB+0.4,'laugh']],6),pose:'cart'});
-      heroes.forEach((h,i)=>{const k2=pop(lt,tH[i]-0.05,0.4);h.visible=k2>0.01;h.scale.setScalar(Math.max(0.001,k2*(i===2?1.0:i===1?1.5:1.3)));h.rotation.y=(i===2?Math.PI:0)+lt*0.6;});
+      heroes.forEach((h,i)=>{const k2=pop(lt,tH[i]-0.05,0.4);h.visible=k2>0.01;h.scale.setScalar(Math.max(0.001,k2*(i===2?1.8:i===1?2.6:2.3)));h.rotation.y=(i===2?Math.PI:0)+lt*0.6;});
       const u=smooth(clamp((lt-tF-0.2)/0.6));zuck.mesh.position.set(lerp(-1.6,-0.35,u),2.4,pz+0.7);fett.mesh.position.set(lerp(1.6,0.45,u),2.4,pz+0.7);
       popS(zuck.mesh,lt,tZ-0.05,1);popS(fett.mesh,lt,tF-0.05,1);if(u>=0.98){zuck.mesh.visible=false;fett.mesh.visible=false;}plus.mesh.position.set(-0.2,2.75,pz+0.7);plus.mesh.visible=u>=0.98;
       gauge.update(lt,Math.floor(lt*30));popS(gauge.mesh,lt,tB-0.3,1);}};}};
@@ -196,12 +196,12 @@ DEF.sofa={build(){const sc=new THREE.Scene();sc.background=gradBg(['#0a0e1a','#0
   const tom=new Char3D(sc,-0.4,-2.55,{...TOM,ry:0,sit:true},1,{y:0.12});
   const tM=WT('mehr','sofa'),tAb=WT('ab','sofa');
   tom.plan([0.3,1.0,1.7,2.4,3.0,3.5,4.0,4.4,4.8,5.2].map(d=>({type:'g',g:'eat',t:d})).concat([{type:'look',t:0,at:[0.2,1.4,2.2]},{type:'look',t:WT('Sie','sofa')-0.2,at:null}]));
-  const bags=[];for(let i=0;i<26;i++){const b=chipsBag(sc,-1.6+rnd(i)*2.6,0.02+Math.floor(i/9)*0.1,-1.6+rnd(i*3)*1.0,0.75);b.rotation.set(-Math.PI/2+rnd(i)*0.3,rnd(i*5)*3,0);b.userData.t=0.5+Math.pow(i/26,0.7)*5.0;bags.push(b);}
+  const bags=[];for(let i=0;i<26;i++){const onSofa=i%3===0;const b=chipsBag(sc,-1.5+rnd(i)*2.2,onSofa?0.57:0.02+Math.floor(i/9)*0.08,onSofa?-2.45+rnd(i*3)*0.3:-1.9+rnd(i*3)*0.7,0.75);b.rotation.set(-Math.PI/2+rnd(i)*0.3,rnd(i*5)*3,0);b.userData.t=0.5+Math.pow(i/26,0.7)*5.0;bags.push(b);}
   const meter=new Flat(sc,0.5,1.6,160,512,(g,lt)=>{rr(10,10,140,492,20);fillS('#1a1a24',6);const v=1-easeOut(clamp(lt/5.4))*0.85;const h=440*v;rr(30,482-h,100,h,14);g.fillStyle=mix('#7ad04a','#e8322b',1-v);g.fill();text('GEFÜHL',80,28,24,'#ffffff',{ol:false});});
   meter.mesh.position.set(1.7,1.9,-2.0);meter.mesh.rotation.y=-0.4;
   lightsBasic(sc,{hemi:['#4a5a8a','#0a0810',0.55]});
   return {sc,anchors:{tom},grade:{mul:'#6a7aa8',a:0.14,vig:0.6,vigCol:'#04060c'},
-    shots:[[0,0,['tom:top','tom:knee',[0.6,1.0,-2.0]],-10,6,0],[tAb-0.3,0,[[-1.7,0.1,-1.2],[2.0,2.8,-2.0],'tom:chest'],8,16,0],[tM-0.35,0,['tom:top','tom:chest'],-6,4,0.9]],
+    shots:[[0,0,['tom:top','tom:knee',[0.6,1.0,-2.0]],-10,6,0],[tAb-0.3,0,['tom:top','tom:knee',[1.7,2.7,-2.0],[1.7,1.1,-2.0]],22,12,0],[tM-0.35,0,['tom:top','tom:chest'],-6,4,0.9]],
     update(lt){const fl=0.8+Math.sin(lt*13)*0.25+Math.sin(lt*31)*0.15;tvL.intensity=1.6*fl;scr.material.color.set(mix('#6aa8ff','#c8e0ff',0.5+0.5*Math.sin(lt*7)));
       tom.update(lt,{f:faceAt(lt,[[0,'happy'],[tAb,'neutral'],[tM-0.3,'worried']],8),pose:'down',item:'chips'});
       bags.forEach(b=>{const k=pop(lt,b.userData.t,0.25);b.visible=k>0.01;b.scale.setScalar(Math.max(0.001,0.75*k));});meter.update(lt,Math.floor(lt*30));flicker(lamp);}};}};

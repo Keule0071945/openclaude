@@ -56,5 +56,6 @@ rep("function fitShot(sh,o){const [t,tr,pts,yaw,pitch,minS]=sh;",
 rep("const nearCut=SEGS.some(g=>Math.abs(t-g.start)<0.3);",
     "const nearCut=SEGS.some(g=>Math.abs(t-g.start)<0.3);const sc0=segState(seg,t);const ray=new THREE.Raycaster();ray.camera=camera;const toCam=camera.position.clone().sub(sc0.c);const dC=toCam.length();ray.set(sc0.c,toCam.normalize());ray.far=dC;\n  const blk=ray.intersectObjects(o.sc.children,true).filter(h=>h.object.isMesh&&h.object.visible&&h.object.material&&!h.object.material.transparent&&h.distance>0.6*dC&&!(h.object.parent&&h.object.parent.parent&&h.object.parent.parent.isGroup&&false));const blocked=blk.length?blk[0].object.geometry.type:null;")
 rep("return {f,t:+t.toFixed(2),scene:sc.name,k:seg.k,lum:+L.toFixed(1),bad,nearCut,thumb};","return {f,t:+t.toFixed(2),scene:sc.name,k:seg.k,lum:+L.toFixed(1),bad,nearCut,blocked,thumb};")
+rep("const DRIFT={push:0.028,","const DRIFT={push:0.02,")
 open('render3d.html', 'w').write(s)
 print('assembled', len(s))
