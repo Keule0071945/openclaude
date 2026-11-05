@@ -1,0 +1,62 @@
+[
+ {
+  "scene": "street",
+  "text": "Frau Brandt verkauft Kinotickets. Und verdient daran fast nichts.",
+  "start": 0.35,
+  "dur": 3.895
+ },
+ {
+  "scene": "kasse",
+  "text": "Jule kauft eine Karte für zwölf Euro. Kevin nimmt das Geld, und sofort fliegt rund die Hälfte davon weiter.",
+  "start": 4.695,
+  "dur": 6.202
+ },
+ {
+  "scene": "studio",
+  "text": "Zum Filmstudio.",
+  "start": 11.348,
+  "dur": 1.016
+ },
+ {
+  "scene": "office",
+  "text": "Vom Rest zahlt Frau Brandt die Miete. Kevin. Den Strom. Den Projektor. Übrig bleibt: fast nichts.",
+  "start": 12.814,
+  "dur": 7.344
+ },
+ {
+  "scene": "groschen",
+  "text": "Moment. Wovon lebt sie dann?",
+  "start": 20.607,
+  "dur": 1.977
+ },
+ {
+  "scene": "entrance",
+  "text": "Davon. Jule ist noch nicht mal drin, da riecht sie es schon. Zufall? Die Maschine steht nicht umsonst direkt am Eingang.",
+  "start": 23.034,
+  "dur": 7.653
+ },
+ {
+  "scene": "counter",
+  "text": "Jule will nur einen kleinen Eimer. Kevin sagt: Für einen Euro mehr gibt's den großen.",
+  "start": 31.137,
+  "dur": 4.776
+ },
+ {
+  "scene": "scale",
+  "text": "Der große kostet das Kino ein paar Cent mehr Mais. Der Euro dagegen ist fast reiner Gewinn.",
+  "start": 36.364,
+  "dur": 5.053
+ },
+ {
+  "scene": "saal",
+  "text": "Und so zahlt Jule acht Euro für Mais, der keine zwanzig Cent gekostet hat.",
+  "start": 41.867,
+  "dur": 4.024
+ },
+ {
+  "scene": "finale",
+  "text": "Frau Brandt ist also gar keine Kinobetreiberin. Sie ist Popcornverkäuferin. Mit einem sehr großen Fernseher.",
+  "start": 46.341,
+  "dur": 6.566
+ }
+]
