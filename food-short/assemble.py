@@ -59,3 +59,5 @@ rep("return {f,t:+t.toFixed(2),scene:sc.name,k:seg.k,lum:+L.toFixed(1),bad,nearC
 rep("const DRIFT={push:0.028,","const DRIFT={push:0.02,")
 open('render3d.html', 'w').write(s)
 print('assembled', len(s))
+
+exec(open('anim2.py').read())

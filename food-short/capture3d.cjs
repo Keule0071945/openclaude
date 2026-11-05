@@ -17,6 +17,7 @@ const fs = require('fs'); const { spawn } = require('child_process');
     }
   } else if (mode === 'seg') {
     const a = +process.argv[3], b = +process.argv[4], out = process.argv[5];
+    for (let f = Math.max(0, a - 45); f < a; f++) await page.evaluate(f => window.simFrame(f), f);
     const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', '30', '-c:v', 'mjpeg', '-i', '-', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', out + '.part.mp4']);
     for (let f = a; f < b; f++) {
       const url = await page.evaluate(f => renderFrame(f), f);
