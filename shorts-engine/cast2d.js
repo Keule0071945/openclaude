@@ -156,5 +156,46 @@ function brandt(g,pose,F,t){const R=rig(g,pose);const skin='#f3c9a5',bl='#1f7a72
   g.save();g.translate(150,-30);g.rotate(-0.5);const pc=P([-10,-70,20,140]);pc.roundRect(-9,-70,18,130,3);paint(g,pc,'#f2c42a',{shadow:false,lw:5});g.fillStyle='#f4c8a0';g.beginPath();g.moveTo(-9,60);g.lineTo(0,82);g.lineTo(9,60);g.fill();g.stroke();g.restore();
   g.restore();armF(R.front);g.restore();g.restore();}
 
-window.cast2d={draw:{jule,kevin,brandt},top:{jule:2.15,kevin:2.4,brandt:2.15},face:{jule:1.5,kevin:1.9,brandt:1.75}};
+
+// ================= BOTTLES — object cast in Herr Groschen's language. Shape: PET bottle (tall cylinder + shoulder + neck + cap).
+// Signature: liquid level that sloshes, label "shirt", petaloid base, rubber-hose limbs + white gloves, 25-ct sticker.
+const BOT={
+  flaschi:{plastic:'#d6f0ff',liquid:'#a8dcf8',cap:'#2a6ad8',label:'#ffffff',stripe:'#2a8ae8',brand:'QUELL',limbs:'#1f4f8a',shoe:'#ff8a2a',level:-760},
+  kola:{plastic:'#e8d6c8',liquid:'#5a2a14',cap:'#c4281f',label:'#c4281f',stripe:'#ffffff',brand:'KOLA',limbs:'#3a1a10',shoe:'#ffffff',level:-800,lt:'#ffffff'},
+  saft:{plastic:'#fff2d0',liquid:'#ffa82a',cap:'#2a9a4a',label:'#2a9a4a',stripe:'#ffd34d',brand:'SAFT',limbs:'#1f5a2a',shoe:'#ffd34d',level:-700,lt:'#ffffff'},
+  leer:{plastic:'#e2f2fa',liquid:'#e2f2fa',cap:'#2a6ad8',label:'#ffffff',stripe:'#2a8ae8',brand:'QUELL',limbs:'#1f4f8a',shoe:'#ff8a2a',level:0,dusty:true},
+};
+function bottle(K){return function(g,pose,F,t){const R=rig(g,pose);g.save();const sq=pose.squash||0;g.scale(1+sq*0.55,1-sq*0.72);
+  const bob=R.bob,lean=pose.lean||0,tx=R.turn*24,yB=-310+bob;
+  const legF=sd=>{g.save();g.translate(sd*58,yB+12);const L=leg(R,sd);hose(g,L.hip,L.knee,150,140,34,K.limbs,sd,tot=>shoe(g,tot,toe(R,sd),K.shoe,{sole:'#ffffff',lace:true,size:1.05}));g.restore();};
+  const armF=sd=>{const A=arm(R,sd);g.save();g.translate(sd*150,-300);hose(g,A.sh,A.el,130,120,30,K.limbs,sd,()=>{g.translate(0,10);N.glove(g,op(R,sd),sd,'#ffffff');if(pose.hold&&pose.hold[sd<0?'L':'R'])pose.hold[sd<0?'L':'R'](g);});g.restore();};
+  legF(R.back);legF(R.front);g.save();g.translate(0,yB);g.rotate(lean);armF(R.back);
+  // bottle silhouette (local: bottom 0, up negative)
+  const body=()=>{const p=P([-170,-700,340,720]);p.moveTo(-150,-30);p.quadraticCurveTo(-150,-5,-120,8);for(let i=0;i<5;i++){const x0=-120+i*48;p.quadraticCurveTo(x0+24,30,x0+48,8);}
+    p.quadraticCurveTo(150,-5,150,-30);p.lineTo(150,-400);p.bezierCurveTo(150,-470,60,-520,48,-560);p.lineTo(46,-600);p.lineTo(-46,-600);p.lineTo(-48,-560);p.bezierCurveTo(-60,-520,-150,-470,-150,-400);p.closePath();return p;};
+  const b=body();paint(g,b,K.plastic,{sx:R.turn>0?-1:1,shW:0.2,shadeK:0.1});
+  g.save();g.clip(b);
+  if(K.level<0){const lv=K.level+310;const wob=Math.sin(t*3.1)*6+lean*120;g.fillStyle=K.liquid;g.globalAlpha=K.liquid===K.plastic?0:0.85;g.beginPath();g.moveTo(-170,lv-wob);g.quadraticCurveTo(0,lv+Math.sin(t*4)*8,170,lv+wob);g.lineTo(170,40);g.lineTo(-170,40);g.closePath();g.fill();g.globalAlpha=1;
+    g.strokeStyle='rgba(255,255,255,0.7)';g.lineWidth=6;g.beginPath();g.moveTo(-150,lv-wob);g.quadraticCurveTo(0,lv+Math.sin(t*4)*8,150,lv+wob);g.stroke();}
+  // label shirt
+  g.fillStyle=K.label;g.fillRect(-170,-210,340,150);g.fillStyle=K.stripe;g.beginPath();g.moveTo(-170,-110);for(let x=-170;x<=170;x+=20)g.lineTo(x,-110+Math.sin(x*0.04+t*2)*10);g.lineTo(170,-60);g.lineTo(-170,-60);g.closePath();g.fill();
+  g.strokeStyle=OUT;g.lineWidth=7;g.strokeRect(-175,-210,350,150);g.fillStyle=K.lt||K.stripe;g.font='900 58px Nunito, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(K.brand,tx*0.6,-160);
+  // ridges + highlights
+  g.strokeStyle='rgba(28,20,16,0.22)';g.lineWidth=5;[-260,-300,-20].forEach(y=>{g.beginPath();g.moveTo(-160,y);g.quadraticCurveTo(0,y+14,160,y);g.stroke();});
+  g.fillStyle='rgba(255,255,255,0.55)';g.beginPath();g.roundRect(-118+tx*0.3,-470,26,380,13);g.fill();g.beginPath();g.roundRect(-80+tx*0.3,-440,10,300,5);g.fill();
+  if(K.dusty){g.fillStyle='rgba(120,110,90,0.25)';for(let i=0;i<40;i++){g.beginPath();g.arc((Math.sin(i*12.9)*0.5)*300,-Math.abs(Math.cos(i*7.3))*560,6+i%5*2,0,7);g.fill();}}
+  g.restore();g.lineWidth=9;g.strokeStyle=OUT;g.stroke(b);
+  // 25 ct sticker
+  g.save();g.translate(112+tx*0.4,-118);g.rotate(0.25);const st=P([-38,-38,76,76]);st.arc(0,0,36,0,7);paint(g,st,'#ff8a2a',{shadow:false,lw:6});g.fillStyle='#ffffff';g.font='900 24px Nunito, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('25ct',0,1);g.restore();
+  // cap
+  const cp=P([-60,-690,120,100]);cp.roundRect(-56,-668,112,72,14);paint(g,cp,K.cap,{sx:1,shW:0.25});g.strokeStyle='rgba(0,0,0,0.25)';g.lineWidth=5;for(let x=-44;x<=44;x+=14){g.beginPath();g.moveTo(x,-662);g.lineTo(x,-602);g.stroke();}
+  const ring=P([-62,-604,124,18]);ring.roundRect(-62,-604,124,16,6);paint(g,ring,K.cap,{shadow:false,lw:6});hl(g,-30,-650,14,8,0.4);
+  // face on the shoulder area
+  g.save();g.translate(tx,-370);g.rotate(pose.headTilt||0);
+  eyes(g,F,0,0,{sx:64,rx:36,ry:43,iris:'#1f3a6a'});brows(g,F,0,-88,64,'#1f3a6a',13);
+  g.fillStyle='rgba(255,120,120,0.22)';[-1,1].forEach(sd=>{g.beginPath();g.ellipse(sd*96,52,22,12,0,0,7);g.fill();});
+  mouth(g,F,R.turn*8,92,{w:40});g.restore();
+  armF(R.front);g.restore();g.restore();};}
+window.cast2d={draw:{jule,kevin,brandt,flaschi:bottle(BOT.flaschi),kola:bottle(BOT.kola),saft:bottle(BOT.saft),leer:bottle(BOT.leer)},
+  top:{jule:2.15,kevin:2.4,brandt:2.15,flaschi:1.75,kola:1.75,saft:1.75,leer:1.75},face:{jule:1.5,kevin:1.9,brandt:1.75,flaschi:1.2,kola:1.2,saft:1.2,leer:1.2}};
 })();

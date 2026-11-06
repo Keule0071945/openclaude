@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8"><style>@font-face{font-family:Nunito;src:url(nunito-latin-900-normal.woff2);font-weight:900}body{margin:0;background:#2a1a24}</style>
+<script src="../cartoon2d.js"></script><script src="../narrators.js"></script><script src="../cast2d.js"></script></head><body><canvas id="c" width="2400" height="2000"></canvas>
+<script>
+const g=document.getElementById('c').getContext('2d');
+const poses=[
+ {name:'neutral',pose:{},F:{face:'neutral'}},
+ {name:'walk 3/4',pose:{turn:0.55,lean:0.04,bob:-8,legs:{L:{hip:0.38,knee:0.1},R:{hip:-0.4,knee:0.6}},arms:{L:{sh:-0.25,el:0.1},R:{sh:0.3,el:-0.1}}},F:{face:'happy'}},
+ {name:'point',pose:{turn:-0.3,arms:{L:{sh:0.14,el:0.12},R:{sh:-2.0,el:-0.4}},handOpen:{R:true}},F:{face:'raised',talk:0.6}},
+ {name:'shock',pose:{lean:-0.05,arms:{L:{sh:0.95,el:-1.9},R:{sh:-0.95,el:1.9}},handOpen:{L:true,R:true}},F:{face:'shock'}},
+ {name:'worried',pose:{headTilt:0.1,arms:{L:{sh:-0.4,el:-1.4},R:{sh:0.4,el:1.4}}},F:{face:'worried'}},
+];
+async function go(){await document.fonts.load('900 20px Nunito');
+ const kinds=['flaschi','kola','leer'];
+ kinds.forEach((k,r)=>poses.forEach((p,c)=>{g.save();g.translate(240+c*470,640+r*660);g.scale(0.48,0.48);
+   g.fillStyle='rgba(0,0,0,0.25)';g.beginPath();g.ellipse(0,0,220,40,0,0,7);g.fill();window.cast2d.draw[k](g,p.pose,p.F,c*0.7);g.restore();}));
+ window.done=true;}
+go();
+</script></body></html>

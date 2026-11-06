@@ -1,0 +1,11 @@
+[
+ {"scene":"regal","text":"Diese Flasche Wasser kostet neunzehn Cent. Die Flasche selbst kostet fünfundzwanzig."},
+ {"scene":"regal","text":"Flaschi ist also mehr wert als ihr eigener Inhalt. Und darauf ist sie ziemlich stolz."},
+ {"scene":"automat","text":"Fast alle Flaschen kommen zurück. Rein in den Automaten, piep, Bon. Fünfundzwanzig Cent."},
+ {"scene":"presse","text":"Dann wird sie plattgedrückt, und aus ihr werden neue Flaschen."},
+ {"scene":"groschen","text":"Moment. Fast alle? Was ist mit dem Rest?"},
+ {"scene":"park","text":"Der liegt im Gebüsch, im Hausmüll, im Keller hinter der Tür."},
+ {"scene":"tresor","text":"Das Pfand dafür hat jemand längst bezahlt. Abholen wird es keiner. Also bleibt es beim Hersteller."},
+ {"scene":"tresor","text":"Bei Milliarden Flaschen im Jahr sind das Schätzungen zufolge weit über hundert Millionen Euro."},
+ {"scene":"keller","text":"Die vergessene Flasche in deinem Keller ist also gar kein Müll. Sie ist ein Geschenk. Nur nicht für dich."}
+]
