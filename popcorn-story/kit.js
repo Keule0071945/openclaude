@@ -35,7 +35,7 @@ function lobbySet(sc){sc.background=gradBg(['#f2c890','#c87850']);
     [['POPCORN','8,00 €'],['COLA','5,50 €'],['NACHOS','6,00 €']].forEach(([a,b],i)=>{text(a,240,90+i*120,64,'#ffe8b0',{ol:false});text(b,720,90+i*120,64,i===0&&lt>S.lb.acht?'#ff4a4a':'#ffe8b0',{ol:false});});});
   menu.mesh.position.set(1.4,3.0,-6.75);
   const mach=popcornMachine(sc,0.6,1.1,-4.6,1.0);
-  lightsBasic(sc,{hemi:['#fff2e4','#a85a40',1.15],sun:{c:'#fff0dc',i:0.6,p:[3,8,6],t:[0,0,-3],r:12}});const cL=new THREE.PointLight('#ffe0b8',1.0,14,2);cL.position.set(0,4.0,-2);sc.add(cL);spotOn(sc,[1.5,4.2,1.5],[0.8,1.2,-1],'#ffe2c0',1.0,0.6,0.8);
+  lightsBasic(sc,{hemi:['#fff2e4','#a85a40',1.15],sun:{c:'#fff0dc',i:0.62,p:[7,7.5,3.5],t:[0,0,-3],r:12}});const cL=new THREE.PointLight('#ffe0b8',1.0,14,2);cL.position.set(0,4.0,-2);sc.add(cL);spotOn(sc,[1.5,4.2,1.5],[0.8,1.2,-1],'#ffe2c0',1.0,0.6,0.8);
   return {neon,menu,mach};}
 
 const S={lb:{acht:99}};

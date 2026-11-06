@@ -19,9 +19,11 @@ const BASE2={down:{L:{sh:0.14,el:0.12},R:{sh:-0.14,el:-0.12}},hips:{L:{sh:0.95,e
 class Toon2D{
   constructor(parent,x,z,spec,s=1,{y=0,kind=null,ry=0,flipBase=false}={}){this.spec=spec;this.kind=kind;this.s=s;this.home=new THREE.Vector3(x,y,z);this.homeRy=ry;this.acts=[];this.flipBase=flipBase;this.tint=new THREE.Color(1,1,1);
     this.tex=ctex(768,1152);const w=1024*U2M*s,h=1536*U2M*s;const geo=new THREE.PlaneGeometry(w,h);geo.translate(0,h/2-40*U2M*s,0);
-    this.mat=NO(new THREE.MeshLambertMaterial({map:this.tex.t,transparent:true,alphaTest:0.5,side:THREE.DoubleSide}));
+    this.mat=NO(new THREE.MeshLambertMaterial({map:this.tex.t,transparent:true,alphaTest:0.5,side:THREE.DoubleSide,emissiveMap:this.tex.t,emissive:new THREE.Color(0.2,0.2,0.2)})); /* emissive lift: faces/hands never go muddy in shadow */
     this.mesh=new THREE.Mesh(geo,this.mat);this.mesh.castShadow=true;this.mesh.receiveShadow=false;this.mesh.customDepthMaterial=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,map:this.tex.t,alphaTest:0.5});
-    this.mesh.position.copy(this.home);parent.add(this.mesh);this.root=this.mesh;}
+    this.mesh.position.copy(this.home);parent.add(this.mesh);this.root=this.mesh;
+    /* contact shadow: soft dark ellipse on the floor so characters stand instead of float */
+    this.cs=new THREE.Mesh(new THREE.PlaneGeometry(0.95*s,0.42*s),NO(new THREE.MeshBasicMaterial({map:RAD,color:'#000000',transparent:true,opacity:0.5,depthWrite:false})));this.cs.rotation.x=-Math.PI/2;this.cs.position.y=0.012;this.cs.renderOrder=1;this.mesh.add(this.cs);}
   plan(list){this.acts=list;return this;}
   _walk(lt){let pos=this.home.clone(),dir=0,k=0,dist=0;const first=this.acts.find(a=>a.type==='walk');
     for(const a of this.acts){if(a.type!=='walk')continue;const from=a.from?new THREE.Vector3(a.from[0],this.home.y,a.from[1]):pos.clone();const to=new THREE.Vector3(a.to[0],this.home.y,a.to[1]);
