@@ -96,3 +96,23 @@ and those get a warm practical light against a cool exterior.
 - Toon2D `flipBase:true` mirrors a character so a gesture reaches toward the other side.
 - YouTube can't be downloaded from the cloud container: its bot check blocks it, and circumventing that is not allowed. Get reference videos as files uploaded by the user, or use the Higgsfield `video_analysis` scene breakdowns.
 - Blender (`pip install bpy`) works here, but Cycles and EEVEE take 45-80 s per frame without a GPU. That is too slow for a full Short. Stay with Three.js.
+
+## 7. Light and shadow (lesson from round 2: "more shadows")
+- **Flat = cheap.** A strong hemisphere light fills every shadow, and toon shading only works on *direct* light.
+  Use a key to fill ratio of about 3:1 or more: `LIGHT={fill:0.38,key:2.6}` scales every `lightsBasic` call.
+  A scene without a sun automatically gets a shadow-casting key.
+- **Put the key at the side**, for example `[7,7.5,3.5]`, not behind the camera. Shadows then fall diagonally across the floor and stay visible.
+- **Shadow catcher:** a `ShadowMaterial` plane (`shadowCatcher(sc,y,opacity,size,x,z)`) just above floors, desks and counters.
+  Cast shadows stay readable even where practical point lights (lamps, neon, machines) fill the floor. `lightsBasic` adds one at floor level automatically.
+- Characters get an **emissive lift** (0.2), so faces and hands never go muddy in shadow.
+  They also get a **contact shadow** (a soft dark ellipse under the feet), so they stand on the floor instead of floating.
+- Keep the brightness check (`lum.py`). Night scenes and the cinema auditorium may sit at 55-110 when a motivated light source is in frame.
+
+## 8. Camera never through walls
+- Mark architecture with `mesh.userData.wall=true`. `room()` walls are marked automatically.
+  `collide()` works like a game camera's spring arm: it raycasts from the shot target to the camera and pulls the camera in front of the first wall.
+- **Rooms are camera boxes.** `room()` stores `scene.userData.bounds`, and the camera may not leave it, because there is no front wall.
+  A camera outside the room shows wall edges and the end of the floor, which reads as "flying through a wall".
+- Before every render, run `node camcheck.cjs`. It lists every shot the spring arm had to shorten. If a shot is shortened below about 70 %,
+  redesign it: move the actors, use fewer points, or yaw toward the open side. Don't accept a crushed frame.
+- Raycasts need current matrices. Call `scene.updateMatrixWorld(true)` before the first raycast of a scene, or walls appear to sit at the origin.
