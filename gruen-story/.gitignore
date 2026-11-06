@@ -1,9 +1,9 @@
-frames/
-audio/
-segs/
 *.part.mp4
-render.log
-video3d_noaudio.mp4
-render2.log
+audio/
+frames/
 lum*.txt
+render.log
+render2.log
+segs/
 shots.txt
+video3d_noaudio.mp4
