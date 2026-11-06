@@ -196,6 +196,35 @@ function bottle(K){return function(g,pose,F,t){const R=rig(g,pose);g.save();cons
   g.fillStyle='rgba(255,120,120,0.22)';[-1,1].forEach(sd=>{g.beginPath();g.ellipse(sd*96,52,22,12,0,0,7);g.fill();});
   mouth(g,F,R.turn*8,92,{w:40});g.restore();
   armF(R.front);g.restore();g.restore();};}
-window.cast2d={draw:{jule,kevin,brandt,flaschi:bottle(BOT.flaschi),kola:bottle(BOT.kola),saft:bottle(BOT.saft),leer:bottle(BOT.leer)},
-  top:{jule:2.15,kevin:2.4,brandt:2.15,flaschi:1.75,kola:1.75,saft:1.75,leer:1.75},face:{jule:1.5,kevin:1.9,brandt:1.75,flaschi:1.2,kola:1.2,saft:1.2,leer:1.2}};
+
+// ================= FRITZ — a 50-euro note. Shape: upright banknote rectangle with a dog-ear. Signature: his VALUE is printed on his chest
+// and counts down as he spends (pose.value); he gets crumpled as he loses value (pose.crumple 0..1). Stylised, not a real note design.
+function fritz(g,pose,F,t){const R=rig(g,pose);const v=pose.value===undefined?50:pose.value,cr=pose.crumple||0;g.save();
+  const lean=(pose.lean||0)+cr*0.06,tx=R.turn*24,yB=-330+R.bob;const paper=N.mixc?N.mixc('#f2a64a','#c8a07a',cr*0.6):'#f2a64a';
+  const legF=sd=>{g.save();g.translate(sd*62,yB+10);const L=leg(R,sd);hose(g,L.hip,L.knee,150,140,32,'#5a3a1a',sd,tot=>shoe(g,tot,toe(R,sd),'#ff7a2a',{sole:'#ffffff',lace:true,size:1.05}));g.restore();};
+  const armF=sd=>{const A=arm(R,sd);g.save();g.translate(sd*186,-300);hose(g,A.sh,A.el,140,128,30,'#5a3a1a',sd,()=>{g.translate(0,10);N.glove(g,op(R,sd),sd,'#ffffff');if(pose.hold&&pose.hold[sd<0?'L':'R'])pose.hold[sd<0?'L':'R'](g);});g.restore();};
+  legF(R.back);legF(R.front);g.save();g.translate(0,yB);g.rotate(lean);armF(R.back);
+  // note body (local: bottom 0, top -570), slightly irregular when crumpled
+  const j=(k)=>Math.sin(k*12.9898)*cr*14;
+  const b=P([-200,-590,400,600]);b.moveTo(-190+j(1),-8);b.lineTo(-60,-4+j(2));b.lineTo(70,-10+j(3));b.lineTo(190+j(4),-6);b.lineTo(186+j(5),-200);b.lineTo(192+j(6),-420);b.lineTo(190,-500);b.lineTo(130,-566);b.lineTo(20+j(7),-570);b.lineTo(-120,-566+j(8));b.lineTo(-190,-570);b.lineTo(-186+j(9),-380);b.lineTo(-192+j(10),-180);b.closePath();
+  paint(g,b,paper,{sx:R.turn>0?-1:1,shW:0.22,shadeK:0.14});
+  g.save();g.clip(b);
+  g.strokeStyle='rgba(120,60,10,0.18)';g.lineWidth=3;for(let k=0;k<14;k++){g.beginPath();for(let x=-200;x<=200;x+=10){const y=-60-k*36+Math.sin(x*0.05+k)*8;x===-200?g.moveTo(x,y):g.lineTo(x,y);}g.stroke();}
+  g.fillStyle='rgba(255,236,190,0.75)';g.beginPath();g.ellipse(tx*0.4,-390,120,140,0,0,7);g.fill();g.strokeStyle='rgba(120,60,10,0.35)';g.lineWidth=5;g.stroke();
+  g.strokeStyle='rgba(255,236,190,0.9)';g.lineWidth=8;g.strokeRect(-170,-552,340,534);g.strokeStyle='rgba(120,60,10,0.35)';g.lineWidth=3;g.strokeRect(-160,-542,320,514);
+  const sh=(t*0.6)%1;const gr=g.createLinearGradient(130,-560,190,-20);gr.addColorStop(0,'#c8ccd8');gr.addColorStop(Math.max(0,sh-0.1),'#e8ecf4');gr.addColorStop(sh,'#ffffff');gr.addColorStop(Math.min(1,sh+0.1),'#d8b8f0');gr.addColorStop(1,'#b8c8e8');g.fillStyle=gr;g.fillRect(140,-570,26,580);
+  g.font='900 46px Nunito, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='rgba(120,60,10,0.75)';g.fillText(String(v),-128,-512);g.fillText(String(v),112,-48);
+  if(cr>0.02){g.strokeStyle=`rgba(90,50,10,${0.35*cr+0.1})`;g.lineWidth=4;[[-190,-120,190,-260],[-190,-430,120,-570],[-60,0,40,-570],[190,-380,-190,-300]].forEach(([a,b2,c,d])=>{g.beginPath();g.moveTo(a,b2);g.lineTo((a+c)/2+20*cr,(b2+d)/2-14*cr);g.lineTo(c,d);g.stroke();});}
+  g.restore();g.lineWidth=9;g.strokeStyle=OUT;g.stroke(b);
+  // dog-ear top-right
+  const de=P([120,-570,72,72]);de.moveTo(130,-566);de.lineTo(190,-500);de.lineTo(136,-506);de.closePath();paint(g,de,N.mixc?N.mixc(paper,'#ffffff',0.35):paper,{shadow:false,lw:7});
+  // big value on the chest
+  g.save();g.translate(tx*0.5,-170);const big=String(v);g.font=`900 ${big.length>2?110:150}px Nunito, sans-serif`;g.textAlign='center';g.textBaseline='middle';g.lineWidth=14;g.strokeStyle=OUT;g.strokeText(big,0,0);g.fillStyle=v<10?'#e8283a':'#fff6dc';g.fillText(big,0,0);
+  g.font='900 30px Nunito, sans-serif';g.lineWidth=8;g.strokeText('EURO',0,72);g.fillText('EURO',0,72);g.restore();
+  // face in the watermark oval
+  g.save();g.translate(tx,-400);g.rotate(pose.headTilt||0);eyes(g,F,0,0,{sx:62,rx:34,ry:41,iris:'#3a2410'});brows(g,F,0,-82,62,'#5a3a1a',12);
+  g.fillStyle='rgba(230,90,60,0.22)';[-1,1].forEach(sd=>{g.beginPath();g.ellipse(sd*96,46,22,12,0,0,7);g.fill();});mouth(g,F,R.turn*8,84,{w:36});g.restore();
+  armF(R.front);g.restore();g.restore();}
+window.cast2d={draw:{fritz,jule,kevin,brandt,flaschi:bottle(BOT.flaschi),kola:bottle(BOT.kola),saft:bottle(BOT.saft),leer:bottle(BOT.leer)},
+  top:{fritz:1.62,jule:2.15,kevin:2.4,brandt:2.15,flaschi:1.75,kola:1.75,saft:1.75,leer:1.75},face:{fritz:1.28,jule:1.5,kevin:1.9,brandt:1.75,flaschi:1.2,kola:1.2,saft:1.2,leer:1.2}};
 })();

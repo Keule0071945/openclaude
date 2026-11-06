@@ -52,7 +52,7 @@ class Toon2D{
     const camR=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);const wdir=T.W.k>0.05?Math.sign(T.W.dir*camR.x||T.W.dir):0;
     const turn=o.turn!==undefined?o.turn:(T.W.k>0.05?0.55*wdir:0);
     const F={...(o.f||{face:'neutral',eye:1})};F.look=o.look!==undefined?o.look:((rnd(Math.floor((lt+this.home.x)/1.2)*3.7)-0.5)*0.8);if(o.talk!==undefined)F.talk=o.talk;
-    const pose={arms:{L:{sh:D[0],el:D[1]},R:{sh:D[2],el:D[3]}},legs:T.legs,lean:D[4],headTilt:D[5],turn,bob:T.bob,handOpen:{L:T.open.includes('L'),R:T.open.includes('R')},hold:o.hold,costume:o.costume,squash:o.squash||0};
+    const pose={arms:{L:{sh:D[0],el:D[1]},R:{sh:D[2],el:D[3]}},legs:T.legs,lean:D[4],headTilt:D[5],turn,bob:T.bob,handOpen:{L:T.open.includes('L'),R:T.open.includes('R')},hold:o.hold,costume:o.costume,squash:o.squash||0,value:o.value,crumple:o.crumple||0};
     this.mat.color.copy(this.tint);
     this.tex.paint(g=>{g.translate(384,1122);g.scale(0.75*(this.flipBase?-1:1),0.75);if(this.kind&&window.cast2d&&window.cast2d.draw[this.kind])window.cast2d.draw[this.kind](g,pose,F,lt);else if(this.kind)window.narrators.drawNarrator(g,this.kind,pose,F,lt);else window.cartoon2d.drawRig2D(g,this.spec,pose,F);});}
 }
