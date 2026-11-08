@@ -8,20 +8,21 @@ Default size: 1080×1920.
 
 ## 1. Essence, and what it is not
 
-Two depths of image in one frame: **flat 2D characters** (constant thick outlines, flat fills, one hard shadow shape) and a **soft, gradient-shaded painted world** that behaves like it was shot through a real lens: whatever is off the focal plane melts into blur, and focus can **rack** from a foreground face to a tiny figure far away. The characters are **round white heads, small dot eyes under heavy brows, tiny or no nose, noodle legs, chunky clothes**; they act with the face, not the body. A narrator tells the story, and the narration lands on screen **one big outlined word at a time**.
+Two depths of image in one frame: **outlined 2D characters with soft volume shading** (constant thick outlines, round light-and-shade) and a **soft, gradient-shaded painted world** that behaves like it was shot through a real lens: whatever is off the focal plane melts into blur, and focus can **rack** from a foreground face to a tiny figure far away. The characters are **round white heads, small dot eyes under heavy brows, tiny or no nose, noodle legs, chunky clothes**; they act with the face, not the body. A narrator tells the story, and the narration lands on screen **one big outlined word at a time**.
 
-Not a flat vector explainer (the world has depth and soft light), not 3D animation (characters are flat drawings), not a sci-fi sitcom (no portals, no glowing devices, no boiling chaos).
+Not a flat vector explainer (the world has depth, shadows and soft light), not 3D animation (characters are outlined drawings with soft shading, not models), not a sci-fi sitcom (no portals, no glowing devices, no boiling chaos).
 
 **Copyright red lines:** invent the cast. Never reproduce an existing channel's characters, their colour combinations, names or catchphrases. Never name a source channel in a film.
 
 ## 2. Materials & rendering
 
-- **Characters**: near-black warm line (`#231a1f`), ~6 px at full-body size, constant in screen space (transform points to screen, then stroke). Calm boil: ~0.8 px, 3 drawings at 12 fps. Flat fills, **one hard-edged shadow shape** per form, away from the sun.
+- **Characters**: near-black warm line (`#231a1f`), ~6 px at full-body size, constant in screen space (transform points to screen, then stroke). Calm boil: ~0.8 px, 3 drawings at 12 fps. **Soft volume shading** on every form (head, garment, hat, hands, shoes, shell): a radial key light from the upper left, a darker falloff toward the lower right edge and a warm rim light on the right, so the flat drawings read as round objects in the 3D set. The outline stays.
 - **Heads**: white `#fbfaf7` circles or soft eggs, 0.45–0.6 of the torso height; eyes are solid dots (4–7 px at full size) with a short lid line for deadpan; brows are thick dark wedges and carry all emotion; a mustache or nose is an optional extra shape.
 - **Bodies**: a chunky garment (tunic, vest, poncho) sitting on two noodle legs (constant 12–14 px), small round shoes, mitten hands. A belt, a badge, a stripe pattern: one idea per character.
 - **World**: painted, not drawn. Vertical **gradients**, soft ambient occlusion at contact lines, warm bounce light, no outlines (or very faint ones). Built as **depth layers** (z in metres) through one perspective camera.
 - **Depth of field**: every layer is blurred by its circle of confusion: `blur px = clamp(k · |1/z − 1/focus|, 0, 26)`. The sharp plane is always on a character. Characters off the focal plane blur too (outline included) — that is the look.
-- **Contact shadows**: a soft dark ellipse under each character (multiply, 35–50 %), also blurred with its layer.
+- **Shadows**: a soft dark contact ellipse under each character (~55 %) plus a soft sun shadow falling to the lower left; the right-hand buildings cast a shadow band onto the street; porches shade the walls; ambient occlusion where walls meet the ground. All blur with their layer.
+- **Set detail for depth**: wood siding lines, recessed windows with frames, sills and a sky reflection, boardwalks with a front edge.
 - **Ground**: a perspective street with wheel ruts and footprints as soft darker strokes, receding to a hazy horizon.
 
 ## 3. Colour logic

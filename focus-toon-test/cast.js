@@ -1,9 +1,23 @@
 // cast.js — Shallow-Focus Toon characters. Local units are centimetres, origin at the feet, y down.
 import { clamp, lerp } from '/core/lib.js';
-import { INK, push, pop, translate, rotate, scale, shape, fillOnly, stroke, ell, arc, spline, rr, rect, noodle, quad, dot, text, S } from './toon.js';
+import { INK, g, push, pop, translate, rotate, scale, shape, fillOnly, stroke, ell, arc, spline, rr, rect, noodle, quad, dot, text, S, tx, zoom } from './toon.js';
 import { P, pxPerM } from './world.js';
 
 export const HEAD = '#fbfaf7', HEADS = '#e3ddd3';
+
+// soft volume shading inside a clipped shape: key light from the upper left, form falloff, warm rim from the right
+export function vol(cx, cy, r, k = 1) {
+  const [sx, sy] = tx(cx, cy), R = Math.max(1, r * zoom());
+  let gr = g.createRadialGradient(sx - R * .38, sy - R * .42, 0, sx - R * .38, sy - R * .42, R * .9);
+  gr.addColorStop(0, `rgba(255,255,255,${.42 * k})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(sx - R * 2, sy - R * 2, R * 4, R * 4);
+  gr = g.createRadialGradient(sx - R * .2, sy - R * .25, R * .35, sx - R * .1, sy - R * .1, R * 1.25);
+  gr.addColorStop(0, 'rgba(70,35,25,0)'); gr.addColorStop(1, `rgba(70,35,25,${.42 * k})`);
+  g.fillStyle = gr; g.fillRect(sx - R * 2, sy - R * 2, R * 4, R * 4);
+  gr = g.createLinearGradient(sx + R * .55, 0, sx + R * 1.02, 0);
+  gr.addColorStop(0, 'rgba(255,214,160,0)'); gr.addColorStop(1, `rgba(255,214,160,${.5 * k})`);
+  g.fillStyle = gr; g.fillRect(sx + R * .5, sy - R * 2, R * 1.5, R * 4);
+}
 
 // place a character at world (x, z) and scale it to the lens; line width follows size, within limits
 export function place(x, z, fn, { y = 0, lean = 0 } = {}) {
@@ -44,14 +58,14 @@ export function person(o = {}) {
     const sw = walk < 0 ? 0 : Math.sin(ph * Math.PI * 2 + (sgn > 0 ? Math.PI : 0)) * 10;
     const up = walk < 0 ? 0 : Math.max(0, Math.sin(ph * Math.PI * 2 + (sgn > 0 ? Math.PI : 0))) * 6;
     shape(noodle([sgn * 9, -74], [sgn * 11 + sw, -6 - up], sgn * 2, 6, 6), { fill: legs, lw: 5 });
-    shape(ell(sgn * 13 + sw + sgn * 3, -5 - up, 11, 6.5, 18), { fill: shoe, lw: 5 });
+    shape(ell(sgn * 13 + sw + sgn * 3, -5 - up, 11, 6.5, 18), { fill: shoe, lw: 5, shade: () => vol(sgn * 13 + sw + sgn * 3, -5 - up, 11, .8) });
   }
   push(); translate(0, -74); scale(1, by); rotate(tilt); translate(0, 74);
   // poncho / tunic
   const bodyP = spline([[-23, -150], [23, -150], [33, -110], [36, -72], [0, -66], [-36, -72], [-33, -110]]);
   shape(bodyP, {
     fill: body, lw: 6, shade: () => {
-      fillOnly([[10, -160], [50, -160], [50, -60], [16, -60]], bodyS, { boil: .3 });
+      vol(0, -112, 46, 1);
       // zig-zag band and dots
       const zz = []; for (let i = 0; i <= 12; i++) zz.push([-40 + i * 6.8, -98 + (i % 2 ? -5 : 5)]);
       stroke(zz, 7, { line: trim, boil: .3 });
@@ -62,13 +76,13 @@ export function person(o = {}) {
   const sh = [[-20, -140], [20, -140]];
   const hands = [[-30 - armL * 4, -96 - armL * 52], [30 + armR * 4, -96 - armR * 52]];
   for (let k = 0; k < 2; k++) {
-    shape(noodle(sh[k], hands[k], (k ? -1 : 1) * 8, 7, 6), { fill: body, lw: 5 });
-    shape(ell(hands[k][0], hands[k][1], 7.5, 7, 16), { fill: HEAD, lw: 5 });
+    shape(noodle(sh[k], hands[k], (k ? -1 : 1) * 8, 7, 6), { fill: body, lw: 5, shade: () => vol((sh[k][0] + hands[k][0]) / 2, (sh[k][1] + hands[k][1]) / 2, 22, .7) });
+    shape(ell(hands[k][0], hands[k][1], 7.5, 7, 16), { fill: HEAD, lw: 5, shade: () => vol(hands[k][0], hands[k][1], 7.5, .8) });
   }
   if (hold) hold(hands[1]);
   // head
   const hy = -184 + lift;
-  shape(ell(0, hy, 34, 33, 48), { fill: HEAD, lw: 6, shade: () => fillOnly(ell(14, hy + 8, 30, 32, 30), HEADS, { boil: .3 }) });
+  shape(ell(0, hy, 34, 33, 48), { fill: HEAD, lw: 6, shade: () => vol(0, hy, 34, .9) });
   face(0, hy + 4, 34, { look, brow, lid, blink });
   if (stache) {
     const m = spline([[-2, hy + 13], [-14, hy + 11], [-24, hy + 18], [-20, hy + 26], [-8, hy + 22], [0, hy + 19], [8, hy + 22], [20, hy + 26], [24, hy + 18], [14, hy + 11], [2, hy + 13]]);
@@ -79,10 +93,10 @@ export function person(o = {}) {
   // hat
   if (hatOn) {
     push(); translate(0, hy - 26); rotate(droop * .12); translate(0, droop * 6);
-    shape(spline([[-22, 0], [-20, -30], [-8, -36], [0, -30], [8, -36], [20, -30], [22, 0]]), { fill: hat, lw: 6, shade: () => fillOnly(rect(8, -40, 20, 44), hatS, { boil: .3 }) });
+    shape(spline([[-22, 0], [-20, -30], [-8, -36], [0, -30], [8, -36], [20, -30], [22, 0]]), { fill: hat, lw: 6, shade: () => vol(0, -18, 26, 1) });
     fillOnly(rect(-22, -9, 44, 8), band, { boil: .3 });
     const dr = droop * 14;
-    shape(spline([[-62, 2 + dr], [-40, -6], [0, -9], [40, -6], [62, 2 + dr], [40, 9], [0, 10], [-40, 9]]), { fill: hat, lw: 6, shade: () => fillOnly(rect(-70, 4, 140, 20), hatS, { boil: .3 }) });
+    shape(spline([[-62, 2 + dr], [-40, -6], [0, -9], [40, -6], [62, 2 + dr], [40, 9], [0, 10], [-40, 9]]), { fill: hat, lw: 6, shade: () => { fillOnly(rect(-70, 3, 140, 20), hatS, { boil: .3 }); vol(0, 0, 62, .6); } });
     pop();
   }
   pop();
@@ -107,7 +121,7 @@ export function pedro({ view = 'side', face = -1, step = -1, look = [0, 0], brow
     }
     push(); translate(0, -bob);
     shape(spline([[-34, -10], [-30, -32], [-14, -44], [14, -44], [30, -32], [34, -10], [0, -6]]), {
-      fill: shell, lw: 6, shade: () => { fillOnly(rect(8, -50, 40, 50), shellS, { boil: .3 }); for (const [x, y] of [[-14, -30], [0, -36], [14, -30]]) shape(spline([[x - 7, y], [x, y - 6], [x + 7, y], [x + 5, y + 7], [x - 5, y + 7]]), { fill: null, lw: 3, line: '#4f6a2c' }); }
+      fill: shell, lw: 6, shade: () => { vol(0, -28, 36, 1); for (const [x, y] of [[-14, -30], [0, -36], [14, -30]]) shape(spline([[x - 7, y], [x, y - 6], [x + 7, y], [x + 5, y + 7], [x - 5, y + 7]]), { fill: null, lw: 3, line: '#4f6a2c' }); }
     });
     shape(rr(-36, -14, 72, 8, 4), { fill: rim, lw: 5 });
     // bag strap and bag on his right
@@ -115,7 +129,7 @@ export function pedro({ view = 'side', face = -1, step = -1, look = [0, 0], brow
     shape(rr(26, -24, 16, 16, 4), { fill: bag, lw: 4 });
     // head + neck
     shape(rr(-6, -20, 12, 12, 5), { fill: skin, lw: 5 });
-    shape(ell(0, -26, 13, 12.5, 30), { fill: HEAD, lw: 6, shade: () => fillOnly(ell(6, -22, 12, 13, 20), HEADS, { boil: .3 }) });
+    shape(ell(0, -26, 13, 12.5, 30), { fill: HEAD, lw: 6, shade: () => vol(0, -26, 13, .9) });
     face(0, -24, 13, { look, brow, lid: .25, blink, eyeR: .13, gap: .38 });
     shape(spline([[-13, -33], [-10, -42], [10, -42], [13, -33]]), { fill: cap, lw: 5, shade: () => fillOnly(rect(4, -46, 12, 16), capS, { boil: .3 }) });
     shape(ell(0, -33, 15, 3.5, 20), { fill: capS, lw: 4 });
@@ -137,7 +151,7 @@ export function pedro({ view = 'side', face = -1, step = -1, look = [0, 0], brow
   // shell
   shape(spline([[-38, -10], [-32, -34], [-8, -46], [20, -42], [36, -26], [38, -10], [0, -6]]), {
     fill: shell, lw: 6, shade: () => {
-      fillOnly(spline([[-44, -20], [0, -16], [44, -18], [44, 0], [-44, 0]]), shellS, { boil: .3 });
+      vol(0, -26, 40, 1);
       for (const [x, y] of [[-20, -26], [0, -32], [20, -26], [-6, -18], [14, -16]]) shape(spline([[x - 8, y], [x - 2, y - 7], [x + 7, y - 4], [x + 6, y + 5], [x - 4, y + 6]]), { fill: null, lw: 3, line: '#4f6a2c' });
     }
   });
@@ -148,7 +162,7 @@ export function pedro({ view = 'side', face = -1, step = -1, look = [0, 0], brow
   // neck and head
   shape(noodle([30, -14], [46, -26], -3, 11, 10), { fill: skin, lw: 5 });
   push(); translate(50, -30);
-  shape(ell(0, 0, 13, 12.5, 30), { fill: HEAD, lw: 6, shade: () => fillOnly(ell(-6, 5, 12, 12, 20), HEADS, { boil: .3 }) });
+  shape(ell(0, 0, 13, 12.5, 30), { fill: HEAD, lw: 6, shade: () => vol(0, 0, 13, .9) });
   face(4, 1, 12, { look: [look[0] * -face, look[1]], brow, lid: .25, blink, eyeR: .13, gap: .4 });
   shape(spline([[-12, -8], [-9, -18], [9, -18], [12, -8]]), { fill: cap, lw: 5, shade: () => fillOnly(rect(4, -22, 12, 16), capS, { boil: .3 }) });
   shape(spline([[6, -10], [22, -9], [22, -6], [6, -6]]), { fill: capS, lw: 4 });

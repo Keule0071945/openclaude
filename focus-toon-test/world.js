@@ -112,6 +112,15 @@ export function groundItems(zs) {
           const z = lerp(Math.max(zn, cam.z + .4), zf, R()), x = lerp(-4, 4, R()), [sx, sy] = P(x, 0, z), s = pxPerM(z);
           g.fillStyle = 'rgba(160,110,60,.22)'; g.beginPath(); g.ellipse(sx, sy, .16 * s, .05 * s, 0, 0, Math.PI * 2); g.fill();
         }
+        // buildings on the right cast a shadow band onto the street; porches shade the boardwalk edge
+        for (const b of TOWN) {
+          const xs = b.side * 6.6, w = b.side > 0 ? 3.2 : .9, za = Math.max(b.z0, cam.z + .3);
+          if (b.z1 <= cam.z + .3) continue;
+          const xa = xs - b.side * 1.9, xb = xa - b.side * w;
+          const q = g.createLinearGradient(...P(xa, 0, (za + b.z1) / 2), ...P(xb, 0, (za + b.z1) / 2));
+          q.addColorStop(0, 'rgba(120,62,48,.34)'); q.addColorStop(.75, 'rgba(120,62,48,.26)'); q.addColorStop(1, 'rgba(120,62,48,0)');
+          poly(g, [P(xa, 0, za), P(xa, 0, b.z1 + 1.2), P(xb, 0, b.z1 + 1.8), P(xb, 0, za + .6)], q);
+        }
         g.restore();
       }
     });
@@ -135,14 +144,24 @@ export function building(b) {
       const gr = g.createLinearGradient(0, top, 0, bot);
       gr.addColorStop(0, hz(shadeHex(face, 1.12), zc)); gr.addColorStop(1, hz(shadeHex(face, .82), zc));
       poly(g, f, gr);
+      // wood siding
+      g.strokeStyle = 'rgba(60,25,15,.13)'; g.lineWidth = Math.max(.6, .03 * pxPerM(zc));
+      for (let y = 3.3; y < h + .8; y += .32) { g.beginPath(); g.moveTo(...P(xs, y, z0)); g.lineTo(...P(xs, y, z1)); g.stroke(); }
+      // porch shadow on the wall and ambient occlusion at the base
+      const ao = (ya, yb, a) => { const pa = P(xs, ya, zc), pb = P(xs, yb, zc); const q = g.createLinearGradient(0, pa[1], 0, pb[1]); q.addColorStop(0, `rgba(55,22,12,${a})`); q.addColorStop(1, 'rgba(55,22,12,0)'); poly(g, [P(xs, ya, z0), P(xs, ya, z1), P(xs, yb, z1), P(xs, yb, z0)], q); };
+      ao(3.1, 1.2, lit ? .45 : .3); ao(0, .9, .35);
       // trim along the top
       poly(g, [P(xs, h + .9, z0), P(xs, h + .9, z1), P(xs, h + .6, z1), P(xs, h + .6, z0)], hz(shadeHex(col, .55), zc));
       // windows (upper) and door (lower)
       const n = Math.max(1, Math.round((z1 - z0) / 3.2));
       for (let k = 0; k < n; k++) {
         const za = lerp(z0, z1, (k + .3) / n), zb = lerp(z0, z1, (k + .7) / n);
-        poly(g, [P(xs, h - 2.2, za), P(xs, h - 2.2, zb), P(xs, h - .9, zb), P(xs, h - .9, za)], hz('#3b2a2e', za, .05));
-        poly(g, [P(xs, h - 1.05, za), P(xs, h - 1.05, zb), P(xs, h - .9, zb), P(xs, h - .9, za)], hz('#f5e6c8', za));
+        poly(g, [P(xs, h - 2.3, za - .08), P(xs, h - 2.3, zb + .08), P(xs, h - .8, zb + .08), P(xs, h - .8, za - .08)], hz(shadeHex(col, .6), za));
+        const wg = g.createLinearGradient(0, P(xs, h - .9, za)[1], 0, P(xs, h - 2.2, za)[1]);
+        wg.addColorStop(0, hz('#1f1518', za, .03)); wg.addColorStop(1, hz('#5c4a52', za, .05));
+        poly(g, [P(xs, h - 2.2, za), P(xs, h - 2.2, zb), P(xs, h - .9, zb), P(xs, h - .9, za)], wg);
+        g.globalAlpha = .35; poly(g, [P(xs, h - 1.1, za + (zb - za) * .15), P(xs, h - 1.1, za + (zb - za) * .35), P(xs, h - 2.1, za + (zb - za) * .55), P(xs, h - 2.1, za + (zb - za) * .35)], '#bfe0f0'); g.globalAlpha = 1;
+        poly(g, [P(xs, h - 2.3, za - .12), P(xs, h - 2.3, zb + .12), P(xs - side * .12, h - 2.42, zb + .12), P(xs - side * .12, h - 2.42, za - .12)], hz('#f5e6c8', za));
       }
       const dz = lerp(z0, z1, .5);
       poly(g, [P(xs, 0, dz - .6), P(xs, 0, dz + .6), P(xs, 2.3, dz + .6), P(xs, 2.3, dz - .6)], hz('#4a3026', dz));
@@ -195,7 +214,12 @@ export function pole(x, z, zNext) {
   };
 }
 // soft contact shadow under a character
-export function contact(g, x, z, rx = .45, a = .4) {
+export function contact(g, x, z, rx = .45, a = .55) {
+  // sun shadow: a soft elongated shape falling to the lower left
+  { const [sx, sy] = P(x, 0, z), [ex, ey] = P(x - .9, 0, z - .35), s = pxPerM(z);
+    g.save(); g.translate(sx, sy); g.rotate(Math.atan2(ey - sy, ex - sx)); const L = Math.hypot(ex - sx, ey - sy);
+    const q = g.createLinearGradient(0, 0, L, 0); q.addColorStop(0, 'rgba(120,62,40,.38)'); q.addColorStop(1, 'rgba(120,62,40,0)');
+    g.fillStyle = q; g.beginPath(); g.ellipse(L * .45, 0, L * .6, .16 * s, 0, 0, Math.PI * 2); g.fill(); g.restore(); }
   const [sx, sy] = P(x, 0, z), s = pxPerM(z);
   const gr = g.createRadialGradient(sx, sy, 0, sx, sy, rx * s);
   gr.addColorStop(0, `rgba(110,60,30,${a})`); gr.addColorStop(1, 'rgba(110,60,30,0)');
