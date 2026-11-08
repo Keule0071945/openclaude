@@ -1,0 +1,12 @@
+{
+  "slug": "focus-toon",
+  "en": "Shallow-Focus Toon",
+  "cn": "浅景深卡通",
+  "based_on": "scifi-toon",
+  "borrows": ["tilt-shift", "caption-news"],
+  "size": "1080x1920",
+  "library_version": "143f387",
+  "created": "2026-11-08",
+  "line": "Flat deadpan round-head cartoon people in a soft, sunlit painted set with real-lens depth of field, narrated one big word at a time.",
+  "line_cn": "圆白脑袋的扁平冷面卡通人物，置身于带真实浅景深的柔和阳光彩绘场景中，旁白逐词大字幕。"
+}
